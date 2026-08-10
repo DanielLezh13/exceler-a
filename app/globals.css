@@ -37,14 +37,14 @@ button { cursor: pointer; }
 .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 20; width: var(--sidebar); background: #0b0e0f; border-right: 1px solid var(--line); padding: 24px 16px 18px; display: flex; flex-direction: column; }
 .brand { border: 0; background: transparent; display: flex; gap: 12px; align-items: center; padding: 0 8px 26px; text-align: left; }
 .brand-mark { height: 36px; width: 36px; display: grid; place-items: center; background: var(--lime); color: #10130d; font-weight: 900; letter-spacing: -2px; border-radius: 3px; }
-.exceler-brand { align-items: flex-start; padding-top: 2px; }
+.exceler-brand { width: 100%; justify-content: center; align-items: center; border-bottom: 1px solid #272d2a; margin-bottom: 17px; padding: 4px 0 24px; text-align: center; }
 .mobile-brand-mark { display: none; overflow: visible; background: transparent; }
 .mobile-brand-mark img { width: 29px; height: 29px; object-fit: contain; }
 .brand-copy { display: block; }
-.brand-name { display: flex; align-items: center; gap: 5px; min-height: 21px; }
-.brand-name img { width: 21px; height: 21px; object-fit: contain; filter: drop-shadow(0 0 0 rgba(191,245,90,0)); animation: brand-glimmer 1.15s .25s ease-out both; }
-.brand b { display: block; letter-spacing: .15em; font-size: 14px; }
-.brand small { display: block; color: var(--muted-2); margin-top: 3px; font-size: 9px; }
+.brand-name { display: flex; justify-content: center; align-items: center; gap: 6px; min-height: 25px; }
+.brand-name img { width: 25px; height: 25px; object-fit: contain; filter: drop-shadow(0 0 0 rgba(191,245,90,0)); animation: brand-glimmer 1.15s .25s ease-out both; }
+.brand b { display: block; letter-spacing: .17em; font-size: 16px; }
+.brand small { display: block; color: var(--muted-2); margin-top: 5px; font-size: 9px; text-align: center; }
 @keyframes brand-glimmer { 0% { opacity: 0; transform: translateX(-5px); filter: drop-shadow(0 0 0 rgba(191,245,90,0)); } 55% { opacity: 1; filter: drop-shadow(0 0 9px rgba(191,245,90,.5)); } 100% { opacity: 1; transform: translateX(0); filter: drop-shadow(0 0 2px rgba(191,245,90,.18)); } }
 .nav-section-label, .eyebrow { color: var(--muted-2); text-transform: uppercase; letter-spacing: .15em; font-weight: 750; font-size: 10px; margin: 0; }
 .primary-nav { display: grid; gap: 4px; }
