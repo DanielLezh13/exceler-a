@@ -408,7 +408,7 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
           return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""}`}>
             <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
               <span className="chapter-number">{String(index + 1).padStart(2, "0")}</span>
-              <span className="chapter-copy"><small>Chapter {String(index + 1).padStart(2, "0")}</small><b>{titleCase(item.title)}</b></span>
+              <span className="chapter-copy"><b>{titleCase(item.title)}</b></span>
               <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
             </button>
             <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>

@@ -781,10 +781,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .contents-section.open .contents-section-button { background: #181c1b; color: #f1f3f1; }
 .chapter-number { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid #3a423f; color: #8a9390; font: 10px var(--font-geist-mono); letter-spacing: -.02em; }
 .contents-section.completed .chapter-number { border-color: #52633d; background: #171e14; color: var(--lime); }
-.chapter-copy { min-width: 0; }
-.chapter-copy small, .chapter-copy b { display: block; }
-.chapter-copy small { color: #68716e; font-size: 8.5px; line-height: 1.35; letter-spacing: .015em; }
-.chapter-copy b { margin-top: 5px; font-size: 11.5px; line-height: 1.35; }
+.chapter-copy { min-width: 0; min-height: 36px; display: flex; align-items: center; }
+.chapter-copy b { display: block; font-size: 13px; line-height: 1.35; }
 .chapter-row-actions { display: flex; align-items: center; gap: 8px; color: #626a67; }
 .chapter-row-actions > svg { transition: transform .2s; }
 .contents-section.open .chapter-row-actions > svg { transform: rotate(180deg); color: var(--lime); }
@@ -1069,11 +1067,11 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
 .contents-section.completed:not(.open) .contents-section-button { border-color: #34452f; background: linear-gradient(90deg, #182117, #151a17); box-shadow: 0 8px 22px rgba(0, 0, 0, .12), 0 0 18px rgba(191, 245, 90, .025); }
 .contents-section.open .contents-section-button { border-color: #343b39; background: #1a1e1d; box-shadow: 0 8px 22px rgba(0, 0, 0, .15); }
 .contents-section.completed.open .contents-section-button { border-color: #34452f; background: linear-gradient(90deg, #182117, #151a17); box-shadow: 0 8px 22px rgba(0, 0, 0, .12), 0 0 18px rgba(191, 245, 90, .025); }
-.part-list button.active { border: 1px solid #344b68; background: #161d24; box-shadow: 0 7px 20px rgba(0, 0, 0, .14), 0 0 0 3px rgba(114, 167, 255, .025); }
+.part-list button.active { border: 1px solid #343b39; background: #1a1e1d; box-shadow: 0 8px 22px rgba(0, 0, 0, .15); }
 .part-list button.active::after { opacity: 0; }
 .contents-section.open .chapter-row-actions > svg { color: #8d9692; }
 .contents-section.completed.open .chapter-row-actions > svg { color: var(--lime); }
-.part-list button.active .part-index { color: var(--blue); }
+.part-list button.active .part-index { color: #aeb6b2; }
 .chapter-reader { background: #111413; }
 .lesson-lead code,
 .learning-part .teaching-code > div span,
