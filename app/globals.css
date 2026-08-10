@@ -770,6 +770,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .contents-heading { display: flex; align-items: center; justify-content: space-between; padding: 3px 10px 15px; }
 .contents-heading > span { color: #626a67; font-size: 8px; }
 .contents-section { border-top: 1px solid #222725; padding: 8px 0; }
+.contents-section.open { padding-bottom: 0; }
+.contents-section.open + .contents-section { padding-top: 0; }
 .contents-section-button { width: 100%; display: grid; grid-template-columns: 38px minmax(0,1fr) auto; gap: 12px; align-items: center; border: 0; border-radius: 12px; background: transparent; padding: 11px 10px; text-align: left; color: #a4aba8; }
 .contents-section.open .contents-section-button { background: #181c1b; color: #f1f3f1; }
 .chapter-number { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid #3a423f; color: #8a9390; font: 10px var(--font-geist-mono); letter-spacing: -.02em; }
@@ -791,7 +793,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .part-list .part-index { color: #59625e; font: 8px/1 var(--font-geist-mono); letter-spacing: .04em; }
 .part-list button.active .part-index { color: var(--lime); }
 .part-list button b { font-size: 10px; font-weight: 600; line-height: 1.35; }
-.part-list button small { min-width: 0; justify-self: end; border: 1px solid #303734; border-radius: 999px; background: #151a18; color: #737d78; padding: 3px 5px; font: 7px/1 var(--font-geist-mono); text-align: center; }
+.part-list button small { width: 24px; min-width: 0; justify-self: end; border: 0; background: transparent; color: #69726e; padding: 0; font-family: var(--font-geist-mono); font-size: 7px; font-weight: 500; line-height: 1; text-align: right; }
 .section-progress-card { border: 1px solid #303633; border-radius: 12px; padding: 13px; margin: 17px 5px 0; background: #141817; }
 .section-progress-card > div { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 8px; color: #737b78; }
 .section-progress-card b { color: var(--lime); }
