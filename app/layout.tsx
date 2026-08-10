@@ -18,16 +18,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
-  const title = "Daymark CS — Learn the Course. Build the Degree.";
-  const description = "A degree-aware computer science learning system connecting clear instruction, demonstrated practice, and the path to graduation.";
+  const title = "Exceler A — Self-Directed Academic Learning";
+  const description = "A student-owned workspace combining academic guidance, structured teaching, and self-directed education.";
 
   return {
     metadataBase,
     title,
     description,
     icons: {
-      icon: "/favicon.svg",
-      shortcut: "/favicon.svg",
+      icon: "/exceler-a-icon-concept.png",
+      shortcut: "/exceler-a-icon-concept.png",
     },
     openGraph: {
       title,

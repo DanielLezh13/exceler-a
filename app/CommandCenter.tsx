@@ -284,7 +284,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
 function TopBar({ title }: { title: string }) {
   return (
     <header className="topbar">
-      <div><p className="eyebrow">Daymark CS</p><h1>{titleCase(title)}</h1></div>
+      <div><p className="eyebrow">Exceler A</p><h1>{titleCase(title)}</h1></div>
       <div className="top-actions"><span className="focus-pill"><Sparkles size={13} /> Education focus</span><button className="avatar" aria-label="Open profile">D</button></div>
     </header>
   );
@@ -293,7 +293,7 @@ function TopBar({ title }: { title: string }) {
 function Sidebar({ view, setView, completed, practice }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
-    <button className="brand" onClick={() => setView("home")}><span className="brand-mark">D/</span><span><b>DAYMARK CS</b><small>Degree-Aware Learning</small></span></button>
+    <button className="brand" onClick={() => setView("home")}><span className="brand-mark exceler-app-mark"><img src="/exceler-a-icon-concept.png" alt="" /></span><span><span className="brand-name"><b>EXCELER</b><img src="/exceler-a-icon-concept.png" alt="A" /></span><small>Self-Directed Learning</small></span></button>
     <nav className="primary-nav" aria-label="Education navigation">
       <p className="nav-section-label">Workspace</p>
       <button className={view === "home" ? "active" : ""} onClick={() => setView("home")}><House className="nav-mark" size={17} />Home</button>
@@ -316,9 +316,9 @@ function HomeView({ completed, practice, setView }: { completed: string[]; pract
     <section className="home-stage">
       <div className="home-signal" aria-hidden="true"><span>JAVA</span><span>∑</span><span>01</span><span>{"{}"}</span></div>
       <div className="home-intro">
-        <p className="eyebrow">Daymark CS · Degree-Aware Learning</p>
-        <h1><span>Learn the Course.</span><span>Build the Degree.</span></h1>
-        <p className="home-declaration">A computer science learning system that connects clear instruction, demonstrated practice, and the real requirements standing between a student and graduation.</p>
+        <p className="eyebrow">Self-Directed Academic Learning</p>
+        <h1 className="exceler-wordmark"><span>EXCELER</span><img src="/exceler-a-icon-concept.png" alt="A" /></h1>
+        <p className="home-declaration">A student-owned workspace that combines academic guidance, structured teaching, and the freedom to direct your own education.</p>
         <div className="home-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Continue CISC 1115</button><button className="soft-button" onClick={() => setView("degree")}>Open Degree Map <ArrowRight size={14} /></button></div>
       </div>
       <div className="home-console" aria-label="Current learning status">
