@@ -781,11 +781,11 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .contents-section.open .chapter-row-actions > svg { transform: rotate(180deg); color: var(--lime); }
 .chapter-done-badge { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 50%; background: var(--lime); color: #17200f; box-shadow: 0 0 0 3px rgba(191,255,74,.08); }
 .part-list { margin: 7px 0 7px 12px; display: grid; }
-.part-list button { position: relative; width: 100%; min-height: 43px; display: grid; grid-template-columns: 29px minmax(0,1fr) auto; gap: 9px; align-items: center; border: 0; border-radius: 0; background: transparent; color: #848d89; text-align: left; padding: 8px 10px; transition: background .16s ease, color .16s ease; }
+.part-list button { position: relative; width: 100%; min-height: 43px; display: grid; grid-template-columns: 29px minmax(0,1fr) auto; gap: 9px; align-items: center; border: 0; border-radius: 8px; background: transparent; color: #848d89; text-align: left; padding: 8px 10px; transition: background .16s ease, color .16s ease; }
 .part-list button::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 1px; background: #222826; }
 .part-list button:last-child::after { display: none; }
 .part-list button:hover { background: #151a18; color: #c4cac7; }
-.part-list button.active { border-radius: 8px; background: #1a1f1d; color: #eef2ef; }
+.part-list button.active { background: #1a1f1d; color: #eef2ef; }
 .part-list .part-index { color: #59625e; font: 8px/1 var(--font-geist-mono); letter-spacing: .04em; }
 .part-list button.active .part-index { color: var(--lime); }
 .part-list button b { font-size: 10px; font-weight: 600; line-height: 1.35; }
