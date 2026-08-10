@@ -281,19 +281,10 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
   return <span className={`mission-status ${done ? "done" : active ? "active" : ""}`}>{done ? <Check size={17} strokeWidth={3} /> : active ? <Play size={13} fill="currentColor" /> : <span />}</span>;
 }
 
-function TopBar({ title }: { title: string }) {
-  return (
-    <header className="topbar">
-      <div><p className="eyebrow">Exceler A</p><h1>{titleCase(title)}</h1></div>
-      <div className="top-actions"><span className="focus-pill"><Sparkles size={13} /> Education focus</span><button className="avatar" aria-label="Open profile">D</button></div>
-    </header>
-  );
-}
-
 function Sidebar({ view, setView, completed, practice }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
-    <button className="brand" onClick={() => setView("home")}><span className="brand-mark exceler-app-mark"><img src="/exceler-a-icon-concept.png" alt="" /></span><span><span className="brand-name"><b>EXCELER</b><img src="/exceler-a-icon-concept.png" alt="A" /></span><small>Self-Directed Learning</small></span></button>
+    <button className="brand exceler-brand" onClick={() => setView("home")} aria-label="Exceler A home"><span className="brand-mark mobile-brand-mark"><img src="/exceler-a-mark-512.png" alt="" /></span><span className="brand-copy"><span className="brand-name"><b>EXCELER</b><img src="/exceler-a-mark-512.png" alt="A" /></span><small>Self-Directed Learning</small></span></button>
     <nav className="primary-nav" aria-label="Education navigation">
       <p className="nav-section-label">Workspace</p>
       <button className={view === "home" ? "active" : ""} onClick={() => setView("home")}><House className="nav-mark" size={17} />Home</button>
@@ -310,23 +301,37 @@ function MobileNav({ view, setView }: { view: View; setView: (view: View) => voi
   return <nav className="mobile-nav" aria-label="Mobile navigation"><button className={view === "home" ? "active" : ""} onClick={() => setView("home")}><House size={18} />Home</button><button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><BookOpen size={18} />Overview</button><button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap size={18} />Courses</button><button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch size={18} />Degree</button><button className={view === "course" ? "active" : ""} onClick={() => setView("course")}><Code2 size={18} />Java</button></nav>;
 }
 
-function HomeView({ completed, practice, setView }: { completed: string[]; practice: PracticeRecords; setView: (view: View) => void }) {
+function HomeView({ completed, practice, snapshot, setView }: { completed: string[]; practice: PracticeRecords; snapshot: AuditSnapshot; setView: (view: View) => void }) {
   const progress = learningProgress(completed, practice);
+  const nextChapter = authoredChapters.find((chapter) => chapterProgress(chapter.id, completed, practice).percent < 100) ?? authoredChapters[0];
+  const nextState = chapterProgress(nextChapter.id, completed, practice);
   return <main className="home-page">
     <section className="home-stage">
-      <div className="home-signal" aria-hidden="true"><span>JAVA</span><span>∑</span><span>01</span><span>{"{}"}</span></div>
-      <div className="home-intro">
-        <p className="eyebrow">Self-Directed Academic Learning</p>
-        <h1 className="exceler-wordmark"><span>EXCELER</span><img src="/exceler-a-icon-concept.png" alt="A" /></h1>
-        <p className="home-declaration">A student-owned workspace that combines academic guidance, structured teaching, and the freedom to direct your own education.</p>
-        <div className="home-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Continue CISC 1115</button><button className="soft-button" onClick={() => setView("degree")}>Open Degree Map <ArrowRight size={14} /></button></div>
+      <div className="home-primary">
+        <div className="home-intro">
+          <p className="eyebrow">Self-Directed Academic Learning</p>
+          <h1>Your Education,<br /><span>Under Your Direction.</span></h1>
+          <p className="home-declaration">Structured teaching, academic guidance, and a clear degree path—without giving up control of how you learn.</p>
+        </div>
+        <button className="pinned-course-card" onClick={() => setView("course")}>
+          <span className="pinned-course-glyph">J</span>
+          <span className="pinned-course-copy"><small>Pinned Course · CISC 1115</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>Next: {titleCase(nextChapter.title)}</em></span>
+          <span className="pinned-course-progress"><strong>{progress.percent}%</strong><ProgressBar value={progress.percent} /><small>{progress.completedChapters} / {learningChapters.length} chapters cleared</small></span>
+          <ArrowRight size={18} />
+        </button>
       </div>
-      <div className="home-console" aria-label="Current learning status">
-        <div className="console-bar"><span /><span /><span /><small>learning_state.java</small></div>
-        <div className="console-body"><code><i>String</i> learner = <b>&quot;Daniel&quot;</b>;</code><code><i>String</i> focus = <b>&quot;Computer Science + Math&quot;</b>;</code><code><i>int</i> chaptersCleared = <strong>{progress.completedChapters}</strong>;</code><code><i>boolean</i> keepBuilding = <em>true</em>;</code></div>
-        <div className="console-progress"><span><small>CISC 1115</small><b>{progress.percent}%</b></span><ProgressBar value={progress.percent} /><p>{progress.completedChapters} of {learningChapters.length} chapters cleared</p></div>
+      <aside className="home-guidance-stack" aria-label="Learning guidance">
+        <button className="home-guidance-card next-move" onClick={() => setView("course")}><span className="home-card-icon"><Play size={15} fill="currentColor" /></span><span><small>Recommended Next Move</small><b>{titleCase(nextChapter.title)}</b><em>{nextState.readingDone ? `${nextState.passed} of ${nextState.questions} practice questions passed` : "Continue the lesson, then demonstrate it in practice"}</em></span><ArrowRight size={16} /></button>
+        <button className="home-guidance-card degree-status" onClick={() => setView("degree")}><span className="home-card-icon"><GraduationCap size={17} /></span><span><small>Degree Position</small><b>{snapshot.degreeProgress}% Degree Progress</b><em>{snapshot.remainingCredits} credits remaining · {snapshot.majorRemaining} in the major</em></span><ArrowRight size={16} /></button>
+        <div className="home-guidance-card learning-proof"><span className="home-card-icon"><Check size={17} strokeWidth={3} /></span><span><small>Demonstrated Learning</small><b>{progress.completedChapters} Chapters Cleared</b><em>Reading creates familiarity. Completed practice creates progress.</em></span></div>
+      </aside>
+      <div className="home-console-dock">
+        <div className="home-console" aria-label="Current learning status">
+          <div className="console-bar"><span /><span /><span /><small>learning_state.java</small></div>
+          <div className="console-body"><code><i>String</i> learner = <b>&quot;Daniel&quot;</b>;</code><code><i>String</i> focus = <b>&quot;Computer Science + Math&quot;</b>;</code><code><i>int</i> chaptersCleared = <strong>{progress.completedChapters}</strong>;</code><code><i>boolean</i> keepBuilding = <em>true</em>;</code></div>
+          <div className="console-progress"><span><small>CISC 1115</small><b>{progress.percent}%</b></span><ProgressBar value={progress.percent} /><p>{progress.completedChapters} of {learningChapters.length} chapters cleared</p></div>
+        </div>
       </div>
-      <div className="home-footer-line"><span>Learn the concept</span><i /><span>Demonstrate the work</span><i /><span>Build the degree</span></div>
     </section>
   </main>;
 }
@@ -689,6 +694,5 @@ export default function CommandCenter() {
   }, [completed, practice, degreeRecords, auditSnapshot, hydrated]);
 
   const complete = (id: string) => setCompleted((current) => current.includes(id) ? current : [...current, id]);
-  const title = view === "home" ? "Home" : view === "dashboard" ? "Overview" : view === "courses" ? "Courses" : view === "degree" ? "Degree map" : "CISC 1115";
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} /><div className="app-main"><TopBar title={title} />{view === "home" && <HomeView completed={completed} practice={practice} setView={setView} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} /><DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /></div>;
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} /><DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /></div>;
 }
