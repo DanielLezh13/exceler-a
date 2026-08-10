@@ -203,7 +203,7 @@ export const chapters: Chapter[] = [
   {
     id: "foundations",
     unit: "Unit 01 · Fundamentals",
-    title: "Variables & data types",
+    title: "Variables & Data Types",
     description: "Represent information precisely and keep it available while a program runs.",
     contentIds: ["variables", "data-types", "variable-debug", "foundations-boss"],
   },

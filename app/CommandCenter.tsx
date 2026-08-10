@@ -65,7 +65,7 @@ const learningChapters: LearningChapter[] = [
   {
     id: "variables-data-types",
     unit: "Section 01 · Fundamentals",
-    title: "Variables & data types",
+    title: "Variables & Data Types",
     description: "Store information with names and choose types that match what the value means.",
     sections: [
       { id: "variables-overview", title: "What is a variable?" },
