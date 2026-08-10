@@ -784,7 +784,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .part-list button { width: 100%; min-height: 43px; display: grid; grid-template-columns: 29px minmax(0,1fr) auto; gap: 9px; align-items: center; border: 0; border-bottom: 1px solid #222826; border-radius: 0; background: transparent; color: #848d89; text-align: left; padding: 8px 10px; transition: background .16s ease, color .16s ease; }
 .part-list button:last-child { border-bottom-color: transparent; }
 .part-list button:hover { background: #151a18; color: #c4cac7; }
-.part-list button.active { border-bottom-color: transparent; border-radius: 9px; background: #1b2319; color: #eef2ef; box-shadow: inset 3px 0 var(--lime); }
+.part-list button.active { border-bottom-color: transparent; border-radius: 8px; background: #1a1f1d; color: #eef2ef; }
 .part-list .part-index { color: #59625e; font: 8px/1 var(--font-geist-mono); letter-spacing: .04em; }
 .part-list button.active .part-index { color: var(--lime); }
 .part-list button b { font-size: 10px; font-weight: 600; line-height: 1.35; }
