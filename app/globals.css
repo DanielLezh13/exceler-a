@@ -1065,8 +1065,8 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
 .course-unit-label { color: #788da8; }
 .contents-section-button { border: 1px solid transparent; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease; }
 .contents-section.completed:not(.open) .contents-section-button { border-color: #34452f; background: linear-gradient(90deg, #182117, #151a17); box-shadow: 0 8px 22px rgba(0, 0, 0, .12), 0 0 18px rgba(191, 245, 90, .025); }
-.contents-section.open .contents-section-button { border-color: #343b39; background: #1a1e1d; box-shadow: 0 8px 22px rgba(0, 0, 0, .15); }
-.contents-section.completed.open .contents-section-button { border-color: #34452f; background: linear-gradient(90deg, #182117, #151a17); box-shadow: 0 8px 22px rgba(0, 0, 0, .12), 0 0 18px rgba(191, 245, 90, .025); }
+.contents-section.selected .contents-section-button { border-color: #343b39; background: #1a1e1d; box-shadow: 0 8px 22px rgba(0, 0, 0, .15); }
+.contents-section.completed.selected .contents-section-button { border-color: #34452f; background: linear-gradient(90deg, #182117, #151a17); box-shadow: 0 8px 22px rgba(0, 0, 0, .12), 0 0 18px rgba(191, 245, 90, .025); }
 .part-list button.active { border: 1px solid #343b39; background: #1a1e1d; box-shadow: 0 8px 22px rgba(0, 0, 0, .15); }
 .part-list button.active::after { opacity: 0; }
 .contents-section.open .chapter-row-actions > svg { color: #8d9692; }

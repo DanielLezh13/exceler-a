@@ -329,6 +329,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
 
 function CourseView({ completed, practice, onComplete, onPracticeChange }: { completed: string[]; practice: PracticeRecords; onComplete: (id: string) => void; onPracticeChange: (chapterId: string, record: PracticeRecord) => void }) {
   const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
+  const [expandedChapterId, setExpandedChapterId] = useState<string | null>(learningChapters[0].id);
   const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0]?.id ?? "");
   const readerRef = useRef<HTMLDivElement | null>(null);
   const scrollLockRef = useRef<string | null>(null);
@@ -355,10 +356,14 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
   }, [selectedChapter]);
 
   const selectChapter = (next: LearningChapter) => {
-    if (next.id === selectedChapterId) return;
+    if (next.id === selectedChapterId) {
+      setExpandedChapterId((current) => current === next.id ? null : next.id);
+      return;
+    }
     scrollLockRef.current = null;
     if (readerRef.current) readerRef.current.scrollTop = 0;
     setActiveSectionId(next.sections[0]?.id ?? "");
+    setExpandedChapterId(next.id);
     setSelectedChapterId(next.id);
     window.requestAnimationFrame(() => { if (readerRef.current) readerRef.current.scrollTop = 0; });
   };
@@ -380,10 +385,11 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
         <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>
         {learningChapters.map((item, index) => {
           const state = chapterProgress(item.id, completed, practice);
-          const open = item.id === selectedChapter.id;
+          const selected = item.id === selectedChapter.id;
+          const open = item.id === expandedChapterId;
           const done = state.percent === 100;
           const startsUnit = index === 0 || learningChapters[index - 1].unit !== item.unit;
-          return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""}`}>
+          return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${selected ? "selected" : ""} ${open ? "open" : ""} ${done ? "completed" : ""}`}>
             <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
               <span className="chapter-number">{String(index + 1).padStart(2, "0")}</span>
               <span className="chapter-copy"><b>{titleCase(item.title)}</b></span>
