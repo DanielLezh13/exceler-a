@@ -417,7 +417,8 @@ function CodeExample({ label, code }: { label: string; code: string }) {
 }
 
 function ReadingCheckpoint({ done, onRead }: { done: boolean; onRead: () => void }) {
-  return <div className={`reading-checkpoint ${done ? "done" : ""}`}>{done ? <><span><Check size={20} strokeWidth={3} /></span><div><b>Lesson read</b><small>This records reading. The practice session still demonstrates mastery.</small></div></> : <><div><b>Reached the end of the lesson?</b><small>Record the reading checkpoint, then prove it in practice.</small></div><button className="complete-part-button" onClick={onRead}><BookOpen size={15} /> Mark lesson read</button></>}</div>;
+  if (done) return <div className="reading-checkpoint done"><span><Check size={20} strokeWidth={3} /></span><b>Lesson Read</b></div>;
+  return <button type="button" className="reading-checkpoint mark-read" onClick={onRead}><span><Check size={20} strokeWidth={3} /></span><b>Mark Lesson as Read</b></button>;
 }
 
 function DataTypeLesson({ type, category, meaning, description, declaration, explanation, values, rule }: { type: string; category: string; meaning: string; description: string; declaration: string; explanation: string; values: string[]; rule: React.ReactNode }) {
