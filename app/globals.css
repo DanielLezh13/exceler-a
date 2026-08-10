@@ -588,6 +588,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .audit-summary-strip .needs-attention { color: #ffb76b; }
 .degree-family-tree { position: relative; border: 1px solid #303634; border-radius: 22px; background: radial-gradient(circle at 50% 0,rgba(199,243,107,.045),transparent 30%),#0f1312; padding: 26px; }
 .degree-family-level { position: relative; padding: 18px 0 27px; }
+.degree-family-level + .degree-family-level { padding-top: 32px; }
 .degree-family-level > header { width: 310px; display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; margin: 0 auto 22px; text-align: left; }
 .degree-family-level > header > span { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #4b5845; border-radius: 50%; background: #1b2319; color: var(--lime); font: 9px var(--font-geist-mono); }
 .degree-family-level > header b, .degree-family-level > header small { display: block; }
