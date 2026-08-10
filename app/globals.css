@@ -797,7 +797,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .part-list button.active { background: #1a1f1d; color: #eef2ef; }
 .part-list .part-index { color: #59625e; font: 8px/1 var(--font-geist-mono); letter-spacing: .04em; }
 .part-list button.active .part-index { color: var(--lime); }
-.part-list button b { font-size: 10px; font-weight: 600; line-height: 1.35; }
+.part-list button b { font-size: 11.25px; font-weight: 600; line-height: 1.4; }
 .part-list button small { width: 28px; min-width: 0; justify-self: end; border: 0; background: transparent; color: #77817d; margin-right: 6px; padding: 0; font-family: var(--font-geist-mono); font-size: 10px; font-weight: 500; line-height: 1; text-align: right; }
 .section-progress-card { border: 1px solid #303633; border-radius: 12px; padding: 13px; margin: 17px 5px 0; background: #141817; }
 .section-progress-card > div { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 8px; color: #737b78; }
