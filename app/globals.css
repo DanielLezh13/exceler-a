@@ -811,12 +811,12 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .learning-part .teaching-code > div small { color: #626a67; font-size: 8px; }
 .learning-part .teaching-code pre { font-size: 13px; line-height: 1.85; overflow: auto; }
 .learning-part .teaching-code code i { color: #59615e; font-style: normal; }
-.key-idea { display: flex; gap: 12px; align-items: flex-start; border: 1px solid #364331; border-radius: 14px; background: #171d15; padding: 15px 17px; margin: 22px 0; }
-.key-idea > svg { color: var(--lime); flex: 0 0 auto; }
+.key-idea { display: flex; gap: 14px; align-items: flex-start; border: 1px solid #364331; border-radius: 14px; background: #171d15; padding: 18px 20px; margin: 22px 0; }
+.key-idea > svg { color: var(--lime); flex: 0 0 auto; margin-top: 2px; width: 19px; height: 19px; }
 .key-idea p { margin: 0; }
 .key-idea b, .key-idea span { display: block; }
-.key-idea b { font-size: 10px; }
-.key-idea span { color: #7d8878; font-size: 9px; line-height: 1.55; margin-top: 4px; }
+.key-idea b { font-size: 14px; line-height: 1.35; }
+.key-idea span { color: #8f9b89; font-size: 12px; line-height: 1.65; margin-top: 7px; }
 .key-idea code { color: var(--lime); }
 .declaration-grid, .operator-grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid #303634; border-radius: 14px; overflow: hidden; margin: 20px 0; }
 .declaration-grid > div, .operator-grid > div { min-height: 100px; padding: 16px; border-right: 1px solid #292f2d; background: #121615; }
