@@ -17,7 +17,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { degreeCourses, type DegreeCourse } from "./data/curriculum";
 
@@ -35,6 +35,7 @@ type LearningChapter = {
   unit: string;
   title: string;
   description: string;
+  status: "authored" | "planned";
   sections: LearningSection[];
 };
 
@@ -64,9 +65,10 @@ type PracticeQuestion = {
 const learningChapters: LearningChapter[] = [
   {
     id: "variables-data-types",
-    unit: "Section 01 · Fundamentals",
+    unit: "Unit I · Java Fundamentals",
     title: "Variables & Data Types",
     description: "Store information with names and choose types that match what the value means.",
+    status: "authored",
     sections: [
       { id: "variables-overview", title: "What Is a Variable?" },
       { id: "variables-declaration", title: "Declaration Anatomy" },
@@ -82,45 +84,48 @@ const learningChapters: LearningChapter[] = [
   },
   {
     id: "operators-expressions",
-    unit: "Section 02 · Fundamentals",
+    unit: "Unit I · Java Fundamentals",
     title: "Operators & Expressions",
-    description: "Transform values, control evaluation order, and build meaningful output.",
+    description: "Calculate with values, control evaluation order, update state, and understand when + means text instead of arithmetic.",
+    status: "authored",
     sections: [
       { id: "operators-arithmetic", title: "Arithmetic Operators" },
+      { id: "operators-division", title: "Integer vs Decimal Division" },
+      { id: "operators-modulus", title: "Modulus" },
       { id: "operators-precedence", title: "Precedence & Parentheses" },
-      { id: "operators-assignment", title: "Assignment Shortcuts" },
-      { id: "operators-concatenation", title: "Text and +" },
+      { id: "operators-increment", title: "Increment & Decrement" },
+      { id: "operators-assignment", title: "Compound Assignment" },
+      { id: "operators-concatenation", title: "String + Number Behavior" },
+      { id: "operators-evaluation", title: "Evaluating Expressions" },
       { id: "operators-takeaways", title: "Key Takeaways" },
       { id: "operators-practice", title: "Practice Session" },
     ],
   },
-  {
-    id: "decisions",
-    unit: "Section 03 · Control flow",
-    title: "Decisions",
-    description: "Turn comparisons into branches that make a program respond to state.",
-    sections: [
-      { id: "decisions-comparisons", title: "Comparisons" },
-      { id: "decisions-logic", title: "Boolean Logic" },
-      { id: "decisions-if-else", title: "If / Else" },
-      { id: "decisions-takeaways", title: "Key Takeaways" },
-      { id: "decisions-practice", title: "Practice Session" },
-    ],
-  },
-  {
-    id: "loops",
-    unit: "Section 04 · Control flow",
-    title: "Loops",
-    description: "Repeat operations deliberately while keeping state and stopping conditions clear.",
-    sections: [
-      { id: "loops-while", title: "While Loops" },
-      { id: "loops-for", title: "For Loops" },
-      { id: "loops-tracing", title: "Tracing State" },
-      { id: "loops-takeaways", title: "Key Takeaways" },
-      { id: "loops-practice", title: "Practice Session" },
-    ],
-  },
+  { id: "input-basic-programs", unit: "Unit I · Java Fundamentals", title: "Input & Basic Programs", description: "Read console input with Scanner and turn input into calculated output.", status: "planned", sections: [] },
+  { id: "comparisons-booleans", unit: "Unit II · Decision Making", title: "Comparisons & Booleans", description: "Build true-or-false expressions with comparison and logical operators.", status: "planned", sections: [] },
+  { id: "if-else", unit: "Unit II · Decision Making", title: "If / Else", description: "Choose between branches with if, else, else-if chains, and nested decisions.", status: "planned", sections: [] },
+  { id: "decision-programs", unit: "Unit II · Decision Making", title: "Decision-Making Programs", description: "Combine input, variables, operators, and conditions in substantial programs.", status: "planned", sections: [] },
+  { id: "while-loops", unit: "Unit III · Repetition", title: "While Loops", description: "Repeat with counters, sentinels, and deliberate stopping conditions.", status: "planned", sections: [] },
+  { id: "for-loops", unit: "Unit III · Repetition", title: "For Loops", description: "Count across ranges and build totals with compact loop structure.", status: "planned", sections: [] },
+  { id: "nested-loops", unit: "Unit III · Repetition", title: "Nested Loops & Loop Problems", description: "Use loops inside loops for patterns and larger repetitive algorithms.", status: "planned", sections: [] },
+  { id: "methods", unit: "Unit IV · Methods", title: "Methods", description: "Define and call reusable operations with parameters, arguments, and void methods.", status: "planned", sections: [] },
+  { id: "returns-scope", unit: "Unit IV · Methods", title: "Return Values & Scope", description: "Move data through methods and understand local variables and scope.", status: "planned", sections: [] },
+  { id: "arrays", unit: "Unit V · Data Collections", title: "Arrays", description: "Create indexed collections and safely read or replace their elements.", status: "planned", sections: [] },
+  { id: "arrays-loops", unit: "Unit V · Data Collections", title: "Arrays + Loops", description: "Traverse arrays to calculate sums, averages, minimums, maximums, and counts.", status: "planned", sections: [] },
+  { id: "strings", unit: "Unit V · Data Collections", title: "Strings", description: "Compare, inspect, and process text one operation or character at a time.", status: "planned", sections: [] },
+  { id: "arraylists", unit: "Unit V · Data Collections", title: "ArrayLists", description: "Create flexible lists and add, get, set, remove, and traverse values.", status: "planned", sections: [] },
+  { id: "searching", unit: "Unit VI · Basic Algorithms", title: "Searching", description: "Use linear search to find values and positions in collections.", status: "planned", sections: [] },
+  { id: "sorting", unit: "Unit VI · Basic Algorithms", title: "Sorting", description: "Trace and implement simple sorting processes instead of treating them as magic.", status: "planned", sections: [] },
+  { id: "algorithmic-problem-solving", unit: "Unit VI · Basic Algorithms", title: "Algorithmic Problem Solving", description: "Combine loops, methods, arrays, and strings to trace and debug algorithms.", status: "planned", sections: [] },
+  { id: "input-output", unit: "Unit VII · Input/Output & Program Development", title: "Input & Output", description: "Review console I/O and process basic external data.", status: "planned", sections: [] },
+  { id: "debugging-testing", unit: "Unit VII · Input/Output & Program Development", title: "Debugging & Testing", description: "Separate syntax, runtime, and logic errors and design useful test cases.", status: "planned", sections: [] },
+  { id: "computers-programs-algorithms", unit: "Unit VIII · Computer Science Context", title: "Computers, Programs & Algorithms", description: "Understand algorithms, program execution, and essential computing concepts.", status: "planned", sections: [] },
+  { id: "cs-context-applications", unit: "Unit VIII · Computer Science Context", title: "CS Context & Applications", description: "Connect computing to real disciplines, applications, and historical context.", status: "planned", sections: [] },
+  { id: "cumulative-challenges", unit: "Final · Course Synthesis", title: "Cumulative Programming Challenges", description: "Solve larger programs that combine the full CISC 1115 toolset.", status: "planned", sections: [] },
+  { id: "final-assessment", unit: "Final · Course Synthesis", title: "CISC 1115 Final Assessment", description: "Demonstrate course-level understanding through cumulative explanation and programming work.", status: "planned", sections: [] },
 ];
+
+const authoredChapters = learningChapters.filter((chapter) => chapter.status === "authored");
 
 const STORAGE_KEY = "daymark-education-v4";
 
@@ -129,7 +134,7 @@ const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘�
 const titleCase = (value: string) => {
   const minorWords = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "over", "per", "the", "to", "via", "vs"]);
   const preserved = new Map([
-    ["b.s", "B.S."], ["b.s.", "B.S."], ["c++", "C++"], ["cisc", "CISC"], ["cs", "CS"], ["degreeworks", "DegreeWorks"],
+    ["arraylists", "ArrayLists"], ["b.s", "B.S."], ["b.s.", "B.S."], ["c++", "C++"], ["cisc", "CISC"], ["cs", "CS"], ["degreeworks", "DegreeWorks"],
     ["gpa", "GPA"], ["java", "Java"], ["pdf", "PDF"], ["string", "String"],
   ]);
   const words = value.split(/\s+/);
@@ -158,10 +163,14 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
     { id: "variables-challenge", level: "Challenge", kind: "Editor challenge", title: "Create a player profile", prompt: "Create name Daniel, age 25, height 6.2, hungry true, and grade A. Reassign age to 26. Print exactly: Daniel | 26 | 6.2 | true | A", placeholder: "Write Java statements that satisfy every constraint", hint: "Declare five variables, update age without writing int again, then concatenate the values with \" | \".", success: "Chapter challenge cleared. You declared, updated, and combined five correctly typed values.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /Stringname="Daniel";/.test(code) && /intage=25;/.test(code) && /doubleheight=6\.2;/.test(code) && /booleanhungry=true;/.test(code) && /chargrade='A';/.test(code) && /age=26;/.test(code) && /System\.out\.println\(name\+"\|"/.test(code.replace(/" \| "/g, '"|"')) && ["age", "height", "hungry", "grade"].every((name) => code.includes(`+${name}`)); } },
   ],
   "operators-expressions": [
-    { id: "operators-predict", level: "Warm-up", kind: "Predict output", title: "Use precedence", prompt: "What prints?", code: "int score = 4 + 3 * 2;\nSystem.out.println(score);", placeholder: "Exact output", hint: "Multiplication happens before addition.", success: "Correct: 3 × 2 happens first, then 4 is added.", validate: (answer) => normalizeLines(answer) === "10" },
-    { id: "operators-parentheses", level: "Apply", kind: "Predict output", title: "Change the order", prompt: "What prints now?", code: "int score = (4 + 3) * 2;\nSystem.out.println(score);", placeholder: "Exact output", hint: "Parentheses are evaluated first.", success: "Correct. Parentheses change the result to 14.", validate: (answer) => normalizeLines(answer) === "14" },
-    { id: "operators-fill", level: "Apply", kind: "Fill missing code", title: "Update in place", prompt: "Fill the blank so score increases by 5.", code: "score ___ 5;", placeholder: "Missing operator", hint: "Use the addition assignment shortcut.", success: "Correct. += reads as add, then assign.", validate: (answer) => answer.trim() === "+=" },
-    { id: "operators-challenge", level: "Challenge", kind: "Exact output", title: "Numbers become text", prompt: "What exact line prints?", code: 'int x = 2;\nint y = 3;\nSystem.out.println("Total: " + x + y);', placeholder: "Exact output", hint: "Once Java starts joining a String, it continues left to right.", success: "Correct. This prints Total: 23, not Total: 5.", validate: (answer) => normalizeLines(answer) === "Total: 23" },
+    { id: "operators-arithmetic-predict", level: "Warm-up", kind: "Predict output", title: "Use precedence", prompt: "What is the exact output?", code: "int score = 4 + 3 * 2;\nSystem.out.println(score);", placeholder: "Type the output", hint: "Multiplication happens before addition.", success: "Correct: 3 × 2 happens first, then 4 is added.", validate: (answer) => normalizeLines(answer) === "10" },
+    { id: "operators-division-predict", level: "Warm-up", kind: "Predict two outputs", title: "Compare both kinds of division", prompt: "Write the two output lines in order.", code: "System.out.println(10 / 3);\nSystem.out.println(10.0 / 4);", placeholder: "First line\nSecond line", hint: "Two int operands discard the decimal. A double operand keeps it.", success: "Exactly. Integer division produces 3; decimal division produces 2.5.", multiline: true, validate: (answer) => normalizeLines(answer) === "3\n2.5" },
+    { id: "operators-modulus-fill", level: "Apply", kind: "Fill missing code", title: "Keep the leftovers", prompt: "Replace the blank so leftovers stores the remainder after dividing 17 cookies among 5 people.", code: "int leftovers = 17 ___ 5;", placeholder: "Type only the missing operator", hint: "The remainder operator is a percent sign.", success: "Correct. 17 % 5 produces the remainder 2.", validate: (answer) => answer.trim() === "%" },
+    { id: "operators-long-expression", level: "Apply", kind: "Trace an expression", title: "Evaluate in the right order", prompt: "What exact value prints?", code: "int result = 18 - 4 * 2 + 12 / 3;\nSystem.out.println(result);", placeholder: "Type the output", hint: "First calculate 4 * 2 and 12 / 3. Then move left to right.", success: "Correct. The expression becomes 18 - 8 + 4, then 10 + 4, which is 14.", validate: (answer) => normalizeLines(answer) === "14" },
+    { id: "operators-compound-trace", level: "Apply", kind: "Trace stored state", title: "Follow every update", prompt: "What is the final output?", code: "int energy = 10;\nenergy += 5;\nenergy *= 2;\nenergy -= 4;\nSystem.out.println(energy);", placeholder: "Type the output", hint: "Track energy after every line: add, multiply, then subtract.", success: "Correct. Energy changes from 10 to 15 to 30 to 26.", validate: (answer) => normalizeLines(answer) === "26" },
+    { id: "operators-compound-debug", level: "Apply", kind: "Fix the bug", title: "Repair the reversed operator", prompt: "Rewrite the second line so it increases score by 5 instead of replacing score with positive 5.", code: "int score = 20;\nscore =+ 5;", placeholder: "Rewrite only the corrected second line", hint: "For compound assignment, the arithmetic operator comes before the equals sign.", success: "Fixed. score += 5 adds to the stored score; score =+ 5 replaces it.", validate: (answer) => compactCode(answer) === "score+=5;" },
+    { id: "operators-increment-trace", level: "Challenge", kind: "Trace mixed updates", title: "Combine increment and arithmetic", prompt: "What exact value prints?", code: "int count = 4;\ncount++;\ncount *= 2;\ncount--;\nSystem.out.println(count);", placeholder: "Type the output", hint: "After count++ the value is 5. Continue one statement at a time.", success: "Correct. The value moves 4 → 5 → 10 → 9.", validate: (answer) => normalizeLines(answer) === "9" },
+    { id: "operators-resource-challenge", level: "Challenge", kind: "Editor challenge", title: "Build a resource calculator", prompt: "Declare missions as 4, reward as 15, multiplier as 2, and fee as 7. Calculate balance with missions * reward * multiplier - fee. Print exactly: Balance: 113 credits", placeholder: "Write the declarations, calculation, and println statement", hint: "Store the longer expression in an int named balance, then concatenate balance between the two text pieces.", success: "Operators challenge cleared. You combined declarations, precedence, a longer expression, and exact String output.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /intmissions=4;/.test(code) && /intreward=15;/.test(code) && /intmultiplier=2;/.test(code) && /intfee=7;/.test(code) && /intbalance=missions\*reward\*multiplier-fee;/.test(code) && /System\.out\.println\("Balance:"\+balance\+"credits"\);/.test(code); } },
   ],
   decisions: [
     { id: "decisions-compare", level: "Warm-up", kind: "Predict output", title: "Evaluate a comparison", prompt: "What prints?", code: "int age = 20;\nSystem.out.println(age >= 18);", placeholder: "Exact output", hint: "The comparison itself becomes a boolean value.", success: "Correct. 20 is at least 18, so the result is true.", validate: (answer) => normalizeLines(answer) === "true" },
@@ -253,10 +262,12 @@ const initialDegreeRecords: DegreeRecords = Object.fromEntries([
   ["MATH 1006", "complete"], ["MATH 1011", "complete"], ["MATH 1201", "complete"], ["CISC 1115", "in_progress"],
 ]) as DegreeRecords;
 
+const readingCheckpointId = (chapterId: string) => chapterId === "operators-expressions" ? `${chapterId}:read:v2` : `${chapterId}:read`;
+
 function chapterProgress(chapterId: string, completed: string[], practice: PracticeRecords) {
   const questions = practiceQuestions[chapterId] ?? [];
-  const readingDone = completed.includes(`${chapterId}:read`);
-  const passed = practice[chapterId]?.passed?.length ?? 0;
+  const readingDone = completed.includes(readingCheckpointId(chapterId));
+  const passed = questions.filter((question) => practice[chapterId]?.passed?.includes(question.id)).length;
   const practiceDone = questions.length > 0 && passed >= questions.length;
   const points = (readingDone ? 1 : 0) + (practiceDone ? 3 : 0);
   return { readingDone, practiceDone, passed, questions: questions.length, points, total: 4, percent: points * 25 };
@@ -322,7 +333,8 @@ function MobileNav({ view, setView }: { view: View; setView: (view: View) => voi
 
 function Dashboard({ completed, practice, degreeRecords, setView }: { completed: string[]; practice: PracticeRecords; degreeRecords: DegreeRecords; setView: (view: View) => void }) {
   const progress = learningProgress(completed, practice);
-  const nextChapter = learningChapters.find((chapter) => chapterProgress(chapter.id, completed, practice).percent < 100) ?? learningChapters[0];
+  const nextChapter = authoredChapters.find((chapter) => chapterProgress(chapter.id, completed, practice).percent < 100) ?? authoredChapters[0];
+  const routePreview = learningChapters.slice(0, 6);
   const credits = verifiedDegreeCredits(degreeRecords);
   const knownStatuses = Object.values(degreeRecords).filter((status) => status !== "unknown").length;
   return <main className="page-content education-home">
@@ -331,7 +343,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
       <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Each chapter: reading checkpoint 25% · completed practice 75%</small></div></div>
     </section>
     <section className="education-dashboard-grid">
-      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">Proof over time</span></div><div className="mission-list">{learningChapters.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open the Java course <ArrowRight size={14} /></button></div>
+      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; const planned = chapter.status === "planned"; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""} ${planned ? "planned" : ""}`}>{planned ? <span className="mission-status planned"><LockKeyhole size={13} /></span> : <StatusMark done={done} active={active} />}<button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{planned ? chapter.unit : done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{planned ? "Planned" : `${state.percent}%`}</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
       <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Daymark does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
@@ -365,7 +377,7 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
   }, [selectedChapter]);
 
   const selectChapter = (next: LearningChapter) => {
-    if (next.id === selectedChapterId) return;
+    if (next.status === "planned" || next.id === selectedChapterId) return;
     scrollLockRef.current = null;
     if (readerRef.current) readerRef.current.scrollTop = 0;
     setActiveSectionId(next.sections[0].id);
@@ -387,23 +399,25 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
     <div className="course-banner"><div><span className="course-glyph large">J</span><div><p className="eyebrow">CISC 1115 · Self-study</p><h2>Introduction to Programming Using Java</h2></div></div><div className="course-total"><span><b>{course.percent}%</b><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small></span><ProgressBar value={course.percent} /></div></div>
     <div className="continuous-layout">
       <aside className="contents-rail">
-        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>
+        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters · {authoredChapters.length} ready</span></div>
         {learningChapters.map((item, index) => {
           const state = chapterProgress(item.id, completed, practice);
           const open = item.id === selectedChapter.id;
           const done = state.percent === 100;
-          return <div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""}`} key={item.id}>
-            <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
+          const planned = item.status === "planned";
+          const startsUnit = index === 0 || learningChapters[index - 1].unit !== item.unit;
+          return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""} ${planned ? "planned" : ""}`}>
+            <button className="contents-section-button" aria-expanded={open} aria-disabled={planned} disabled={planned} onClick={() => selectChapter(item)}>
               <span className="chapter-number">{String(index + 1).padStart(2, "0")}</span>
-              <span className="chapter-copy"><small>{item.unit}</small><b>{titleCase(item.title)}</b></span>
-              <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
+              <span className="chapter-copy"><small>Chapter {String(index + 1).padStart(2, "0")}</small><b>{titleCase(item.title)}</b></span>
+              <span className="chapter-row-actions">{planned ? <LockKeyhole size={13} /> : <>{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></>}</span>
             </button>
             <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>
-          </div>;
+          </div></Fragment>;
         })}
         <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Each chapter combines a 25% reading checkpoint with 75% demonstrated practice.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id].length} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(`${selectedChapter.id}:read`)} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
     </div>
   </main>;
 }
@@ -458,11 +472,15 @@ function ChapterLessonContent({ chapterId, readingDone, onRead }: { chapterId: s
   </>;
 
   if (chapterId === "operators-expressions") return <>
-    <LearningSectionBlock id="operators-arithmetic" eyebrow="Core operations" title="Arithmetic operators"><p className="lesson-lead">Operators combine or transform values. Java uses <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code> for numeric work.</p><div className="operator-grid"><div><code>+</code><b>Add</b><small>8 + 2 → 10</small></div><div><code>-</code><b>Subtract</b><small>8 - 2 → 6</small></div><div><code>*</code><b>Multiply</b><small>8 * 2 → 16</small></div><div><code>/</code><b>Divide</b><small>8 / 2 → 4</small></div><div><code>%</code><b>Remainder</b><small>8 % 3 → 2</small></div></div></LearningSectionBlock>
-    <LearningSectionBlock id="operators-precedence" eyebrow="Evaluation order" title="Precedence & parentheses"><p className="lesson-lead">Multiplication, division, and remainder run before addition and subtraction. Parentheses make a different order explicit.</p><div className="comparison-code"><pre><small>DEFAULT</small><code>4 + 3 * 2</code><b>10</b></pre><pre><small>PARENTHESES</small><code>(4 + 3) * 2</code><b>14</b></pre></div></LearningSectionBlock>
-    <LearningSectionBlock id="operators-assignment" eyebrow="Update state" title="Assignment shortcuts"><p className="lesson-lead">Shortcuts update an existing variable without repeating it.</p><CodeExample label="Equivalent updates" code={'score += 10;  // score = score + 10;\nlives -= 1;   // lives = lives - 1;'} /></LearningSectionBlock>
-    <LearningSectionBlock id="operators-concatenation" eyebrow="A crucial edge case" title="Text and +"><p className="lesson-lead">When Java reaches a String, <code>+</code> joins from left to right. That can make numbers look added when they were actually attached as text.</p><CodeExample label="This prints Total: 23" code={'int x = 2;\nint y = 3;\nSystem.out.println("Total: " + x + y);'} /></LearningSectionBlock>
-    <LearningSectionBlock id="operators-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} />Precedence controls evaluation order.</li><li><Check size={16} />Parentheses make intent explicit.</li><li><Check size={16} />Assignment shortcuts change stored state.</li><li><Check size={16} />A String changes <code>+</code> into concatenation.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
+    <LearningSectionBlock id="operators-arithmetic" eyebrow="Core operations" title="Arithmetic operators"><p className="lesson-lead">An operator tells Java to perform an action on values. Arithmetic expressions produce a new number; they do not change a variable unless you assign the result.</p><div className="operator-grid"><div><code>+</code><b>Add</b><small>8 + 2 → 10</small></div><div><code>-</code><b>Subtract</b><small>8 - 2 → 6</small></div><div><code>*</code><b>Multiply</b><small>8 * 2 → 16</small></div><div><code>/</code><b>Divide</b><small>8 / 2 → 4</small></div><div><code>%</code><b>Remainder</b><small>8 % 3 → 2</small></div></div><CodeExample label="Calculate, then store the result" code={'int price = 12;\nint quantity = 3;\nint subtotal = price * quantity;\n\nSystem.out.println(subtotal);  // 36'} /><div className="rule-callout"><b>The expression and assignment do different jobs</b><p><code>price * quantity</code> calculates 36. The <code>=</code> then stores that result in <code>subtotal</code>.</p></div></LearningSectionBlock>
+    <LearningSectionBlock id="operators-division" eyebrow="A Java-specific trap" title="Integer vs decimal division"><p className="lesson-lead">Division depends on the types of the values being divided. When both operands are integers, Java produces an integer and discards the decimal part.</p><div className="comparison-code"><pre><small>INTEGER DIVISION</small><code>10 / 3</code><b>3</b></pre><pre><small>DECIMAL DIVISION</small><code>10.0 / 3</code><b>3.3333333333333335</b></pre></div><CodeExample label="The variable type alone does not rescue the decimal" code={'double first = 10 / 3;    // stores 3.0\ndouble second = 10.0 / 3; // stores 3.333...'} /><aside className="key-idea"><Sparkles size={17} /><p><b>Java decides how to divide before it stores the answer.</b><span>Make at least one operand a <code>double</code>—for example <code>10.0</code>—when you need a decimal result.</span></p></aside></LearningSectionBlock>
+    <LearningSectionBlock id="operators-modulus" eyebrow="Keep the remainder" title="Modulus"><p className="lesson-lead">The modulus operator <code>%</code> returns the remainder left after integer division. Read <code>17 % 5</code> as “the remainder when 17 is divided by 5.”</p><div className="operator-grid remainder-grid"><div><code>10 % 3</code><b>1</b><small>3 fits three times</small></div><div><code>14 % 2</code><b>0</b><small>Evenly divisible</small></div><div><code>17 % 5</code><b>2</b><small>15 used, 2 left</small></div><div><code>5 % 8</code><b>5</b><small>8 does not fit once</small></div></div><CodeExample label="Store a remainder" code={'int cookies = 17;\nint people = 5;\nint leftovers = cookies % people;\n\nSystem.out.println(leftovers);  // 2'} /><div className="rule-callout"><b>Why zero matters</b><p>If <code>number % 2</code> is <code>0</code>, the number is even. Modulus is also useful for cycles, grouping, and determining whether division comes out evenly.</p></div></LearningSectionBlock>
+    <LearningSectionBlock id="operators-precedence" eyebrow="Evaluation order" title="Precedence & parentheses"><p className="lesson-lead">Java does not simply calculate every expression from left to right. Parentheses run first; then multiplication, division, and modulus; then addition and subtraction.</p><div className="comparison-code"><pre><small>DEFAULT ORDER</small><code>4 + 3 * 2</code><b>10</b></pre><pre><small>PARENTHESES FIRST</small><code>(4 + 3) * 2</code><b>14</b></pre></div><div className="expression-steps"><div><span>1</span><code>18 - 4 * 2 + 12 / 3</code><small>Original expression</small></div><div><span>2</span><code>18 - 8 + 4</code><small>Multiply and divide</small></div><div><span>3</span><code>10 + 4</code><small>Equal precedence: left to right</small></div><div><span>4</span><code>14</code><small>Final result</small></div></div><p className="lesson-note">Use parentheses when they clarify your intention, even when Java would already produce the same result.</p></LearningSectionBlock>
+    <LearningSectionBlock id="operators-increment" eyebrow="Change by one" title="Increment & decrement"><p className="lesson-lead"><code>++</code> adds one and <code>--</code> subtracts one. They are common with counters, scores, lives, and later with loops.</p><CodeExample label="One-step updates" code={'int lives = 3;\nlives--;  // lives is now 2\nlives++;  // lives is back to 3'} /><div className="comparison-code"><pre><small>LONG FORM</small><code>score = score + 1;</code><b>adds one</b></pre><pre><small>SHORT FORM</small><code>score++;</code><b>adds one</b></pre></div><div className="rule-callout muted"><b>Keep it simple for now</b><p>Use <code>++</code> and <code>--</code> on their own lines. Putting them inside a larger expression introduces evaluation-order behavior that is easier to misread.</p></div></LearningSectionBlock>
+    <LearningSectionBlock id="operators-assignment" eyebrow="Update stored state" title="Compound assignment"><p className="lesson-lead">Compound assignment performs an operation using the current value, then stores the result back in the same variable.</p><div className="operator-grid"><div><code>+=</code><b>Add, assign</b><small>score += 5</small></div><div><code>-=</code><b>Subtract, assign</b><small>lives -= 1</small></div><div><code>*=</code><b>Multiply, assign</b><small>coins *= 2</small></div><div><code>/=</code><b>Divide, assign</b><small>team /= 3</small></div><div><code>%=</code><b>Remainder, assign</b><small>index %= 4</small></div></div><CodeExample label="Follow the stored value" code={'int energy = 10;\nenergy += 5;  // 15\nenergy *= 2;  // 30\nenergy -= 4;  // 26'} /><aside className="key-idea"><RotateCcw size={17} /><p><b>The operator comes before the equals sign.</b><span><code>score += 5</code> adds five. <code>score =+ 5</code> is legal but means “assign positive five,” replacing the old score.</span></p></aside></LearningSectionBlock>
+    <LearningSectionBlock id="operators-concatenation" eyebrow="A crucial edge case" title="String + number behavior"><p className="lesson-lead">The <code>+</code> symbol adds numbers, but it joins values when a String is involved. Operations with the same precedence are evaluated from left to right.</p><div className="expression-steps string-order"><div><span>1</span><code>System.out.println(2 + 3);</code><small>5</small></div><div><span>2</span><code>System.out.println("Total: " + 2 + 3);</code><small>Total: 23</small></div><div><span>3</span><code>System.out.println("Total: " + (2 + 3));</code><small>Total: 5</small></div><div><span>4</span><code>System.out.println(2 + 3 + " total");</code><small>5 total</small></div></div><div className="rule-callout"><b>Find the first String</b><p>Before Java reaches a String, numeric <code>+</code> still adds. After Java starts building text, later values are appended unless parentheses force arithmetic first.</p></div></LearningSectionBlock>
+    <LearningSectionBlock id="operators-evaluation" eyebrow="Put the rules together" title="Evaluating expressions"><p className="lesson-lead">For a longer expression, do not guess. Mark the parentheses, calculate high-precedence operations, work left to right among ties, and only then follow String concatenation.</p><div className="expression-checklist"><div><span>1</span><p><b>Find parentheses</b><small>Evaluate the innermost group first.</small></p></div><div><span>2</span><p><b>Handle *, /, and %</b><small>For ties, move left to right.</small></p></div><div><span>3</span><p><b>Handle + and -</b><small>Continue left to right.</small></p></div><div><span>4</span><p><b>Store or print</b><small>Watch for the first String when + appears.</small></p></div></div><CodeExample label="A complete resource calculation" code={'int missions = 4;\nint reward = 15;\nint multiplier = 2;\nint fee = 7;\n\nint balance = missions * reward * multiplier - fee;\nSystem.out.println("Balance: " + balance + " credits");'} /><div className="output-card"><span>OUTPUT</span><code>Balance: 113 credits</code></div></LearningSectionBlock>
+    <LearningSectionBlock id="operators-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} /><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code> create numeric results.</li><li><Check size={16} />Integer division discards the decimal part; a double operand keeps it.</li><li><Check size={16} /><code>%</code> returns the remainder.</li><li><Check size={16} />Parentheses run before <code>* / %</code>, which run before <code>+ -</code>.</li><li><Check size={16} /><code>++</code> and <code>--</code> change a value by one.</li><li><Check size={16} /><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> update and assign.</li><li><Check size={16} />Equal-precedence operators are evaluated left to right.</li><li><Check size={16} />Once a String is involved, <code>+</code> concatenates unless parentheses force arithmetic first.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
   </>;
 
   if (chapterId === "decisions") return <>
@@ -485,12 +503,13 @@ const emptyPracticeRecord = (): PracticeRecord => ({ answers: {}, attempts: {}, 
 function ChapterPractice({ chapterId, record: savedRecord, readingDone, onChange }: { chapterId: string; record?: PracticeRecord; readingDone: boolean; onChange: (record: PracticeRecord) => void }) {
   const questions = practiceQuestions[chapterId];
   const record = savedRecord ?? emptyPracticeRecord();
+  const validPassed = questions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
   const firstUnpassed = questions.findIndex((question) => !record.passed.includes(question.id));
   const [activeIndex, setActiveIndex] = useState(firstUnpassed < 0 ? 0 : firstUnpassed);
   const [feedback, setFeedback] = useState<Record<string, "correct" | "incorrect">>({});
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
-  const allPassed = record.passed.length === questions.length;
+  const allPassed = validPassed.length === questions.length;
 
   const updateAnswer = (answer: string) => {
     onChange({ ...record, answers: { ...record.answers, [question.id]: answer } });
@@ -500,14 +519,14 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, onChange
     const answer = record.answers[question.id] ?? "";
     const correct = question.validate(answer);
     const attempts = { ...record.attempts, [question.id]: (record.attempts[question.id] ?? 0) + 1 };
-    const nextPassed = correct && !passed ? [...record.passed, question.id] : record.passed;
+    const nextPassed = correct && !passed ? [...validPassed, question.id] : validPassed;
     onChange({ ...record, attempts, passed: nextPassed });
     setFeedback((current) => ({ ...current, [question.id]: correct ? "correct" : "incorrect" }));
   };
   const revealHint = () => onChange({ ...record, hints: record.hints.includes(question.id) ? record.hints : [...record.hints, question.id] });
 
   return <section className="practice-session" id={`${chapterId.split("-")[0]}-practice`} data-learning-section>
-    <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{record.passed.length}/{questions.length}</b><small>passed</small></div></div>
+    <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>
     <div className="practice-workspace"><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") check(); }} autoComplete="off" />}
       {record.hints.includes(question.id) && <div className="practice-hint"><Sparkles size={15} /><p><b>Clue</b>{question.hint}</p></div>}
