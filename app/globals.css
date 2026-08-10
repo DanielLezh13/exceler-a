@@ -690,7 +690,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .focused-shell .nav-mark { flex: 0 0 auto; }
 .focused-shell .course-label { margin-top: 20px; }
 .sidebar-active-course { margin-top: auto; animation: chapter-enter .18s ease-out; }
-.sidebar-active-course .nav-section-label { padding: 0 12px 8px; }
+.sidebar-active-course .nav-section-label { padding: 0 12px 8px; text-align: center; }
 .sidebar-active-course + .sidebar-footer { margin-top: 14px; }
 .focused-shell .sidebar-course { border-radius: 14px; background: #151817; border-color: #303533; padding: 15px; }
 .focused-shell .sidebar-course:hover { border-color: #46504c; background: #181c1b; }
