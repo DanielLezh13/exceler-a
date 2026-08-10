@@ -68,30 +68,30 @@ const learningChapters: LearningChapter[] = [
     title: "Variables & Data Types",
     description: "Store information with names and choose types that match what the value means.",
     sections: [
-      { id: "variables-overview", title: "What is a variable?" },
-      { id: "variables-declaration", title: "Declaration anatomy" },
-      { id: "variables-types", title: "Java data types" },
-      { id: "variables-naming", title: "Variable naming" },
-      { id: "variables-changing", title: "Changing a variable" },
-      { id: "variables-printing", title: "Printing output" },
+      { id: "variables-overview", title: "What Is a Variable?" },
+      { id: "variables-declaration", title: "Declaration Anatomy" },
+      { id: "variables-types", title: "Java Data Types" },
+      { id: "variables-naming", title: "Variable Naming" },
+      { id: "variables-changing", title: "Changing a Variable" },
+      { id: "variables-printing", title: "Printing Output" },
       { id: "variables-concatenation", title: "Concatenation" },
-      { id: "variables-program", title: "Full program" },
-      { id: "variables-takeaways", title: "Key takeaways" },
-      { id: "variables-practice", title: "Practice session" },
+      { id: "variables-program", title: "Full Program" },
+      { id: "variables-takeaways", title: "Key Takeaways" },
+      { id: "variables-practice", title: "Practice Session" },
     ],
   },
   {
     id: "operators-expressions",
     unit: "Section 02 · Fundamentals",
-    title: "Operators & expressions",
+    title: "Operators & Expressions",
     description: "Transform values, control evaluation order, and build meaningful output.",
     sections: [
-      { id: "operators-arithmetic", title: "Arithmetic operators" },
-      { id: "operators-precedence", title: "Precedence & parentheses" },
-      { id: "operators-assignment", title: "Assignment shortcuts" },
+      { id: "operators-arithmetic", title: "Arithmetic Operators" },
+      { id: "operators-precedence", title: "Precedence & Parentheses" },
+      { id: "operators-assignment", title: "Assignment Shortcuts" },
       { id: "operators-concatenation", title: "Text and +" },
-      { id: "operators-takeaways", title: "Key takeaways" },
-      { id: "operators-practice", title: "Practice session" },
+      { id: "operators-takeaways", title: "Key Takeaways" },
+      { id: "operators-practice", title: "Practice Session" },
     ],
   },
   {
@@ -101,10 +101,10 @@ const learningChapters: LearningChapter[] = [
     description: "Turn comparisons into branches that make a program respond to state.",
     sections: [
       { id: "decisions-comparisons", title: "Comparisons" },
-      { id: "decisions-logic", title: "Boolean logic" },
-      { id: "decisions-if-else", title: "If / else" },
-      { id: "decisions-takeaways", title: "Key takeaways" },
-      { id: "decisions-practice", title: "Practice session" },
+      { id: "decisions-logic", title: "Boolean Logic" },
+      { id: "decisions-if-else", title: "If / Else" },
+      { id: "decisions-takeaways", title: "Key Takeaways" },
+      { id: "decisions-practice", title: "Practice Session" },
     ],
   },
   {
@@ -113,11 +113,11 @@ const learningChapters: LearningChapter[] = [
     title: "Loops",
     description: "Repeat operations deliberately while keeping state and stopping conditions clear.",
     sections: [
-      { id: "loops-while", title: "While loops" },
-      { id: "loops-for", title: "For loops" },
-      { id: "loops-tracing", title: "Tracing state" },
-      { id: "loops-takeaways", title: "Key takeaways" },
-      { id: "loops-practice", title: "Practice session" },
+      { id: "loops-while", title: "While Loops" },
+      { id: "loops-for", title: "For Loops" },
+      { id: "loops-tracing", title: "Tracing State" },
+      { id: "loops-takeaways", title: "Key Takeaways" },
+      { id: "loops-practice", title: "Practice Session" },
     ],
   },
 ];
@@ -126,6 +126,27 @@ const STORAGE_KEY = "daymark-education-v4";
 
 const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+const titleCase = (value: string) => {
+  const minorWords = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "over", "per", "the", "to", "via", "vs"]);
+  const preserved = new Map([
+    ["b.s", "B.S."], ["b.s.", "B.S."], ["c++", "C++"], ["cisc", "CISC"], ["cs", "CS"], ["degreeworks", "DegreeWorks"],
+    ["gpa", "GPA"], ["java", "Java"], ["pdf", "PDF"], ["string", "String"],
+  ]);
+  const words = value.split(/\s+/);
+  return words.map((word, index) => {
+    const match = word.match(/^([^A-Za-z0-9]*)(.*?)([^A-Za-z0-9+?.]*)$/);
+    if (!match) return word;
+    const [, prefix, core, suffix] = match;
+    const punctuation = core.match(/^(.*?)([?.!,;:]*)$/);
+    const body = punctuation?.[1] ?? core;
+    const ending = punctuation?.[2] ?? "";
+    const lower = body.toLowerCase();
+    const keep = preserved.get(lower);
+    if (keep) return `${prefix}${keep}${ending}${suffix}`;
+    if (minorWords.has(lower) && index > 0 && index < words.length - 1) return `${prefix}${lower}${ending}${suffix}`;
+    return `${prefix}${lower.charAt(0).toUpperCase()}${lower.slice(1)}${ending}${suffix}`;
+  }).join(" ");
+};
 
 const practiceQuestions: Record<string, PracticeQuestion[]> = {
   "variables-data-types": [
@@ -273,7 +294,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
 function TopBar({ title }: { title: string }) {
   return (
     <header className="topbar">
-      <div><p className="eyebrow">Education campaign</p><h1>{title}</h1></div>
+      <div><p className="eyebrow">Education Campaign</p><h1>{titleCase(title)}</h1></div>
       <div className="top-actions"><span className="focus-pill"><Sparkles size={13} /> Education focus</span><button className="avatar" aria-label="Open profile">D</button></div>
     </header>
   );
@@ -282,15 +303,15 @@ function TopBar({ title }: { title: string }) {
 function Sidebar({ view, setView, completed, practice }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
-    <button className="brand" onClick={() => setView("dashboard")}><span className="brand-mark">D/</span><span><b>DAYMARK</b><small>Education campaign</small></span></button>
+    <button className="brand" onClick={() => setView("dashboard")}><span className="brand-mark">D/</span><span><b>DAYMARK</b><small>Education Campaign</small></span></button>
     <nav className="primary-nav" aria-label="Education navigation">
       <p className="nav-section-label">Campaign</p>
       <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><BookOpen className="nav-mark" size={17} />Overview</button>
-      <button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch className="nav-mark" size={17} />Degree map</button>
-      <p className="nav-section-label course-label">Active course</p>
+      <button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch className="nav-mark" size={17} />Degree Map</button>
+      <p className="nav-section-label course-label">Active Course</p>
       <button className={view === "course" ? "active" : ""} onClick={() => setView("course")}><Code2 className="nav-mark" size={17} />CISC 1115<span className="nav-progress">{progress.percent}%</span></button>
     </nav>
-    <div className="sidebar-course"><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>Self-study campaign</small><b>Intro to Java</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></div>
+    <div className="sidebar-course"><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>Self-Study Campaign</small><b>Intro to Java</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></div>
     <div className="sidebar-footer"><div className="sync-state"><span />Progress saved on this device</div></div>
   </aside>;
 }
@@ -306,11 +327,11 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
   const knownStatuses = Object.values(degreeRecords).filter((status) => status !== "unknown").length;
   return <main className="page-content education-home">
     <section className="education-hero">
-      <div className="hero-copy"><p className="eyebrow accent-text">Continue learning</p><span className="section-chip">{nextChapter.unit}</span><h2>{nextChapter.title}</h2><p>{nextChapter.description}</p><div className="hero-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Open chapter</button><button className="soft-button" onClick={() => setView("degree")}>View degree path <ArrowRight size={14} /></button></div></div>
+      <div className="hero-copy"><p className="eyebrow accent-text">Continue Learning</p><span className="section-chip">{nextChapter.unit}</span><h2>{titleCase(nextChapter.title)}</h2><p>{nextChapter.description}</p><div className="hero-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Open chapter</button><button className="soft-button" onClick={() => setView("degree")}>View degree path <ArrowRight size={14} /></button></div></div>
       <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Each chapter: reading checkpoint 25% · completed practice 75%</small></div></div>
     </section>
     <section className="education-dashboard-grid">
-      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course route</p><h3>Chapter progression</h3></div><span className="route-time">Proof over time</span></div><div className="mission-list">{learningChapters.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{chapter.title}</b><small>{done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open the Java course <ArrowRight size={14} /></button></div>
+      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">Proof over time</span></div><div className="mission-list">{learningChapters.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open the Java course <ArrowRight size={14} /></button></div>
       <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Daymark does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
@@ -362,14 +383,14 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
 
   return <main className="course-page continuous-course">
     <div className="course-banner"><div><span className="course-glyph large">J</span><div><p className="eyebrow">CISC 1115 · Self-study</p><h2>Introduction to Programming Using Java</h2></div></div><div className="course-total"><span><b>{course.percent}%</b><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small></span><ProgressBar value={course.percent} /></div></div>
-    <div className="continuous-layout"><aside className="contents-rail"><div className="contents-heading"><p className="eyebrow">Course contents</p><span>{learningChapters.length} chapters</span></div>{learningChapters.map((item, index) => { const state = chapterProgress(item.id, completed, practice); const open = item.id === selectedChapter.id; return <div className={`contents-section ${open ? "open" : ""}`} key={item.id}><button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}><span className={`chapter-completion ${state.percent === 100 ? "done" : ""}`}>{state.percent === 100 ? <Check size={14} strokeWidth={3} /> : String(index + 1).padStart(2, "0")}</span><span><small>{item.unit}</small><b>{item.title}</b></span><ChevronDown size={15} /></button><div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span><i /></span><b>{section.title}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div></div>; })}<div className="section-progress-card"><div><span>Chapter completion</span><b>{chapter.percent}%</b></div><ProgressBar value={chapter.percent} /><small>Reading: {chapter.readingDone ? "done" : "open"} · Practice: {chapter.passed}/{chapter.questions}</small><p>Reading is 25%. Passing the complete practice session is 75%.</p></div></aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{selectedChapter.title}</h1><p>{selectedChapter.description}</p><div><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id].length} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(`${selectedChapter.id}:read`)} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
+    <div className="continuous-layout"><aside className="contents-rail"><div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>{learningChapters.map((item, index) => { const state = chapterProgress(item.id, completed, practice); const open = item.id === selectedChapter.id; return <div className={`contents-section ${open ? "open" : ""}`} key={item.id}><button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}><span className={`chapter-completion ${state.percent === 100 ? "done" : ""}`}>{state.percent === 100 ? <Check size={14} strokeWidth={3} /> : String(index + 1).padStart(2, "0")}</span><span><small>{item.unit}</small><b>{titleCase(item.title)}</b></span><ChevronDown size={15} /></button><div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span><i /></span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div></div>; })}<div className="section-progress-card"><div><span>Chapter Completion</span><b>{chapter.percent}%</b></div><ProgressBar value={chapter.percent} /><small>Reading: {chapter.readingDone ? "done" : "open"} · Practice: {chapter.passed}/{chapter.questions}</small><p>Reading is 25%. Passing the complete practice session is 75%.</p></div></aside>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id].length} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(`${selectedChapter.id}:read`)} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
     </div>
   </main>;
 }
 
 function LearningSectionBlock({ id, eyebrow, title, children }: { id: string; eyebrow: string; title: string; children: React.ReactNode }) {
-  return <section className="lesson-section" id={id} data-learning-section><div className="lesson-section-heading"><p className="eyebrow">{eyebrow}</p><h2>{title}</h2></div>{children}</section>;
+  return <section className="lesson-section" id={id} data-learning-section><div className="lesson-section-heading"><p className="eyebrow">{eyebrow}</p><h2>{titleCase(title)}</h2></div>{children}</section>;
 }
 
 function CodeExample({ label, code }: { label: string; code: string }) {
@@ -443,9 +464,9 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, onChange
   const revealHint = () => onChange({ ...record, hints: record.hints.includes(question.id) ? record.hints : [...record.hints, question.id] });
 
   return <section className="practice-session" id={`${chapterId.split("-")[0]}-practice`} data-learning-section>
-    <div className="practice-header"><div><p className="eyebrow">Demonstrated progress</p><h2>Practice session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{record.passed.length}/{questions.length}</b><small>passed</small></div></div>
+    <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{record.passed.length}/{questions.length}</b><small>passed</small></div></div>
     <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>
-    <div className="practice-workspace"><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{question.title}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") check(); }} autoComplete="off" />}
+    <div className="practice-workspace"><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") check(); }} autoComplete="off" />}
       {record.hints.includes(question.id) && <div className="practice-hint"><Sparkles size={15} /><p><b>Clue</b>{question.hint}</p></div>}
       {(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, use a clue if needed, and try again."}</small></p></div>}
       <div className="practice-actions"><button className="soft-button" onClick={revealHint} disabled={record.hints.includes(question.id)}><CircleHelp size={14} />{record.hints.includes(question.id) ? "Clue shown" : "Show clue"}</button><button className="primary-button" onClick={check} disabled={!String(record.answers[question.id] ?? "").trim()}>{passed ? "Check again" : "Check answer"}<ArrowRight size={14} /></button></div>
