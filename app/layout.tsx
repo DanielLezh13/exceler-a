@@ -18,8 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
-  const title = "Daymark — Personal Operating System";
-  const description = "A focused dashboard and playable Computer Science degree campaign, weighted by the effort each step takes.";
+  const title = "Daymark CS — Learn the Course. Build the Degree.";
+  const description = "A degree-aware computer science learning system connecting clear instruction, demonstrated practice, and the path to graduation.";
 
   return {
     metadataBase,
@@ -33,13 +33,11 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
-      images: [{ url: "/og.png", width: 1536, height: 1024, alt: "Daymark — your life, weighted by what it takes" }],
     },
     twitter: {
-      card: "summary_large_image",
+      card: "summary",
       title,
       description,
-      images: ["/og.png"],
     },
   };
 }

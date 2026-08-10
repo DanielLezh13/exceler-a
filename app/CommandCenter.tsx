@@ -284,7 +284,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
 function TopBar({ title }: { title: string }) {
   return (
     <header className="topbar">
-      <div><p className="eyebrow">Education Campaign</p><h1>{titleCase(title)}</h1></div>
+      <div><p className="eyebrow">Daymark CS</p><h1>{titleCase(title)}</h1></div>
       <div className="top-actions"><span className="focus-pill"><Sparkles size={13} /> Education focus</span><button className="avatar" aria-label="Open profile">D</button></div>
     </header>
   );
@@ -293,13 +293,13 @@ function TopBar({ title }: { title: string }) {
 function Sidebar({ view, setView, completed, practice }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
-    <button className="brand" onClick={() => setView("home")}><span className="brand-mark">D/</span><span><b>DAYMARK</b><small>Education Campaign</small></span></button>
+    <button className="brand" onClick={() => setView("home")}><span className="brand-mark">D/</span><span><b>DAYMARK CS</b><small>Degree-Aware Learning</small></span></button>
     <nav className="primary-nav" aria-label="Education navigation">
       <p className="nav-section-label">Workspace</p>
       <button className={view === "home" ? "active" : ""} onClick={() => setView("home")}><House className="nav-mark" size={17} />Home</button>
       <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><BookOpen className="nav-mark" size={17} />Overview</button>
       <button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch className="nav-mark" size={17} />Degree Map</button>
-      <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />All Courses<span className="nav-progress neutral">1</span></button>
+      <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />Courses</button>
     </nav>
     {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button></div>}
     <div className="sidebar-footer"><div className="sync-state"><span />Progress saved on this device</div></div>
@@ -316,9 +316,9 @@ function HomeView({ completed, practice, setView }: { completed: string[]; pract
     <section className="home-stage">
       <div className="home-signal" aria-hidden="true"><span>JAVA</span><span>∑</span><span>01</span><span>{"{}"}</span></div>
       <div className="home-intro">
-        <p className="eyebrow">Daniel&apos;s Learning Workspace</p>
-        <h1><span>Daniel</span><span>Lezhanskiy</span></h1>
-        <p className="home-declaration">Computer science, mathematics, and the path to finishing the degree—organized into work that can actually be completed.</p>
+        <p className="eyebrow">Daymark CS · Degree-Aware Learning</p>
+        <h1><span>Learn the Course.</span><span>Build the Degree.</span></h1>
+        <p className="home-declaration">A computer science learning system that connects clear instruction, demonstrated practice, and the real requirements standing between a student and graduation.</p>
         <div className="home-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Continue CISC 1115</button><button className="soft-button" onClick={() => setView("degree")}>Open Degree Map <ArrowRight size={14} /></button></div>
       </div>
       <div className="home-console" aria-label="Current learning status">
