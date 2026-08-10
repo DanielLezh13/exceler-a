@@ -343,7 +343,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
       <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Each chapter: reading checkpoint 25% · completed practice 75%</small></div></div>
     </section>
     <section className="education-dashboard-grid">
-      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; const planned = chapter.status === "planned"; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""} ${planned ? "planned" : ""}`}>{planned ? <span className="mission-status planned"><LockKeyhole size={13} /></span> : <StatusMark done={done} active={active} />}<button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{planned ? chapter.unit : done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{planned ? "Planned" : `${state.percent}%`}</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
+      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{chapter.status === "authored" ? done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed` : chapter.unit}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
       <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Daymark does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
@@ -351,7 +351,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
 
 function CourseView({ completed, practice, onComplete, onPracticeChange }: { completed: string[]; practice: PracticeRecords; onComplete: (id: string) => void; onPracticeChange: (chapterId: string, record: PracticeRecord) => void }) {
   const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
-  const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0].id);
+  const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0]?.id ?? "");
   const readerRef = useRef<HTMLDivElement | null>(null);
   const scrollLockRef = useRef<string | null>(null);
   const selectedChapter = learningChapters.find((chapter) => chapter.id === selectedChapterId) ?? learningChapters[0];
@@ -360,7 +360,7 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
 
   useLayoutEffect(() => {
     scrollLockRef.current = null;
-    setActiveSectionId(selectedChapter.sections[0].id);
+    setActiveSectionId(selectedChapter.sections[0]?.id ?? "");
     if (readerRef.current) readerRef.current.scrollTop = 0;
   }, [selectedChapter.id, selectedChapter.sections]);
 
@@ -377,10 +377,10 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
   }, [selectedChapter]);
 
   const selectChapter = (next: LearningChapter) => {
-    if (next.status === "planned" || next.id === selectedChapterId) return;
+    if (next.id === selectedChapterId) return;
     scrollLockRef.current = null;
     if (readerRef.current) readerRef.current.scrollTop = 0;
-    setActiveSectionId(next.sections[0].id);
+    setActiveSectionId(next.sections[0]?.id ?? "");
     setSelectedChapterId(next.id);
     window.requestAnimationFrame(() => { if (readerRef.current) readerRef.current.scrollTop = 0; });
   };
@@ -399,25 +399,24 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
     <div className="course-banner"><div><span className="course-glyph large">J</span><div><p className="eyebrow">CISC 1115 · Self-study</p><h2>Introduction to Programming Using Java</h2></div></div><div className="course-total"><span><b>{course.percent}%</b><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small></span><ProgressBar value={course.percent} /></div></div>
     <div className="continuous-layout">
       <aside className="contents-rail">
-        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters · {authoredChapters.length} ready</span></div>
+        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>
         {learningChapters.map((item, index) => {
           const state = chapterProgress(item.id, completed, practice);
           const open = item.id === selectedChapter.id;
           const done = state.percent === 100;
-          const planned = item.status === "planned";
           const startsUnit = index === 0 || learningChapters[index - 1].unit !== item.unit;
-          return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""} ${planned ? "planned" : ""}`}>
-            <button className="contents-section-button" aria-expanded={open} aria-disabled={planned} disabled={planned} onClick={() => selectChapter(item)}>
+          return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""}`}>
+            <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
               <span className="chapter-number">{String(index + 1).padStart(2, "0")}</span>
               <span className="chapter-copy"><small>Chapter {String(index + 1).padStart(2, "0")}</small><b>{titleCase(item.title)}</b></span>
-              <span className="chapter-row-actions">{planned ? <LockKeyhole size={13} /> : <>{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></>}</span>
+              <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
             </button>
             <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>
           </div></Fragment>;
         })}
         <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Each chapter combines a 25% reading checkpoint with 75% demonstrated practice.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div>{selectedChapter.status === "authored" ? <><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></> : <span>Chapter overview</span>}</div></header>{selectedChapter.status === "authored" ? <><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></> : <section className="planned-chapter-preview"><p className="eyebrow">Course Chapter</p><h2>Chapter Overview</h2><p>The full lesson and practice set are being built from the Variables and Operators chapter standard.</p></section>}</article></div>
     </div>
   </main>;
 }
