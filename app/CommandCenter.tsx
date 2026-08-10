@@ -299,9 +299,8 @@ function Sidebar({ view, setView, completed, practice }: { view: View; setView: 
       <button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch className="nav-mark" size={17} />Degree Map</button>
       <p className="nav-section-label course-label">Courses</p>
       <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />All Courses<span className="nav-progress neutral">1</span></button>
-      <p className="nav-section-label course-label">Active Course</p>
     </nav>
-    <button className={`sidebar-course ${view === "course" ? "active" : ""}`} onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button>
+    {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button></div>}
     <div className="sidebar-footer"><div className="sync-state"><span />Progress saved on this device</div></div>
   </aside>;
 }

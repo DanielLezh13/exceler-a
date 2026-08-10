@@ -446,7 +446,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 @media (max-width: 920px) {
   :root { --sidebar: 76px; }
   .sidebar { padding-left: 10px; padding-right: 10px; }
-  .brand { justify-content: center; padding-left: 0; padding-right: 0; }.brand > span:last-child,.primary-nav button:not(.active)::after,.primary-nav button { font-size: 0; }.primary-nav .nav-section-label,.nav-progress,.sidebar-course,.sidebar-footer { display: none; }.primary-nav button { justify-content: center; padding: 12px; }.nav-mark { font-size: 14px; text-align: center; }
+  .brand { justify-content: center; padding-left: 0; padding-right: 0; }.brand > span:last-child,.primary-nav button:not(.active)::after,.primary-nav button { font-size: 0; }.primary-nav .nav-section-label,.nav-progress,.sidebar-active-course,.sidebar-course,.sidebar-footer { display: none; }.primary-nav button { justify-content: center; padding: 12px; }.nav-mark { font-size: 14px; text-align: center; }
   .topbar { padding: 0 24px; }.page-content { padding-left: 24px; padding-right: 24px; }
   .focus-hero { grid-template-columns: 1fr; }.focus-code { margin-top: 0; }.focus-copy h2 br { display: none; }
   .dashboard-grid { grid-template-columns: 1fr; }.activity-panel { grid-column: auto; }
@@ -689,6 +689,9 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .focused-shell .primary-nav button.active .nav-mark { margin-left: -7px; }
 .focused-shell .nav-mark { flex: 0 0 auto; }
 .focused-shell .course-label { margin-top: 20px; }
+.sidebar-active-course { margin-top: auto; animation: chapter-enter .18s ease-out; }
+.sidebar-active-course .nav-section-label { padding: 0 12px 8px; }
+.sidebar-active-course + .sidebar-footer { margin-top: 14px; }
 .focused-shell .sidebar-course { border-radius: 14px; background: #151817; border-color: #303533; padding: 15px; }
 .focused-shell .sidebar-course:hover { border-color: #46504c; background: #181c1b; }
 .focused-shell .sidebar-course.active { border-color: #45563d; background: linear-gradient(135deg, #182117, #141817); box-shadow: 0 10px 26px rgba(0,0,0,.16); }
