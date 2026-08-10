@@ -11,7 +11,7 @@ import {
   GitBranch,
   GraduationCap,
   LockKeyhole,
-  Map,
+  Map as MapIcon,
   Play,
   RotateCcw,
   Sparkles,
@@ -333,7 +333,7 @@ function DegreeMap({ records, setRecords, onImport }: { records: DegreeRecords; 
     <section className="degree-tree"><div className="tree-spine" />{degreeStageLabels.map(([title, description], stage) => <div className="tree-stage" key={title}><header><span>{String(stage + 1).padStart(2, "0")}</span><div><b>{title}</b><small>{description}</small></div></header><div className="tree-node-list">{degreeCourses.filter((course) => course.stage === stage).map((course) => {
       const status = records[course.code] ?? "unknown";
       return <button key={course.code} className={`tree-course-node ${status}`} onClick={() => setSelected(course)}><span className="degree-status-icon">{status === "complete" ? <Check size={15} strokeWidth={3} /> : status === "in_progress" ? <Play size={12} fill="currentColor" /> : status === "not_started" ? <LockKeyhole size={13} /> : <CircleHelp size={14} />}</span><span><small>{course.requirement}</small><b>{course.code}</b><em>{course.title}</em>{course.choiceLabel && <i>{course.choiceLabel}</i>}{course.code === "CISC 1115" && <i className="self-study">Self-study course active</i>}</span><strong>{course.credits}<small>cr</small></strong></button>;
-    })}{stage === 3 && <div className="tree-course-node elective-node"><span className="degree-status-icon"><Map size={14} /></span><span><small>Elective requirement</small><b>3 × CISC ELECTIVES</b><em>Choose three courses numbered 3000–4899</em></span><strong>9<small>cr</small></strong></div>}</div></div>)}</section>
+    })}{stage === 3 && <div className="tree-course-node elective-node"><span className="degree-status-icon"><MapIcon size={14} /></span><span><small>Elective requirement</small><b>3 × CISC ELECTIVES</b><em>Choose three courses numbered 3000–4899</em></span><strong>9<small>cr</small></strong></div>}</div></div>)}</section>
     <section className="degree-footnotes"><p><b>Additional B.S. rule:</b> at least 60 total credits in science and mathematics, including the required advanced-credit block.</p><p><b>Advisement boundary:</b> this is a planning view, not a replacement for the official audit or department approval.</p></section>
     <DegreeCourseDrawer course={selected} status={selected ? records[selected.code] ?? "unknown" : "unknown"} onClose={() => setSelected(null)} onStatus={(status) => { if (!selected) return; setRecords({ ...records, [selected.code]: status }); }} />
   </main>;
