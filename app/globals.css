@@ -594,7 +594,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .degree-family-level > header b { font-size: 14px; }
 .degree-family-level > header small { margin-top: 4px; color: #6f7974; font-size: 8px; line-height: 1.4; }
 .family-connector { position: absolute; left: 50%; top: -25px; width: 1px; height: 48px; background: #465044; }
-.family-connector::before { content: ""; position: absolute; left: -5px; bottom: -1px; width: 9px; height: 9px; border-right: 1px solid #718065; border-bottom: 1px solid #718065; transform: rotate(45deg); }
+.family-connector::before { content: ""; position: absolute; left: -4px; bottom: 1px; width: 9px; height: 9px; border-right: 1px solid #718065; border-bottom: 1px solid #718065; transform: rotate(45deg); }
 .family-node-row { display: flex; align-items: stretch; justify-content: center; flex-wrap: wrap; gap: 12px; position: relative; }
 .family-node-row::before { content: ""; position: absolute; top: -12px; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg,transparent,#3f4944 15%,#3f4944 85%,transparent); }
 .degree-branch-bubble { width: min(260px,calc(33.333% - 12px)); min-width: 210px; position: relative; border: 1px solid #343b38; border-radius: 20px; background: #141817; padding: 15px; box-shadow: 0 15px 35px rgba(0,0,0,.12); }
