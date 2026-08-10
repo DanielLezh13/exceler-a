@@ -377,13 +377,32 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
     if (!reader || !element) return;
     scrollLockRef.current = sectionId;
     setActiveSectionId(sectionId);
-    reader.scrollTo({ top: Math.max(0, element.offsetTop - 24), behavior: "smooth" });
+    const readerTop = reader.getBoundingClientRect().top;
+    const sectionTop = element.getBoundingClientRect().top;
+    reader.scrollTo({ top: Math.max(0, reader.scrollTop + sectionTop - readerTop - 22), behavior: "smooth" });
     window.setTimeout(() => { if (scrollLockRef.current === sectionId) scrollLockRef.current = null; }, 1600);
   };
 
   return <main className="course-page continuous-course">
     <div className="course-banner"><div><span className="course-glyph large">J</span><div><p className="eyebrow">CISC 1115 · Self-study</p><h2>Introduction to Programming Using Java</h2></div></div><div className="course-total"><span><b>{course.percent}%</b><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small></span><ProgressBar value={course.percent} /></div></div>
-    <div className="continuous-layout"><aside className="contents-rail"><div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>{learningChapters.map((item, index) => { const state = chapterProgress(item.id, completed, practice); const open = item.id === selectedChapter.id; return <div className={`contents-section ${open ? "open" : ""}`} key={item.id}><button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}><span className={`chapter-completion ${state.percent === 100 ? "done" : ""}`}>{state.percent === 100 ? <Check size={14} strokeWidth={3} /> : String(index + 1).padStart(2, "0")}</span><span><small>{item.unit}</small><b>{titleCase(item.title)}</b></span><ChevronDown size={15} /></button><div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span><i /></span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div></div>; })}<div className="section-progress-card"><div><span>Chapter Completion</span><b>{chapter.percent}%</b></div><ProgressBar value={chapter.percent} /><small>Reading: {chapter.readingDone ? "done" : "open"} · Practice: {chapter.passed}/{chapter.questions}</small><p>Reading is 25%. Passing the complete practice session is 75%.</p></div></aside>
+    <div className="continuous-layout">
+      <aside className="contents-rail">
+        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>
+        {learningChapters.map((item, index) => {
+          const state = chapterProgress(item.id, completed, practice);
+          const open = item.id === selectedChapter.id;
+          const done = state.percent === 100;
+          return <div className={`contents-section ${open ? "open" : ""} ${done ? "completed" : ""}`} key={item.id}>
+            <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
+              <span className="chapter-number">{String(index + 1).padStart(2, "0")}</span>
+              <span className="chapter-copy"><small>{item.unit}</small><b>{titleCase(item.title)}</b></span>
+              <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
+            </button>
+            <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span><i /></span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>
+          </div>;
+        })}
+        <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Each chapter combines a 25% reading checkpoint with 75% demonstrated practice.</p></div>
+      </aside>
       <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id].length} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(`${selectedChapter.id}:read`)} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
     </div>
   </main>;
