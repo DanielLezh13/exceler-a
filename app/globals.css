@@ -48,12 +48,14 @@ button { cursor: pointer; }
 .nav-mark { width: 18px; color: #77807d; font-family: var(--font-geist-mono); font-weight: 700; }
 .primary-nav button.active .nav-mark { color: var(--lime); }
 .nav-progress { margin-left: auto; font-size: 10px; color: var(--lime); background: rgba(199,243,107,.08); padding: 2px 5px; border-radius: 2px; }
-.sidebar-course { margin-top: 24px; padding: 13px; border: 1px solid var(--line); background: #101314; }
+.nav-progress.neutral { color: #929b97; background: #252a28; }
+.sidebar-course { width: 100%; margin-top: 6px; padding: 13px; border: 1px solid var(--line); background: #101314; color: var(--text); text-align: left; }
 .sidebar-course-top { display: flex; gap: 10px; align-items: center; margin-bottom: 13px; }
+.sidebar-course-top > span:last-child { min-width: 0; }
 .course-glyph { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid #3f5040; background: #1a231a; color: var(--lime); font-family: Georgia, serif; font-weight: 800; }
 .sidebar-course-top small, .sidebar-course-top b { display: block; }
 .sidebar-course-top small { color: var(--muted-2); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
-.sidebar-course-top b { margin-top: 3px; font-size: 12px; }
+.sidebar-course-top b { margin-top: 4px; font-size: 11px; line-height: 1.35; }
 .progress-track { height: 4px; background: #252a28; overflow: hidden; }
 .progress-fill { display: block; height: 100%; background: var(--lime); transition: width .35s ease; }
 .progress-fill.blue { background: var(--blue); }
@@ -688,6 +690,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .focused-shell .nav-mark { flex: 0 0 auto; }
 .focused-shell .course-label { margin-top: 20px; }
 .focused-shell .sidebar-course { border-radius: 14px; background: #151817; border-color: #303533; padding: 15px; }
+.focused-shell .sidebar-course:hover { border-color: #46504c; background: #181c1b; }
+.focused-shell .sidebar-course.active { border-color: #45563d; background: linear-gradient(135deg, #182117, #141817); box-shadow: 0 10px 26px rgba(0,0,0,.16); }
 .focused-shell .course-glyph { border-radius: 9px; }
 .focused-shell .topbar { height: 76px; padding: 0 36px; }
 .focused-shell .topbar h1 { font-size: 20px; }
@@ -764,12 +768,42 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .degree-rule-list small { color: #636b68; font-size: 8px; margin-top: 3px; }
 .degree-brief-card > .secondary-button { margin: 0 17px 17px; width: calc(100% - 34px); }
 
+/* Course library */
+.courses-page { max-width: 1240px; }
+.courses-heading { min-height: 205px; display: flex; align-items: center; justify-content: space-between; gap: 30px; border-bottom: 1px solid #2b302e; }
+.courses-heading h2 { margin: 12px 0 10px; font-size: clamp(42px, 6vw, 72px); letter-spacing: -.065em; line-height: 1; }
+.courses-heading > div:first-child > p:last-child { margin: 0; color: #828b87; font-size: 11px; line-height: 1.65; }
+.course-count { width: 128px; min-height: 105px; display: grid; place-content: center; border: 1px solid #313735; border-radius: 18px; background: #131716; text-align: center; }
+.course-count b, .course-count small { display: block; }
+.course-count b { color: var(--lime); font-size: 34px; line-height: 1; }
+.course-count small { margin-top: 9px; color: #6d7672; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.course-library-group { margin-top: 27px; border: 1px solid #303633; border-radius: 18px; background: #111514; overflow: hidden; }
+.course-library-group > header { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #292f2c; padding: 0 22px; }
+.course-library-group > header h3 { margin: 6px 0 0; font-size: 17px; }
+.course-library-group > header > span { color: #646d69; font: 8px var(--font-geist-mono); }
+.course-library-list { padding: 12px; }
+.course-library-card { width: 100%; min-height: 116px; display: grid; grid-template-columns: 48px minmax(0,1fr) 235px 22px; gap: 18px; align-items: center; border: 1px solid #343b38; border-radius: 15px; background: #161a19; color: #dce1de; padding: 18px; text-align: left; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.course-library-card:hover { border-color: #526448; background: #192019; transform: translateY(-1px); }
+.course-library-card .course-glyph { width: 48px; height: 48px; }
+.course-library-copy { min-width: 0; }
+.course-library-copy small, .course-library-copy b, .course-library-copy em { display: block; }
+.course-library-copy small { color: #85927f; font: 8px var(--font-geist-mono); text-transform: uppercase; letter-spacing: .09em; }
+.course-library-copy b { margin-top: 7px; font-size: 16px; line-height: 1.35; }
+.course-library-copy em { margin-top: 6px; color: #69726e; font-size: 8px; font-style: normal; }
+.course-library-progress { min-width: 0; }
+.course-library-progress strong, .course-library-progress > small { display: block; }
+.course-library-progress strong { color: var(--lime); font-size: 18px; }
+.course-library-progress > small { margin: 4px 0 10px; color: #69726e; font-size: 8px; }
+.course-library-progress .progress-track { border-radius: 999px; }
+.course-library-progress .progress-fill { border-radius: inherit; }
+.course-library-card > svg { color: #78817d; }
+
 /* Continuous lesson reader */
 .continuous-course { height: calc(100vh - 76px); overflow: hidden; }
 .continuous-course .course-banner { height: 92px; padding: 0 36px; }
 .continuous-course .course-glyph.large { border-radius: 11px; }
 .continuous-course .course-total { width: 275px; }
-.continuous-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); height: calc(100vh - 168px); }
+.continuous-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); height: calc(100vh - 76px); }
 .contents-rail { overflow-y: auto; border-right: 1px solid var(--line); background: #0d1010; padding: 18px 12px; }
 .contents-heading { display: flex; align-items: center; justify-content: space-between; padding: 3px 10px 15px; }
 .contents-heading > span { color: #626a67; font-size: 8px; }
@@ -1135,6 +1169,7 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
   .degree-verification > div:first-child { border-left: 0; }
   .focused-degree { overflow-x: hidden; }
   .degree-tree { overflow-x: auto; }
+  .course-library-card { grid-template-columns: 48px minmax(0,1fr) 190px 22px; }
 }
 
 @media (max-width: 700px) {
@@ -1147,6 +1182,15 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
   .progress-orbit { width: 95px; height: 95px; }
   .progress-orbit::after { width: 78px; height: 78px; }
   .education-dashboard-grid { gap: 12px; margin-top: 12px; }
+  .courses-heading { min-height: 175px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 18px; }
+  .courses-heading h2 { font-size: 48px; }
+  .course-count { width: 100%; min-height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; }
+  .course-count small { margin-top: 0; }
+  .course-library-group > header { align-items: flex-start; flex-direction: column; justify-content: center; gap: 7px; padding: 16px; }
+  .course-library-card { grid-template-columns: 42px minmax(0,1fr) 18px; gap: 13px; padding: 15px; }
+  .course-library-card .course-glyph { width: 42px; height: 42px; }
+  .course-library-progress { grid-column: 2 / -1; }
+  .course-library-copy b { font-size: 13px; }
   .mission-row { grid-template-columns: 35px minmax(0,1fr) auto; }
   .cleared-pill, .quick-complete { display: none; }
   .continuous-course { height: auto; overflow: visible; }
@@ -1183,5 +1227,5 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
   .detected-row > div { justify-content: flex-start; }
   .audit-dialog footer { align-items: stretch; flex-direction: column; }
   .audit-dialog footer .primary-button { width: 100%; }
-  .mobile-nav { grid-template-columns: repeat(3,1fr); }
+  .mobile-nav { grid-template-columns: repeat(4,1fr); }
 }
