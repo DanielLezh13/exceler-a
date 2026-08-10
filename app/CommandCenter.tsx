@@ -20,6 +20,13 @@ import {
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { degreeCourses, type DegreeCourse } from "./data/curriculum";
+import StructuredLesson from "./StructuredLesson";
+import {
+  additionalLearningChapters,
+  additionalPracticeQuestions,
+  structuredLessonContent,
+  type CompletionMode,
+} from "./data/cisc1115Course";
 
 type View = "dashboard" | "degree" | "course";
 type DegreeStatus = "unknown" | "complete" | "in_progress" | "not_started";
@@ -35,7 +42,8 @@ type LearningChapter = {
   unit: string;
   title: string;
   description: string;
-  status: "authored" | "planned";
+  status: "authored";
+  completionMode?: CompletionMode;
   sections: LearningSection[];
 };
 
@@ -101,31 +109,10 @@ const learningChapters: LearningChapter[] = [
       { id: "operators-practice", title: "Practice Session" },
     ],
   },
-  { id: "input-basic-programs", unit: "Unit I · Java Fundamentals", title: "Input & Basic Programs", description: "Read console input with Scanner and turn input into calculated output.", status: "planned", sections: [] },
-  { id: "comparisons-booleans", unit: "Unit II · Decision Making", title: "Comparisons & Booleans", description: "Build true-or-false expressions with comparison and logical operators.", status: "planned", sections: [] },
-  { id: "if-else", unit: "Unit II · Decision Making", title: "If / Else", description: "Choose between branches with if, else, else-if chains, and nested decisions.", status: "planned", sections: [] },
-  { id: "decision-programs", unit: "Unit II · Decision Making", title: "Decision-Making Programs", description: "Combine input, variables, operators, and conditions in substantial programs.", status: "planned", sections: [] },
-  { id: "while-loops", unit: "Unit III · Repetition", title: "While Loops", description: "Repeat with counters, sentinels, and deliberate stopping conditions.", status: "planned", sections: [] },
-  { id: "for-loops", unit: "Unit III · Repetition", title: "For Loops", description: "Count across ranges and build totals with compact loop structure.", status: "planned", sections: [] },
-  { id: "nested-loops", unit: "Unit III · Repetition", title: "Nested Loops & Loop Problems", description: "Use loops inside loops for patterns and larger repetitive algorithms.", status: "planned", sections: [] },
-  { id: "methods", unit: "Unit IV · Methods", title: "Methods", description: "Define and call reusable operations with parameters, arguments, and void methods.", status: "planned", sections: [] },
-  { id: "returns-scope", unit: "Unit IV · Methods", title: "Return Values & Scope", description: "Move data through methods and understand local variables and scope.", status: "planned", sections: [] },
-  { id: "arrays", unit: "Unit V · Data Collections", title: "Arrays", description: "Create indexed collections and safely read or replace their elements.", status: "planned", sections: [] },
-  { id: "arrays-loops", unit: "Unit V · Data Collections", title: "Arrays + Loops", description: "Traverse arrays to calculate sums, averages, minimums, maximums, and counts.", status: "planned", sections: [] },
-  { id: "strings", unit: "Unit V · Data Collections", title: "Strings", description: "Compare, inspect, and process text one operation or character at a time.", status: "planned", sections: [] },
-  { id: "arraylists", unit: "Unit V · Data Collections", title: "ArrayLists", description: "Create flexible lists and add, get, set, remove, and traverse values.", status: "planned", sections: [] },
-  { id: "searching", unit: "Unit VI · Basic Algorithms", title: "Searching", description: "Use linear search to find values and positions in collections.", status: "planned", sections: [] },
-  { id: "sorting", unit: "Unit VI · Basic Algorithms", title: "Sorting", description: "Trace and implement simple sorting processes instead of treating them as magic.", status: "planned", sections: [] },
-  { id: "algorithmic-problem-solving", unit: "Unit VI · Basic Algorithms", title: "Algorithmic Problem Solving", description: "Combine loops, methods, arrays, and strings to trace and debug algorithms.", status: "planned", sections: [] },
-  { id: "input-output", unit: "Unit VII · Input/Output & Program Development", title: "Input & Output", description: "Review console I/O and process basic external data.", status: "planned", sections: [] },
-  { id: "debugging-testing", unit: "Unit VII · Input/Output & Program Development", title: "Debugging & Testing", description: "Separate syntax, runtime, and logic errors and design useful test cases.", status: "planned", sections: [] },
-  { id: "computers-programs-algorithms", unit: "Unit VIII · Computer Science Context", title: "Computers, Programs & Algorithms", description: "Understand algorithms, program execution, and essential computing concepts.", status: "planned", sections: [] },
-  { id: "cs-context-applications", unit: "Unit VIII · Computer Science Context", title: "CS Context & Applications", description: "Connect computing to real disciplines, applications, and historical context.", status: "planned", sections: [] },
-  { id: "cumulative-challenges", unit: "Final · Course Synthesis", title: "Cumulative Programming Challenges", description: "Solve larger programs that combine the full CISC 1115 toolset.", status: "planned", sections: [] },
-  { id: "final-assessment", unit: "Final · Course Synthesis", title: "CISC 1115 Final Assessment", description: "Demonstrate course-level understanding through cumulative explanation and programming work.", status: "planned", sections: [] },
+  ...additionalLearningChapters,
 ];
 
-const authoredChapters = learningChapters.filter((chapter) => chapter.status === "authored");
+const authoredChapters = learningChapters;
 
 const STORAGE_KEY = "daymark-education-v4";
 
@@ -134,7 +121,7 @@ const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘�
 const titleCase = (value: string) => {
   const minorWords = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "over", "per", "the", "to", "via", "vs"]);
   const preserved = new Map([
-    ["arraylists", "ArrayLists"], ["b.s", "B.S."], ["b.s.", "B.S."], ["c++", "C++"], ["cisc", "CISC"], ["cs", "CS"], ["degreeworks", "DegreeWorks"],
+    ["arraylist", "ArrayList"], ["arraylists", "ArrayLists"], ["b.s", "B.S."], ["b.s.", "B.S."], ["c++", "C++"], ["cisc", "CISC"], ["cs", "CS"], ["degreeworks", "DegreeWorks"],
     ["gpa", "GPA"], ["java", "Java"], ["pdf", "PDF"], ["string", "String"],
   ]);
   const words = value.split(/\s+/);
@@ -172,18 +159,7 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
     { id: "operators-state-trace", level: "Challenge", kind: "Trace stored state", title: "Track a longer update chain", prompt: "What is the final output?", code: "int energy = 20;\nenergy /= 2;\nenergy += 7;\nenergy *= 3;\nenergy %= 10;\nSystem.out.println(energy);", placeholder: "Type the output", hint: "Write down energy after each statement before moving to the next one.", success: "Correct. Energy changes 20 → 10 → 17 → 51 → 1.", validate: (answer) => normalizeLines(answer) === "1" },
     { id: "operators-resource-challenge", level: "Challenge", kind: "Editor challenge", title: "Build a resource calculator", prompt: "Declare missions as 4, reward as 15, multiplier as 2, and fee as 7. Calculate balance with missions * reward * multiplier - fee. Print exactly: Balance: 113 credits", placeholder: "Write the declarations, calculation, and println statement", hint: "Store the longer expression in an int named balance, then concatenate balance between the two text pieces.", success: "Operators challenge cleared. You combined declarations, precedence, a longer expression, and exact String output.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /intmissions=4;/.test(code) && /intreward=15;/.test(code) && /intmultiplier=2;/.test(code) && /intfee=7;/.test(code) && /intbalance=missions\*reward\*multiplier-fee;/.test(code) && /System\.out\.println\("Balance:"\+balance\+"credits"\);/.test(code); } },
   ],
-  decisions: [
-    { id: "decisions-compare", level: "Warm-up", kind: "Predict output", title: "Evaluate a comparison", prompt: "What prints?", code: "int age = 20;\nSystem.out.println(age >= 18);", placeholder: "Exact output", hint: "The comparison itself becomes a boolean value.", success: "Correct. 20 is at least 18, so the result is true.", validate: (answer) => normalizeLines(answer) === "true" },
-    { id: "decisions-fill", level: "Apply", kind: "Fill missing code", title: "Require both conditions", prompt: "Fill the blank so both conditions must be true.", code: "if (hasKey ___ doorUnlocked) {", placeholder: "Missing operator", hint: "Java's logical AND uses two ampersands.", success: "Correct. && requires both sides to be true.", validate: (answer) => answer.trim() === "&&" },
-    { id: "decisions-output", level: "Apply", kind: "Predict output", title: "Choose the branch", prompt: "What prints?", code: 'int score = 8;\nif (score >= 10) {\n  System.out.println("Win");\n} else {\n  System.out.println("Keep going");\n}', placeholder: "Exact output", hint: "Check whether 8 satisfies score >= 10.", success: "Correct. The false condition sends execution to else.", validate: (answer) => normalizeLines(answer) === "Keep going" },
-    { id: "decisions-fix", level: "Challenge", kind: "Fix the error", title: "Write a real condition", prompt: "Rewrite the first line so the block runs when score is 10 or higher.", code: "if (score = 10) {", placeholder: "Corrected first line", hint: "Assignment is not comparison. You also need to include values above 10.", success: "Correct. >= expresses 10 or higher.", validate: (answer) => compactCode(answer) === "if(score>=10){" },
-  ],
-  loops: [
-    { id: "loops-predict", level: "Warm-up", kind: "Predict output", title: "Trace a countdown", prompt: "Write the three output lines.", code: "int lives = 3;\nwhile (lives > 0) {\n  System.out.println(lives);\n  lives--;\n}", placeholder: "Exact output, one value per line", hint: "Print first, then subtract one.", success: "Correct. The loop prints 3, 2, and 1 on separate lines.", multiline: true, validate: (answer) => normalizeLines(answer) === "3\n2\n1" },
-    { id: "loops-fill", level: "Apply", kind: "Fill missing code", title: "Advance the counter", prompt: "Fill the blank so the loop eventually stops.", code: "for (int i = 0; i < 3; ___) {", placeholder: "Missing update", hint: "Increase i by one after each iteration.", success: "Correct. i++ advances the loop counter.", validate: (answer) => answer.trim().replace(/\s/g, "") === "i++" },
-    { id: "loops-trace", level: "Apply", kind: "Exact output", title: "Trace a step of two", prompt: "What prints on one line?", code: 'for (int i = 0; i < 5; i += 2) {\n  System.out.print(i + " ");\n}', placeholder: "Exact values", hint: "Start at 0 and add 2 while i is below 5.", success: "Correct. The visited values are 0, 2, and 4.", validate: (answer) => answer.trim().replace(/\s+/g, " ") === "0 2 4" },
-    { id: "loops-challenge", level: "Challenge", kind: "Write code", title: "Produce an exact sequence", prompt: "Write a for loop that prints 5 4 3 2 1 on one line.", placeholder: "Write the complete loop", hint: "Start at 5, continue while the counter is at least 1, and decrement.", success: "Challenge cleared. Your loop has the correct start, condition, update, and output.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /for\(inti=5;i>=1;i--\)/.test(code) && /System\.out\.print\(i\+" "\);/.test(code); } },
-  ],
+  ...additionalPracticeQuestions,
 };
 
 type AuditSnapshot = {
@@ -265,12 +241,14 @@ const initialDegreeRecords: DegreeRecords = Object.fromEntries([
 const readingCheckpointId = (chapterId: string) => chapterId === "operators-expressions" ? `${chapterId}:read:v2` : `${chapterId}:read`;
 
 function chapterProgress(chapterId: string, completed: string[], practice: PracticeRecords) {
+  const chapter = learningChapters.find((item) => item.id === chapterId);
+  const requiresReading = chapter?.completionMode !== "practice-only";
   const questions = practiceQuestions[chapterId] ?? [];
-  const readingDone = completed.includes(readingCheckpointId(chapterId));
+  const readingDone = requiresReading && completed.includes(readingCheckpointId(chapterId));
   const passed = questions.filter((question) => practice[chapterId]?.passed?.includes(question.id)).length;
   const practiceDone = questions.length > 0 && passed >= questions.length;
-  const points = (readingDone ? 1 : 0) + (practiceDone ? 3 : 0);
-  return { readingDone, practiceDone, passed, questions: questions.length, points, total: 4, percent: points * 25 };
+  const points = requiresReading ? (readingDone ? 1 : 0) + (practiceDone ? 3 : 0) : (practiceDone ? 4 : 0);
+  return { requiresReading, readingDone, practiceDone, passed, questions: questions.length, points, total: 4, percent: points * 25 };
 }
 
 function learningProgress(completed: string[], practice: PracticeRecords) {
@@ -343,7 +321,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
       <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Each chapter: reading checkpoint 25% · completed practice 75%</small></div></div>
     </section>
     <section className="education-dashboard-grid">
-      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{chapter.status === "authored" ? done ? "Chapter cleared" : `${state.readingDone ? "Lesson read" : "Reading open"} · ${state.passed}/${state.questions} practice passed` : chapter.unit}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
+      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.requiresReading ? state.readingDone ? "Lesson read" : "Reading open" : "Demonstration open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
       <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Daymark does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
@@ -414,9 +392,9 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
             <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>
           </div></Fragment>;
         })}
-        <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Each chapter combines a 25% reading checkpoint with 75% demonstrated practice.</p></div>
+        <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Lessons use a 25% reading checkpoint and 75% demonstrated practice. Final campaigns clear only through passed work.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><p className="eyebrow accent-text">{selectedChapter.unit}</p><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div>{selectedChapter.status === "authored" ? <><span>One complete lesson</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></> : <span>Chapter overview</span>}</div></header>{selectedChapter.status === "authored" ? <><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></> : <section className="planned-chapter-preview"><p className="eyebrow">Course Chapter</p><h2>Chapter Overview</h2><p>The full lesson and practice set are being built from the Variables and Operators chapter standard.</p></section>}</article></div>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>{chapter.requiresReading ? "One complete lesson" : "Demonstration campaign"}</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
     </div>
   </main>;
 }
@@ -451,7 +429,7 @@ function DataTypeLesson({ type, category, meaning, description, declaration, exp
   </article>;
 }
 
-function ChapterLessonContent({ chapterId, readingDone, onRead }: { chapterId: string; readingDone: boolean; onRead: () => void }) {
+function ChapterLessonContent({ chapterId, readingDone, requiresReading, onRead }: { chapterId: string; readingDone: boolean; requiresReading: boolean; onRead: () => void }) {
   if (chapterId === "variables-data-types") return <>
     <LearningSectionBlock id="variables-overview" eyebrow="Direct definition" title="What is a variable?"><p className="lesson-lead">A variable is a named location in memory used to store a value. The name gives your program a readable way to find and use that value later.</p><CodeExample label="A first variable" code="int age = 25;" /><aside className="key-idea"><Sparkles size={17} /><p><b>The variable and its value are not the same thing.</b><span><code>age</code> is the reusable name. <code>25</code> is the value currently stored under that name.</span></p></aside></LearningSectionBlock>
     <LearningSectionBlock id="variables-declaration" eyebrow="Break it down" title="Declaration anatomy"><p className="lesson-lead">The general pattern is <code>type variableName = value;</code>. Read it from left to right: what kind of value, what name, and what value to store.</p><CodeExample label="General syntax" code="type variableName = value;" /><div className="declaration-grid"><div><code>int</code><b>Data type</b><small>Only whole numbers fit here</small></div><div><code>age</code><b>Variable name</b><small>The label used later</small></div><div><code>=</code><b>Assignment</b><small>Stores the right side</small></div><div><code>25</code><b>Value</b><small>The actual data</small></div><div><code>;</code><b>Statement end</b><small>Required punctuation</small></div></div><CodeExample label="More declarations" code={'String name = "Daniel";\ndouble height = 6.2;\nboolean hungry = true;\nchar grade = \'A\';'} /></LearningSectionBlock>
@@ -482,24 +460,15 @@ function ChapterLessonContent({ chapterId, readingDone, onRead }: { chapterId: s
     <LearningSectionBlock id="operators-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} /><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code> create numeric results.</li><li><Check size={16} />Integer division discards the decimal part; a double operand keeps it.</li><li><Check size={16} /><code>%</code> returns the remainder.</li><li><Check size={16} />Parentheses run before <code>* / %</code>, which run before <code>+ -</code>.</li><li><Check size={16} /><code>++</code> and <code>--</code> change a value by one.</li><li><Check size={16} /><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> update and assign.</li><li><Check size={16} />Equal-precedence operators are evaluated left to right.</li><li><Check size={16} />Once a String is involved, <code>+</code> concatenates unless parentheses force arithmetic first.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
   </>;
 
-  if (chapterId === "decisions") return <>
-    <LearningSectionBlock id="decisions-comparisons" eyebrow="Boolean questions" title="Comparisons"><p className="lesson-lead">A comparison asks a yes-or-no question and produces <code>true</code> or <code>false</code>.</p><div className="operator-grid"><div><code>==</code><b>Equal</b><small>score == 10</small></div><div><code>!=</code><b>Not equal</b><small>lives != 0</small></div><div><code>&gt;</code><b>Greater</b><small>age &gt; 18</small></div><div><code>&lt;=</code><b>At most</b><small>speed &lt;= 55</small></div></div></LearningSectionBlock>
-    <LearningSectionBlock id="decisions-logic" eyebrow="Combine conditions" title="Boolean logic"><div className="type-grid"><div><code>&amp;&amp;</code><p><b>AND</b><small>Both must be true</small></p></div><div><code>||</code><p><b>OR</b><small>At least one true</small></p></div><div><code>!</code><p><b>NOT</b><small>Flips the boolean</small></p></div></div></LearningSectionBlock>
-    <LearningSectionBlock id="decisions-if-else" eyebrow="Choose a path" title="If / else"><p className="lesson-lead">An <code>if</code> block runs only when its condition is true. <code>else</code> provides the alternative path.</p><CodeExample label="Exactly one branch runs" code={'if (hasKey) {\n    System.out.println("Access granted");\n} else {\n    System.out.println("Door locked");\n}'} /></LearningSectionBlock>
-    <LearningSectionBlock id="decisions-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} />Comparisons produce booleans.</li><li><Check size={16} /><code>&gt;=</code> means at least; <code>==</code> means equal.</li><li><Check size={16} /><code>&amp;&amp;</code>, <code>||</code>, and <code>!</code> combine conditions.</li><li><Check size={16} />Only the matching branch runs.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
-  </>;
+  const structuredSections = structuredLessonContent[chapterId];
+  if (structuredSections) return <StructuredLesson sections={structuredSections} readingDone={readingDone} requiresReading={requiresReading} onRead={onRead} />;
 
-  return <>
-    <LearningSectionBlock id="loops-while" eyebrow="Conditional repetition" title="While loops"><p className="lesson-lead">A <code>while</code> loop repeats as long as its condition stays true. Something inside must eventually change the condition.</p><CodeExample label="Countdown" code={'while (lives > 0) {\n    System.out.println(lives);\n    lives--;\n}'} /></LearningSectionBlock>
-    <LearningSectionBlock id="loops-for" eyebrow="Counted repetition" title="For loops"><p className="lesson-lead">A <code>for</code> loop keeps its starting value, condition, and update together.</p><CodeExample label="Three iterations" code={'for (int turn = 0; turn < 3; turn++) {\n    System.out.println(turn);\n}'} /></LearningSectionBlock>
-    <LearningSectionBlock id="loops-tracing" eyebrow="Debug the state" title="Tracing a loop"><p className="lesson-lead">Write down the control variable before each iteration. That exposes off-by-one errors and infinite loops.</p><div className="trace-table"><div><b>Iteration</b><b>turn before</b><b>Output</b></div><div><span>1</span><span>0</span><code>0</code></div><div><span>2</span><span>1</span><code>1</code></div><div><span>3</span><span>2</span><code>2</code></div></div></LearningSectionBlock>
-    <LearningSectionBlock id="loops-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} />A loop needs a start, stopping condition, and update.</li><li><Check size={16} />Trace state one iteration at a time.</li><li><Check size={16} />A missing update can create an infinite loop.</li><li><Check size={16} />Use a for loop when repetition is structured.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
-  </>;
+  return null;
 }
 
 const emptyPracticeRecord = (): PracticeRecord => ({ answers: {}, attempts: {}, hints: [], passed: [] });
 
-function ChapterPractice({ chapterId, record: savedRecord, readingDone, onChange }: { chapterId: string; record?: PracticeRecord; readingDone: boolean; onChange: (record: PracticeRecord) => void }) {
+function ChapterPractice({ chapterId, record: savedRecord, readingDone, requiresReading, onChange }: { chapterId: string; record?: PracticeRecord; readingDone: boolean; requiresReading: boolean; onChange: (record: PracticeRecord) => void }) {
   const questions = practiceQuestions[chapterId];
   const record = savedRecord ?? emptyPracticeRecord();
   const validPassed = questions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
@@ -524,7 +493,9 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, onChange
   };
   const revealHint = () => onChange({ ...record, hints: record.hints.includes(question.id) ? record.hints : [...record.hints, question.id] });
 
-  return <section className="practice-session" id={`${chapterId.split("-")[0]}-practice`} data-learning-section>
+  const practiceSectionId = chapterId === "variables-data-types" ? "variables-practice" : chapterId === "operators-expressions" ? "operators-practice" : `${chapterId}-practice`;
+
+  return <section className="practice-session" id={practiceSectionId} data-learning-section>
     <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>
     <div className="practice-workspace"><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") check(); }} autoComplete="off" />}
@@ -533,7 +504,7 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, onChange
       <div className="practice-actions"><button className="soft-button" onClick={revealHint} disabled={record.hints.includes(question.id)}><CircleHelp size={14} />{record.hints.includes(question.id) ? "Clue shown" : "Show clue"}</button><button className="primary-button" onClick={check} disabled={!String(record.answers[question.id] ?? "").trim()}>{passed ? "Check again" : "Check answer"}<ArrowRight size={14} /></button></div>
     </div>
     <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>
-    {allPassed && <div className={`chapter-cleared-banner ${readingDone ? "complete" : "waiting"}`}><span>{readingDone ? <Check size={24} strokeWidth={3} /> : <BookOpen size={22} />}</span><div><b>{readingDone ? "Chapter cleared" : "Practice cleared—reading checkpoint remains"}</b><small>{readingDone ? "Every exercise passed. This chapter now counts as complete." : "Return to Key takeaways and mark the lesson read to finish the chapter."}</small></div></div>}
+    {allPassed && <div className={`chapter-cleared-banner ${readingDone || !requiresReading ? "complete" : "waiting"}`}><span>{readingDone || !requiresReading ? <Check size={24} strokeWidth={3} /> : <BookOpen size={22} />}</span><div><b>{readingDone || !requiresReading ? "Chapter cleared" : "Practice cleared—reading checkpoint remains"}</b><small>{readingDone || !requiresReading ? "Every required exercise passed. This chapter now counts as complete." : "Return to Key takeaways and mark the lesson read to finish the chapter."}</small></div></div>}
   </section>;
 }
 
