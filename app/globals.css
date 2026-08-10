@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #090b0c;
-  --bg-elevated: #0d1011;
-  --panel: #101314;
-  --panel-2: #141819;
-  --panel-3: #191d1e;
-  --line: #262b2c;
-  --line-soft: #1c2021;
-  --text: #f2f4f1;
-  --muted: #909895;
-  --muted-2: #646b69;
-  --lime: #c7f36b;
-  --lime-dark: #91ba3d;
+  --bg: #0e1110;
+  --bg-elevated: #111414;
+  --panel: #131716;
+  --panel-2: #171b1a;
+  --panel-3: #1b201e;
+  --line: #2a302e;
+  --line-soft: #202523;
+  --text: #ecefeb;
+  --muted: #929b96;
+  --muted-2: #68706c;
+  --lime: #bff55a;
+  --lime-dark: #89b53a;
   --blue: #72a7ff;
   --violet: #a78bfa;
-  --amber: #f0b861;
-  --red: #ef7878;
+  --amber: #e8b85c;
+  --red: #e87368;
   --cyan: #75d4d0;
   --sidebar: 248px;
 }
@@ -1043,6 +1043,64 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
 .empty-detection { display: flex; align-items: center; gap: 7px; color: #717a76; font-size: 8px; }
 .audit-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #2d3331; margin-top: 17px; padding-top: 15px; }
 .audit-dialog footer > span { color: #5e6763; font-size: 7px; }
+
+/* Learning palette trial: neutral workspace, semantic accents */
+.focused-shell {
+  background: radial-gradient(circle at 70% -10%, rgba(114, 167, 255, .035), transparent 31%), var(--bg);
+}
+.focused-shell .sidebar { background: #0f1211; }
+.focused-shell .topbar { background: rgba(14, 17, 16, .92); }
+.focused-shell .primary-nav button.active { background: #1b1f1e; }
+.focused-shell .sidebar-course,
+.rounded-panel,
+.planned-chapter-preview,
+.section-progress-card { background: #141817; }
+.focus-pill { border-color: #34445c; background: #151b23; color: #91b9f4; }
+.accent-text { color: var(--blue) !important; }
+.education-hero { border-color: #303735; background: linear-gradient(115deg, #171b1c, #111414 58%); }
+.section-chip { border-color: #35445b; background: rgba(114, 167, 255, .07); color: #9bbcf0; }
+.hero-progress-card { border-color: #343b39; background: rgba(13, 16, 16, .86); }
+.mission-row:hover { background: #191d1c; }
+.mission-row.current { border-color: #3c5574; background: #161d24; }
+.mission-status.active { border-color: #5478a7; background: #192536; color: var(--blue); box-shadow: 0 0 0 5px rgba(114, 167, 255, .05); }
+.contents-rail { background: #101312; }
+.course-unit-label { color: #788da8; }
+.contents-section.open .contents-section-button,
+.part-list button.active { background: #1a1e1d; }
+.contents-section.open .chapter-row-actions > svg,
+.part-list button.active .part-index { color: var(--blue); }
+.chapter-reader { background: #111413; }
+.lesson-lead code,
+.learning-part .teaching-code > div span,
+.declaration-grid code,
+.operator-grid code,
+.data-type-example pre code,
+.data-type-example p code,
+.expression-steps.string-order code,
+.judgment-cards code { color: var(--blue); }
+.key-idea { border-color: #344a66; background: #151c24; }
+.key-idea > svg,
+.key-idea code { color: var(--blue); }
+.key-idea span { color: #9aa8b8; }
+.rule-callout { border-left-color: var(--amber); background: #1d1912; }
+.rule-callout code { color: var(--amber); }
+.rule-callout.muted { border-left-color: #69716e; background: #171a19; }
+.lesson-note code { color: var(--blue); }
+.declaration-grid > div,
+.operator-grid > div,
+.expression-checklist > div,
+.data-type-lesson,
+.type-grid > div,
+.judgment-cards > div { background: #141817; }
+.expression-steps { background: #121615; }
+.expression-steps span { border-color: #405a79; color: var(--blue); }
+.expression-checklist > div > span { background: #192536; color: var(--blue); }
+.data-type-values code { background: #1a1f1e; }
+.judgment-cards > div > span { background: #1b2635; color: var(--blue); }
+.question-route button.active > span { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(114, 167, 255, .08); color: var(--blue); }
+.practice-workspace > header .difficulty { border-color: #4b6485; background: #192536; color: var(--blue); }
+.practice-feedback.incorrect { background: #261817; border-color: #6a3936; }
+.practice-feedback.incorrect > span { background: #4d2927; color: var(--red); }
 
 @media (max-width: 1080px) {
   .education-hero { grid-template-columns: 1fr; }
