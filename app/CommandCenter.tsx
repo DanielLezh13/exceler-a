@@ -284,7 +284,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
 function Sidebar({ view, setView, completed, practice }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
-    <button className="brand exceler-brand" onClick={() => setView("home")} aria-label="Exceler A home"><span className="brand-mark mobile-brand-mark"><img src="/exceler-a-mark-512.png" alt="" /></span><span className="brand-copy"><span className="brand-name"><b>EXCELER</b><img src="/exceler-a-mark-512.png" alt="A" /></span><small>Self-Directed Learning</small></span></button>
+    <button className="brand exceler-brand" onClick={() => setView("home")} aria-label="Exceler A home"><img className="sidebar-brand-logo" src="/exceler-a-mark-512.png" alt="" /></button>
     <nav className="primary-nav" aria-label="Education navigation">
       <p className="nav-section-label">Workspace</p>
       <button className={view === "home" ? "active" : ""} onClick={() => setView("home")}><House className="nav-mark" size={17} />Home</button>
@@ -307,9 +307,10 @@ function HomeView({ completed, practice, snapshot, setView }: { completed: strin
   const nextState = chapterProgress(nextChapter.id, completed, practice);
   return <main className="home-page">
     <section className="home-stage">
+      <div className="home-title-lockup" aria-label="Exceler A"><b>EXCELER</b><img src="/exceler-a-mark-512.png" alt="A" /></div>
       <div className="home-primary">
         <div className="home-intro">
-          <div className="home-intro-top"><p className="eyebrow">Self-Directed Academic Learning</p><img className="home-standalone-mark" src="/exceler-a-mark-512.png" alt="Exceler A logo" /></div>
+          <p className="eyebrow">Self-Directed Academic Learning</p>
           <h1>Your Education,<br /><span>Under Your Direction.</span></h1>
           <p className="home-declaration">Structured teaching, academic guidance, and a clear degree path—without giving up control of how you learn.</p>
         </div>
