@@ -309,7 +309,7 @@ function HomeView({ completed, practice, snapshot, setView }: { completed: strin
     <section className="home-stage">
       <div className="home-primary">
         <div className="home-intro">
-          <p className="eyebrow">Self-Directed Academic Learning</p>
+          <div className="home-intro-top"><p className="eyebrow">Self-Directed Academic Learning</p><img className="home-standalone-mark" src="/exceler-a-mark-512.png" alt="Exceler A logo" /></div>
           <h1>Your Education,<br /><span>Under Your Direction.</span></h1>
           <p className="home-declaration">Structured teaching, academic guidance, and a clear degree path—without giving up control of how you learn.</p>
         </div>
@@ -322,7 +322,7 @@ function HomeView({ completed, practice, snapshot, setView }: { completed: strin
       </div>
       <aside className="home-guidance-stack" aria-label="Learning guidance">
         <button className="home-guidance-card next-move" onClick={() => setView("course")}><span className="home-card-icon"><Play size={15} fill="currentColor" /></span><span><small>Recommended Next Move</small><b>{titleCase(nextChapter.title)}</b><em>{nextState.readingDone ? `${nextState.passed} of ${nextState.questions} practice questions passed` : "Continue the lesson, then demonstrate it in practice"}</em></span><ArrowRight size={16} /></button>
-        <button className="home-guidance-card degree-status" onClick={() => setView("degree")}><span className="home-card-icon"><GraduationCap size={17} /></span><span><small>Degree Position</small><b>{snapshot.degreeProgress}% Degree Progress</b><em>{snapshot.remainingCredits} credits remaining · {snapshot.majorRemaining} in the major</em></span><ArrowRight size={16} /></button>
+        <button className="home-guidance-card degree-status" onClick={() => setView("degree")}><span className="home-card-icon"><GraduationCap size={17} /></span><span><small>Degree Position</small><b>{snapshot.degreeProgress}% Degree Progress</b><em>{snapshot.remainingCredits} total credits remaining · {snapshot.majorRemaining} major credits remaining</em></span><ArrowRight size={16} /></button>
         <div className="home-guidance-card learning-proof"><span className="home-card-icon"><Check size={17} strokeWidth={3} /></span><span><small>Demonstrated Learning</small><b>{progress.completedChapters} Chapters Cleared</b><em>Reading creates familiarity. Completed practice creates progress.</em></span></div>
       </aside>
       <div className="home-console-dock">
