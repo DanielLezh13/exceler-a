@@ -14,7 +14,9 @@ import {
   LockKeyhole,
   Play,
   RotateCcw,
+  Send,
   Sparkles,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -56,6 +58,27 @@ type PracticeRecord = {
 };
 
 type PracticeRecords = Record<string, PracticeRecord>;
+
+type TutorCourseContext = {
+  courseCode: string;
+  courseTitle: string;
+  courseProgress: number;
+  chapterId: string;
+  chapterTitle: string;
+  chapterDescription: string;
+  chapterProgress: number;
+  sectionId: string;
+  sectionTitle: string;
+  lessonReference: unknown;
+  practicePassed: number;
+  practiceTotal: number;
+};
+
+type TutorMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
 
 type PracticeQuestion = {
   id: string;
@@ -114,6 +137,33 @@ const learningChapters: LearningChapter[] = [
 ];
 
 const authoredChapters = learningChapters;
+
+const foundationalTutorReferences: Record<string, Record<string, string>> = {
+  "variables-data-types": {
+    "variables-overview": "A variable is a named location in memory that stores a value. In int age = 25;, int is the type, age is the reusable name, = assigns, 25 is the current value, and ; ends the statement.",
+    "variables-declaration": "Declaration pattern: type variableName = value;. Explain every token and distinguish the variable name from the value stored under it.",
+    "variables-types": "The chapter teaches int for whole numbers, double for decimals, boolean for true or false without quotes, char for exactly one character in single quotes, and String for text in double quotes. Even \"123\" is text.",
+    "variables-naming": "Use descriptive camelCase names such as playerHealth, firstName, and carSpeed. Names cannot contain spaces, start with a number, or use Java keywords; names are case-sensitive.",
+    "variables-changing": "Declare once with the type, then reassign with only the name: int lives = 3; lives = 2;. The variable remains the same while its stored value changes.",
+    "variables-printing": "System.out.println prints one line. println(age) prints the stored value; println(\"age\") literally prints the word age.",
+    "variables-concatenation": "Use + to join text and variables. Spaces must be included inside String literals, as in System.out.println(\"Hello \" + name);.",
+    "variables-program": "The complete example declares String name, int age, double height, and boolean likesJava, then prints each. public class Main and public static void main(String[] args) are labeled boilerplate for now.",
+    "variables-takeaways": "Every variable has a type; = assigns; statements end with ;. String uses double quotes, char uses single quotes, reassignment changes the stored value, and + concatenates when a String is involved.",
+    "variables-practice": "Practice combines output prediction, missing types, quote repair, exact concatenated output, multi-variable declarations, reassignment, and a cumulative profile challenge.",
+  },
+  "operators-expressions": {
+    "operators-arithmetic": "Operators act on operands; expressions produce values. The chapter introduces +, -, *, /, and %. An expression calculates; assignment stores the result. // begins a comment Java ignores.",
+    "operators-division": "When both operands are integers, Java performs integer division and discards the fractional part. A double operand preserves decimal division. A (double) cast can convert one operand for the calculation.",
+    "operators-modulus": "% returns the remainder after division. Use it for leftovers, even/odd checks, cycles, and splitting totals into groups plus a remainder.",
+    "operators-precedence": "Parentheses first, then * / % left to right, then + - left to right. Parentheses should be used when they make intent clearer.",
+    "operators-increment": "++ increases a variable by one and -- decreases it by one. At this stage they are taught as standalone updates, avoiding prefix/postfix expression trivia.",
+    "operators-assignment": "Compound assignment updates and stores in one statement: +=, -=, *=, /=, and %=. The operator comes before =.",
+    "operators-concatenation": "Before Java reaches a String, + adds numbers. After String construction begins, later + operations append text unless parentheses force arithmetic first.",
+    "operators-evaluation": "For long expressions: calculate parentheses, then * / %, then + -, working left to right among ties; then store or print while watching for String concatenation.",
+    "operators-takeaways": "The chapter combines arithmetic, integer versus decimal division, casting, modulus, precedence, increment/decrement, compound assignment, and String-plus-number evaluation order.",
+    "operators-practice": "Practice covers precedence, integer division, modulus, mixed updates, parentheses repair, concatenation traps, longer state tracing, and a multi-concept program challenge.",
+  },
+};
 
 const STORAGE_KEY = "daymark-education-v4";
 
@@ -370,7 +420,13 @@ function CoursesView({ completed, practice, onOpenCourse }: { completed: string[
   </main>;
 }
 
-function CourseView({ completed, practice, onComplete, onPracticeChange }: { completed: string[]; practice: PracticeRecords; onComplete: (id: string) => void; onPracticeChange: (chapterId: string, record: PracticeRecord) => void }) {
+function tutorLessonReference(chapterId: string, sectionId: string) {
+  const foundational = foundationalTutorReferences[chapterId]?.[sectionId];
+  if (foundational) return foundational;
+  return structuredLessonContent[chapterId]?.find((section) => section.id === sectionId) ?? "The current section is a practice session. Use the chapter description and progress as context.";
+}
+
+function CourseView({ completed, practice, onComplete, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; onComplete: (id: string) => void; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
   const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(learningChapters[0].id);
   const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0]?.id ?? "");
@@ -397,6 +453,25 @@ function CourseView({ completed, practice, onComplete, onPracticeChange }: { com
     update(); reader.addEventListener("scroll", update, { passive: true });
     return () => reader.removeEventListener("scroll", update);
   }, [selectedChapter]);
+
+  useEffect(() => {
+    const section = selectedChapter.sections.find((item) => item.id === activeSectionId) ?? selectedChapter.sections[0];
+    if (!section) return;
+    onTutorContextChange({
+      courseCode: "CISC 1115",
+      courseTitle: "Introduction to Programming Using Java",
+      courseProgress: course.percent,
+      chapterId: selectedChapter.id,
+      chapterTitle: titleCase(selectedChapter.title),
+      chapterDescription: selectedChapter.description,
+      chapterProgress: chapter.percent,
+      sectionId: section.id,
+      sectionTitle: titleCase(section.title),
+      lessonReference: tutorLessonReference(selectedChapter.id, section.id),
+      practicePassed: chapter.passed,
+      practiceTotal: chapter.questions,
+    });
+  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, onTutorContextChange, selectedChapter]);
 
   const selectChapter = (next: LearningChapter) => {
     if (next.id === selectedChapterId) {
@@ -666,6 +741,168 @@ function DegreeWorksImport({ open, records, onClose, onApply }: { open: boolean;
   return <div className="dialog-backdrop" onMouseDown={onClose}><div className="audit-dialog pdf-audit-dialog" onMouseDown={(event) => event.stopPropagation()}><header><span><FileInput size={20} /></span><div><p className="eyebrow">DegreeWorks import</p><h2>Upload the audit. Review the map update.</h2></div><button onClick={onClose}><X size={20} /></button></header><div className="audit-guidance"><p><b>PDF stays in this browser.</b> Daymark extracts its text locally and does not upload the file to a server.</p><p><b>Nothing applies automatically.</b> You review every detected course state before saving it to the map.</p></div><label className={`file-import pdf-drop ${loading ? "loading" : ""}`}><Upload size={20} /><span><b>{loading ? "Reading DegreeWorks…" : fileName || "Choose DegreeWorks PDF"}</b><small>PDF preferred · text and HTML also supported</small></span><input type="file" accept=".pdf,.txt,.html,.htm,.csv,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadFile(file); }} /></label>{error && <p className="import-error">{error}</p>}{text && <div className="audit-detected-summary"><div><small>Audit date</small><b>{snapshot.auditDate}</b></div><div><small>Overall progress</small><b>{snapshot.degreeProgress}%</b></div><div><small>Credits</small><b>{snapshot.appliedCredits} applied · {snapshot.remainingCredits} remaining</b></div><div><small>Major</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div></div>}<details className="paste-fallback"><summary>Paste audit text instead</summary><label className="audit-text-label">DegreeWorks text<textarea value={text} onChange={(event) => { setText(event.target.value); setProposal({}); setFileName(""); }} placeholder={'CISC 1115 — In Progress\nCISC 2210 — Still Needed'} /></label><button className="secondary-button analyze-button" disabled={!text.trim()} onClick={() => analyze()}>Analyze pasted audit</button></details>{detected.length > 0 && <div className="detected-courses"><div><p className="eyebrow">Review before applying</p><span>{detected.length} courses detected</span></div>{detected.map((course) => <div className="detected-row" key={course.code}><span><b>{course.code}</b><small>{course.title}</small></span><div>{(["complete", "in_progress", "not_started", "unknown"] as DegreeStatus[]).map((status) => <button key={status} className={proposal[course.code] === status ? "active" : ""} onClick={() => setProposal({ ...proposal, [course.code]: status })}>{status === "complete" ? "Complete" : status === "in_progress" ? "In progress" : status === "not_started" ? "Remaining" : "Ignore"}</button>)}</div></div>)}</div>}<footer><span>Choice groups count once. In-progress is shown separately from earned credit.</span><button className="primary-button" disabled={!detected.length} onClick={() => { const applied = { ...records }; Object.entries(proposal).forEach(([code, status]) => { if (status !== "unknown") applied[code] = status; }); onApply(applied, snapshot); onClose(); }}>Update degree map <ArrowRight size={14} /></button></footer></div></div>;
 }
 
+const tutorWelcomeMessage = (): TutorMessage => ({
+  id: "tutor-welcome",
+  role: "assistant",
+  content: "Ask me about the page you’re on. I can explain the lesson, help you reason through practice, or make the degree map easier to understand.",
+});
+
+const tutorMessageId = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+function TutorMessageContent({ content }: { content: string }) {
+  const parts = content.split("```");
+  return <>{parts.map((part, index) => {
+    if (index % 2 === 0) return <span key={index}>{part}</span>;
+    const code = part.replace(/^[a-zA-Z+#.-]+\n/, "").trim();
+    return <pre key={index}><code>{code}</code></pre>;
+  })}</>;
+}
+
+function TutorAssistant({ view, completed, practice, courseContext, snapshot }: { view: View; completed: string[]; practice: PracticeRecords; courseContext: TutorCourseContext | null; snapshot: AuditSnapshot }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<TutorMessage[]>([tutorWelcomeMessage()]);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const progress = learningProgress(completed, practice);
+  const activeLesson = view === "course" ? courseContext : null;
+  const contextLabel = activeLesson ? activeLesson.sectionTitle : view === "degree" ? "Degree Map" : view === "courses" ? "Courses" : view === "dashboard" ? "Overview" : "Home";
+  const quickPrompts = activeLesson
+    ? activeLesson.sectionId.endsWith("practice")
+      ? ["Give me a hint on this practice", "Explain the rule I need", "Quiz me without giving the answer"]
+      : ["Explain this section simply", "Show me another example", "What should I remember?"]
+    : view === "degree"
+      ? ["Explain my degree position", "What should I take next?", "Explain the choice branches"]
+      : ["What should I study next?", "Review my course progress", "How does completion work?"];
+
+  useEffect(() => {
+    if (!open) return;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [busy, messages, open]);
+
+  const clearConversation = () => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setBusy(false);
+    setMessages([tutorWelcomeMessage()]);
+  };
+
+  const submit = async (suggested?: string) => {
+    const question = (suggested ?? draft).trim();
+    if (!question || busy) return;
+    const userMessage: TutorMessage = { id: tutorMessageId(), role: "user", content: question };
+    const assistantId = tutorMessageId();
+    const history = [...messages.filter((message) => message.content.trim()), userMessage].slice(-12);
+    setMessages((current) => [...current, userMessage, { id: assistantId, role: "assistant", content: "" }]);
+    setDraft("");
+    setBusy(true);
+    const controller = new AbortController();
+    requestRef.current = controller;
+
+    try {
+      const response = await fetch("/api/tutor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          messages: history.map(({ role, content }) => ({ role, content })),
+          context: {
+            currentView: view,
+            course: {
+              code: "CISC 1115",
+              title: "Introduction to Programming Using Java",
+              progressPercent: progress.percent,
+              chaptersCleared: progress.completedChapters,
+              chapterCount: learningChapters.length,
+            },
+            activeLesson,
+            degreeAudit: {
+              auditDate: snapshot.auditDate,
+              degreeProgress: snapshot.degreeProgress,
+              appliedCredits: snapshot.appliedCredits,
+              remainingCredits: snapshot.remainingCredits,
+              majorApplied: snapshot.majorApplied,
+              majorRemaining: snapshot.majorRemaining,
+              sourceName: snapshot.sourceName,
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const problem = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(problem.error || "The tutor could not respond right now.");
+      }
+      if (!response.body) throw new Error("The tutor returned an empty response.");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let answer = "";
+      const applyEvent = (block: string) => {
+        const data = block.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+        if (!data || data === "[DONE]") return;
+        try {
+          const event = JSON.parse(data) as { type?: string; delta?: string; message?: string; error?: { message?: string } };
+          if (event.type === "response.output_text.delta" && event.delta) {
+            answer += event.delta;
+            setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: answer } : message));
+          }
+          if (event.type === "error") throw new Error(event.message || event.error?.message || "The response stream failed.");
+        } catch (error) {
+          if (error instanceof SyntaxError) return;
+          throw error;
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          applyEvent(buffer.slice(0, boundary));
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf("\n\n");
+        }
+        if (done) break;
+      }
+      if (buffer.trim()) applyEvent(buffer);
+      if (!answer.trim()) throw new Error("The tutor finished without returning text.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      const message = error instanceof Error ? error.message : "The tutor could not respond right now.";
+      setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, content: `I hit a connection problem: ${message}` } : item));
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+      setBusy(false);
+    }
+  };
+
+  return <div className={`tutor-shell ${open ? "open" : ""}`}>
+    {open && <section className="tutor-drawer" aria-label="Exceler tutor" aria-live="polite">
+      <header className="tutor-header">
+        <div className="tutor-identity"><span><img src="/exceler-a-mark-512.png" alt="" /></span><p><b>Exceler Tutor</b><small>Using your current page</small></p></div>
+        <div className="tutor-header-actions"><button onClick={clearConversation} aria-label="Clear tutor conversation" title="Clear conversation"><Trash2 size={16} /></button><button onClick={() => setOpen(false)} aria-label="Close tutor"><X size={18} /></button></div>
+      </header>
+      <div className="tutor-context"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div>
+      <div className="tutor-messages">
+        {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
+        <div ref={bottomRef} />
+      </div>
+      {messages.length <= 1 && <div className="tutor-suggestions">{quickPrompts.map((prompt) => <button key={prompt} onClick={() => void submit(prompt)}>{prompt}</button>)}</div>}
+      <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
+        <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>
+      </form>
+      <p className="tutor-footnote">Hints don’t change course progress. Your work still has to pass.</p>
+    </section>}
+    <button className="tutor-launcher" onClick={() => setOpen((current) => !current)} aria-label={open ? "Close Exceler tutor" : "Open Exceler tutor"} aria-expanded={open}>
+      {open ? <X size={20} /> : <><img src="/exceler-a-mark-512.png" alt="" /><span>Ask Tutor</span></>}
+    </button>
+  </div>;
+}
+
 export default function CommandCenter() {
   const [view, setView] = useState<View>("home");
   const [completed, setCompleted] = useState<string[]>([]);
@@ -673,6 +910,7 @@ export default function CommandCenter() {
   const [degreeRecords, setDegreeRecords] = useState<DegreeRecords>(initialDegreeRecords);
   const [auditSnapshot, setAuditSnapshot] = useState<AuditSnapshot>(degreeWorksSnapshot);
   const [importOpen, setImportOpen] = useState(false);
+  const [courseTutorContext, setCourseTutorContext] = useState<TutorCourseContext | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -695,5 +933,5 @@ export default function CommandCenter() {
   }, [completed, practice, degreeRecords, auditSnapshot, hydrated]);
 
   const complete = (id: string) => setCompleted((current) => current.includes(id) ? current : [...current, id]);
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} /><DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /></div>;
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} /><TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} /><DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /></div>;
 }
