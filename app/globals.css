@@ -875,7 +875,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
   .education-home .degree-rule-list { flex: 1; min-height: 0; }
 
   @media (max-height: 920px) {
-    .education-home { grid-template-rows: 260px minmax(0, 1fr); }
+    .education-home { grid-template-rows: 300px minmax(0, 1fr); }
     .education-home .hero-copy { padding: 29px 34px; }
     .education-home .hero-copy h2 { font-size: clamp(36px, 4.2vw, 54px); }
     .education-home .hero-actions { margin-top: 20px; }
@@ -883,12 +883,12 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
     .education-home .progress-orbit { width: 96px; height: 96px; }
     .education-home .progress-orbit::after { width: 80px; height: 80px; }
     .education-home .mission-row { min-height: 58px; }
-    .education-home .mission-row:nth-child(n + 6) { display: none; }
+    .education-home .mission-row:nth-child(n + 5) { display: none; }
     .education-home .degree-rule-list > div { min-height: 48px; }
   }
 
   @media (max-height: 760px) {
-    .education-home { grid-template-rows: 220px minmax(0, 1fr); }
+    .education-home { grid-template-rows: 250px minmax(0, 1fr); }
     .education-home .hero-copy { padding: 22px 28px; }
     .education-home .section-chip { margin-top: 12px; padding-top: 4px; padding-bottom: 4px; }
     .education-home .hero-copy h2 { margin: 9px 0 7px; font-size: clamp(31px, 3.7vw, 46px); }
@@ -898,7 +898,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
     .education-home .hero-progress-card { margin: 14px; padding: 16px; gap: 17px; }
     .education-home .progress-orbit { width: 82px; height: 82px; }
     .education-home .progress-orbit::after { width: 68px; height: 68px; }
-    .education-home .mission-row:nth-child(n + 5) { display: none; }
+    .education-home .mission-row:nth-child(n + 4) { display: none; }
     .education-home .degree-rule-list > div:nth-child(3) { display: none; }
   }
 }
