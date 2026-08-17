@@ -836,6 +836,73 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .degree-rule-list small { color: #636b68; font-size: 8px; margin-top: 3px; }
 .degree-brief-card > .secondary-button { margin: 0 17px 17px; width: calc(100% - 34px); }
 
+/* Overview: one-screen dashboard on desktop */
+@media (min-width: 1081px) {
+  .education-home {
+    height: calc(100dvh - 76px);
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: minmax(260px, .78fr) minmax(350px, 1.22fr);
+    gap: 16px;
+    padding-bottom: 24px;
+  }
+
+  .education-home .education-hero,
+  .education-home .education-dashboard-grid,
+  .education-home .campaign-card,
+  .education-home .degree-brief-card {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .education-home .education-hero { min-height: 0; }
+  .education-home .education-dashboard-grid { margin-top: 0; }
+
+  .education-home .campaign-card,
+  .education-home .degree-brief-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .education-home .mission-list {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .education-home .panel-footer-button { flex: 0 0 46px; }
+  .education-home .degree-rule-list { flex: 1; min-height: 0; }
+
+  @media (max-height: 920px) {
+    .education-home { grid-template-rows: 260px minmax(0, 1fr); }
+    .education-home .hero-copy { padding: 29px 34px; }
+    .education-home .hero-copy h2 { font-size: clamp(36px, 4.2vw, 54px); }
+    .education-home .hero-actions { margin-top: 20px; }
+    .education-home .hero-progress-card { margin: 18px; padding: 20px; }
+    .education-home .progress-orbit { width: 96px; height: 96px; }
+    .education-home .progress-orbit::after { width: 80px; height: 80px; }
+    .education-home .mission-row { min-height: 58px; }
+    .education-home .mission-row:nth-child(n + 6) { display: none; }
+    .education-home .degree-rule-list > div { min-height: 48px; }
+  }
+
+  @media (max-height: 760px) {
+    .education-home { grid-template-rows: 220px minmax(0, 1fr); }
+    .education-home .hero-copy { padding: 22px 28px; }
+    .education-home .section-chip { margin-top: 12px; padding-top: 4px; padding-bottom: 4px; }
+    .education-home .hero-copy h2 { margin: 9px 0 7px; font-size: clamp(31px, 3.7vw, 46px); }
+    .education-home .hero-copy > p:not(.eyebrow),
+    .education-home .progress-explainer { display: none; }
+    .education-home .hero-actions { margin-top: 15px; }
+    .education-home .hero-progress-card { margin: 14px; padding: 16px; gap: 17px; }
+    .education-home .progress-orbit { width: 82px; height: 82px; }
+    .education-home .progress-orbit::after { width: 68px; height: 68px; }
+    .education-home .mission-row:nth-child(n + 5) { display: none; }
+    .education-home .degree-rule-list > div:nth-child(3) { display: none; }
+  }
+}
+
 /* Personal home */
 .home-page { height: 100vh; padding: 22px; overflow: hidden; }
 .home-stage { height: 100%; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(310px, .65fr); grid-template-rows: minmax(0, 1fr) 238px; gap: 18px 22px; position: relative; overflow: hidden; border: 1px solid #303735; border-radius: 24px; background: linear-gradient(125deg, #151a18 0%, #101414 55%, #11171a 100%); padding: clamp(30px, 4vw, 58px) clamp(30px, 4.4vw, 68px) 0; }
