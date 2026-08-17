@@ -543,7 +543,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .question-route button.active > span { border-color: var(--lime); box-shadow: 0 0 0 4px rgba(199,243,107,.08); color: var(--lime); }
 .question-route button.passed > span { border-color: var(--lime); background: var(--lime); color: #13200d; }
 .question-route button small { font-size: 7px; }
-.practice-workspace { overflow: hidden; border: 1px solid #3a423e; border-radius: 18px; background: #111514; padding: 24px; }
+.practice-workspace { overflow: hidden; border: 1px solid #3a423e; border-radius: 18px; background: #111514; padding: 24px; animation: practice-question-in .2s ease-out; }
 .practice-workspace > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .practice-workspace > header > div { display: flex; gap: 7px; }
 .practice-workspace > header span { border: 1px solid #3c4440; border-radius: 999px; color: #78817d; padding: 5px 8px; font-size: 8px; }
@@ -574,6 +574,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .practice-feedback b { font-size: 10px; }
 .practice-feedback small { margin-top: 3px; color: #89918d; font-size: 9px; line-height: 1.45; }
 .practice-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.practice-actions.passed { justify-content: flex-end; }
+.practice-next-button { min-width: 190px; min-height: 44px; }
 .practice-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .practice-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
 .practice-pagination button { border: 0; background: transparent; color: #8e9792; padding: 8px; font-size: 9px; }
@@ -583,6 +585,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .chapter-cleared-banner.waiting { border-color: #5a513e; background: #211d15; }
 .chapter-cleared-banner > span { width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: var(--lime); color: #14200d; }
 .chapter-cleared-banner.waiting > span { background: #3b3424; color: var(--amber); }
+@keyframes practice-question-in { from { opacity: .45; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .chapter-cleared-banner b, .chapter-cleared-banner small { display: block; }
 .chapter-cleared-banner b { font-size: 11px; }
 .chapter-cleared-banner small { margin-top: 4px; color: #84907e; font-size: 9px; }

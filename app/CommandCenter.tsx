@@ -601,6 +601,11 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
   const allPassed = validPassed.length === questions.length;
+  const unansweredIndexes = questions
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !record.passed.includes(item.id))
+    .map(({ index }) => index);
+  const nextQuestionIndex = unansweredIndexes.find((index) => index > activeIndex) ?? unansweredIndexes[0] ?? -1;
 
   const updateAnswer = (answer: string) => {
     onChange({ ...record, answers: { ...record.answers, [question.id]: answer } });
@@ -615,16 +620,26 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
     setFeedback((current) => ({ ...current, [question.id]: correct ? "correct" : "incorrect" }));
   };
   const revealHint = () => onChange({ ...record, hints: record.hints.includes(question.id) ? record.hints : [...record.hints, question.id] });
+  const goToNextQuestion = () => {
+    if (nextQuestionIndex >= 0) setActiveIndex(nextQuestionIndex);
+  };
 
   const practiceSectionId = chapterId === "variables-data-types" ? "variables-practice" : chapterId === "operators-expressions" ? "operators-practice" : `${chapterId}-practice`;
 
   return <section className="practice-session" id={practiceSectionId} data-learning-section>
     <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>
-    <div className="practice-workspace"><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") check(); }} autoComplete="off" />}
+    <div className="practice-workspace" key={question.id}><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") passed ? goToNextQuestion() : check(); }} autoComplete="off" />}
       {record.hints.includes(question.id) && <div className="practice-hint"><Sparkles size={15} /><p><b>Clue</b>{question.hint}</p></div>}
       {(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, use a clue if needed, and try again."}</small></p></div>}
-      <div className="practice-actions"><button className="soft-button" onClick={revealHint} disabled={record.hints.includes(question.id)}><CircleHelp size={14} />{record.hints.includes(question.id) ? "Clue shown" : "Show clue"}</button><button className="primary-button" onClick={check} disabled={!String(record.answers[question.id] ?? "").trim()}>{passed ? "Check again" : "Check answer"}<ArrowRight size={14} /></button></div>
+      <div className={`practice-actions ${passed ? "passed" : ""}`}>
+        {!passed && <button className="soft-button" onClick={revealHint} disabled={record.hints.includes(question.id)}><CircleHelp size={14} />{record.hints.includes(question.id) ? "Clue shown" : "Show clue"}</button>}
+        {passed ? (
+          nextQuestionIndex >= 0
+            ? <button className="primary-button practice-next-button" onClick={goToNextQuestion}>Next Question<ArrowRight size={16} /></button>
+            : <button className="primary-button complete practice-next-button" disabled><Check size={16} strokeWidth={3} />All Questions Passed</button>
+        ) : <button className="primary-button" onClick={check} disabled={!String(record.answers[question.id] ?? "").trim()}>Check Answer<ArrowRight size={14} /></button>}
+      </div>
     </div>
     <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>
     {allPassed && <div className={`chapter-cleared-banner ${readingDone || !requiresReading ? "complete" : "waiting"}`}><span>{readingDone || !requiresReading ? <Check size={24} strokeWidth={3} /> : <BookOpen size={22} />}</span><div><b>{readingDone || !requiresReading ? "Chapter cleared" : "Practice cleared—reading checkpoint remains"}</b><small>{readingDone || !requiresReading ? "Every required exercise passed. This chapter now counts as complete." : "Return to Key takeaways and mark the lesson read to finish the chapter."}</small></div></div>}
