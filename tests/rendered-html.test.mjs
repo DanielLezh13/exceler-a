@@ -39,9 +39,10 @@ test("server-renders the Exceler A public experience", async () => {
 });
 
 test("keeps public progress and AI access separate from the private workspace", async () => {
-  const [commandCenter, tutorRoute, packageJson] = await Promise.all([
+  const [commandCenter, tutorRoute, tutorStyles, packageJson] = await Promise.all([
     readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/tutor/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
@@ -58,6 +59,9 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(tutorRoute, /if \(!localRequest\) return errorResponse/);
   assert.match(tutorRoute, /available only in the private Exceler A desktop workspace/);
   assert.match(tutorRoute, /Never claim you cannot see the question or submission/);
+  assert.match(tutorStyles, /\.tutor-messages \{[^}]*overflow-x: hidden/);
+  assert.match(tutorStyles, /\.tutor-message pre \{[^}]*white-space: pre-wrap/);
+  assert.match(tutorStyles, /\.tutor-markdown table \{[^}]*table-layout: fixed/);
   assert.match(packageJson, /"react-markdown"/);
   assert.match(packageJson, /"remark-gfm"/);
 });
