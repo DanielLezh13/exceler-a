@@ -1198,11 +1198,9 @@ button.home-guidance-card:hover { border-color: #53664a; background: #19201c; tr
 .chapter-cover { padding: 55px 0 46px; border-bottom: 1px solid #2b302f; text-align: center; }
 .chapter-cover h1 { margin: 12px 0 14px; font-size: clamp(42px, 5vw, 68px); letter-spacing: -.065em; line-height: .95; }
 .chapter-cover > p:not(.eyebrow) { max-width: 680px; margin: 0 auto; color: #939b98; font-size: 13px; line-height: 1.75; }
-.chapter-cover > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 23px; }
 .planned-chapter-preview { margin-top: 46px; border: 1px solid #303735; border-radius: 16px; background: #141817; padding: 28px 30px; }
 .planned-chapter-preview h2 { margin: 10px 0 12px; font-size: 28px; letter-spacing: -.04em; }
 .planned-chapter-preview > p:last-child { max-width: 580px; margin: 0; color: #8e9793; font-size: 12px; line-height: 1.7; }
-.chapter-cover > div span { border: 1px solid #343a38; border-radius: 999px; background: #161918; color: #727a77; padding: 6px 9px; font-size: 8px; }
 .learning-part { scroll-margin-top: 20px; display: grid; grid-template-columns: 46px minmax(0,1fr); gap: 21px; padding: 55px 0; border-bottom: 1px solid #292e2d; }
 .part-number { width: 42px; height: 42px; display: grid; place-items: center; position: sticky; top: 22px; border-radius: 12px; background: #181c1b; border: 1px solid #353b39; color: #7b8380; font: 9px var(--font-geist-mono); }
 .part-body { min-width: 0; }
