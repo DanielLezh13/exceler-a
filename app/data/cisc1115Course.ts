@@ -56,6 +56,7 @@ export type CoursePracticeQuestion = {
   hint: string;
   success: string;
   options?: string[];
+  auditRequirements?: string[];
   multiline?: boolean;
   validate: (answer: string) => boolean;
 };
@@ -75,11 +76,11 @@ const exact = (id: string, level: CoursePracticeQuestion["level"], kind: string,
 });
 
 const codeExact = (id: string, level: CoursePracticeQuestion["level"], kind: string, title: string, prompt: string, shownCode: string, expectedCode: string, hint: string, success: string, multiline = false): CoursePracticeQuestion => ({
-  id, level, kind, title, prompt, code: shownCode, placeholder: multiline ? "Write the required Java code" : "Write the corrected code", hint, success, multiline, validate: (answer) => compactCode(answer) === compactCode(expectedCode),
+  id, level, kind, title, prompt, code: shownCode, placeholder: multiline ? "Write the required Java code" : "Write the corrected code", hint, success, auditRequirements: [expectedCode], multiline, validate: (answer) => compactCode(answer) === compactCode(expectedCode),
 });
 
 const containsCode = (id: string, level: CoursePracticeQuestion["level"], title: string, prompt: string, required: Array<string | RegExp>, hint: string, success: string): CoursePracticeQuestion => ({
-  id, level, kind: "Editor challenge", title, prompt, placeholder: "Write Java code that satisfies every requirement", hint, success, multiline: true,
+  id, level, kind: "Editor challenge", title, prompt, placeholder: "Write Java code that satisfies every requirement", hint, success, auditRequirements: required.map((requirement) => typeof requirement === "string" ? requirement : requirement.source.replaceAll("\\", "")), multiline: true,
   validate: (answer) => {
     const code = compactCode(answer);
     return required.every((requirement) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code));
@@ -521,7 +522,7 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     codeExact("for-q5", "Apply", "Fix an off-by-one error", "Include the final value", "Rewrite only the loop header so it prints 1 through 10 inclusive.", "for (int i = 1; i < 10; i++) {", "for (int i = 1; i <= 10; i++) {", "The endpoint belongs in the range.", "Correct. <= includes 10."),
     codeExact("for-q6", "Apply", "Translate while to for", "Express the same repetition", "Rewrite this while control as one equivalent for header.", "int i = 0;\nwhile (i < 5) {\n    System.out.println(i);\n    i++;\n}", "for (int i = 0; i < 5; i++) {", "Move initialization, condition, and update into the header.", "Correct. The for loop controls the same five counter values."),
     containsCode("for-q7", "Challenge", "Build a multiplication row", "Given int number, use one for loop from factor 1 through 10 and print lines in the form number x factor = product using calculated values.", [/for\(intfactor=1;factor<=10;factor\+\+\)/, /intproduct=number\*factor;/, /System\.out\.println\(number\+"x"\+factor\+"="\+product\);/], "Calculate product inside the loop and concatenate the three values with text separators.", "The loop produces all ten calculated table lines."),
-    containsCode("for-q8", "Challenge", "Build a range summary", "Given positive int limit, use a for loop to calculate the sum of every number from 1 through limit and count how many are even. Print Sum: and Even count: on separate lines.", ["int sum=0;", "int evenCount=0;", /for\(intn=1;n<=limit;n\+\+\)/, "sum+=n;", /if\(n%2==0\)/, "evenCount++;", /System\.out\.println\("Sum:"\+sum\);/, /System\.out\.println\("Evencount:"\+evenCount\);/], "The same traversal can update both an accumulator and a conditional counter.", "The program summarizes the entire range in one traversal."),
+    containsCode("for-q8", "Challenge", "Build a range summary", "Given positive int limit, use a for loop to calculate the sum of every number from 1 through limit and count how many are even. Print Sum: and Even count: on separate lines.", ["int sum=0;", "int evenCount=0;", /for\(intn=1;n<=limit;n\+\+\)/, "sum+=n;", /if\(n%2==0\)/, "evenCount++;", /System\.out\.println\("Sum:"\+sum\);/, /System\.out\.println\("Evencount:"\+evenCount\);/], "The same loop can update both an accumulator and a conditional counter.", "The program summarizes the entire range in one loop."),
   ],
   "nested-loops": [
     exact("nested-q1", "Warm-up", "Count executions", "Multiply the dimensions", "How many times does the println run?", "for (int row = 1; row <= 3; row++) {\n    for (int col = 1; col <= 4; col++) {\n        System.out.println(row + col);\n    }\n}", "12", "The inner body runs four times for each of three outer iterations.", "Correct. 3 × 4 gives 12 executions."),
@@ -531,7 +532,7 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     exact("nested-q5", "Apply", "Trace a growing pattern", "Use the row as the bound", "Write the exact output.", "for (int row = 1; row <= 3; row++) {\n    for (int col = 1; col <= row; col++) {\n        System.out.print(\"#\");\n    }\n    System.out.println();\n}", "#\n##\n###", "Row n prints n hash characters.", "Correct. The inner bound grows with row."),
     codeExact("nested-q6", "Apply", "Move the line break", "End one row at a time", "Rewrite the loop nest so it prints two rows of three stars rather than one star per line.", "for (int row = 1; row <= 2; row++) {\n    for (int col = 1; col <= 3; col++) {\n        System.out.println(\"*\");\n    }\n}", "for (int row = 1; row <= 2; row++) {\nfor (int col = 1; col <= 3; col++) {\nSystem.out.print(\"*\");\n}\nSystem.out.println();\n}", "Print stars without a line break inside; print one line break after the inner loop.", "Correct. Each inner loop now forms one row.", true),
     containsCode("nested-q7", "Challenge", "Build a multiplication grid", "Use nested loops for rows 1-5 and columns 1-5. Print each product followed by a space and print a newline after each row.", [/for\(introw=1;row<=5;row\+\+\)/, /for\(intcol=1;col<=5;col\+\+\)/, /System\.out\.print\(row\*col\+""\);/, /System\.out\.println\(\);/], "The inner loop prints products; the outer loop controls line breaks.", "The program generates all 25 products in a 5 × 5 grid."),
-    containsCode("nested-q8", "Challenge", "Count grid matches", "Visit every row and column from 1 through 4. Count positions where row + col is even and print the final count.", ["int matches=0;", /for\(introw=1;row<=4;row\+\+\)/, /for\(intcol=1;col<=4;col\+\+\)/, /if\(\(row\+col\)%2==0\)/, "matches++;", "System.out.println(matches);"], "Test the coordinate sum inside the inner loop and update one counter.", "The nested traversal tests all 16 coordinate pairs and counts eight matches."),
+    containsCode("nested-q8", "Challenge", "Count grid matches", "Visit every row and column from 1 through 4. Count positions where row + col is even and print the final count.", ["int matches=0;", /for\(introw=1;row<=4;row\+\+\)/, /for\(intcol=1;col<=4;col\+\+\)/, /if\(\(row\+col\)%2==0\)/, "matches++;", "System.out.println(matches);"], "Test the coordinate sum inside the inner loop and update one counter.", "The nested loops test all 16 coordinate pairs and count eight matches."),
   ],
   "methods": [
     exact("methods-q1", "Warm-up", "Predict call order", "Follow control transfer", "Write the exact output.", "System.out.println(\"A\");\nshow();\nSystem.out.println(\"C\");\n\npublic static void show() {\n    System.out.println(\"B\");\n}", "A\nB\nC", "The caller resumes after show finishes.", "Correct. The method call inserts B between A and C."),

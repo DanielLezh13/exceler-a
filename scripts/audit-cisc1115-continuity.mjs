@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import ts from "typescript";
 import {
   additionalLearningChapters,
   additionalPracticeQuestions,
@@ -44,7 +45,42 @@ for (const chapter of additionalLearningChapters) {
 }
 assert.equal(new Set(allQuestionIds).size, allQuestionIds.length, "practice question ids must be unique");
 
-const learnerText = (chapterId) => JSON.stringify({
+const commandCenter = await readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8");
+const commandCenterAst = ts.createSourceFile("CommandCenter.tsx", commandCenter, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+
+const collectLearnerStrings = (root) => {
+  const values = [];
+  const visit = (node) => {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isJsxText(node)) values.push(node.text);
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return values.join("\n");
+};
+
+const propertyName = (property) => property.name && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) ? property.name.text : null;
+let practiceQuestionsNode = null;
+let lessonFunctionNode = null;
+const findOpeningNodes = (node) => {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "practiceQuestions" && ts.isObjectLiteralExpression(node.initializer)) practiceQuestionsNode = node.initializer;
+  if (ts.isFunctionDeclaration(node) && node.name?.text === "ChapterLessonContent") lessonFunctionNode = node;
+  ts.forEachChild(node, findOpeningNodes);
+};
+findOpeningNodes(commandCenterAst);
+assert.ok(practiceQuestionsNode && lessonFunctionNode?.body, "opening chapters must remain auditable");
+
+const openingLearnerText = Object.fromEntries(openingIds.map((chapterId) => {
+  const practiceProperty = practiceQuestionsNode.properties.find((property) => propertyName(property) === chapterId);
+  const lessonBranch = lessonFunctionNode.body.statements.find((statement) => {
+    if (!ts.isIfStatement(statement) || !ts.isBinaryExpression(statement.expression)) return false;
+    const { left, right } = statement.expression;
+    return (ts.isStringLiteral(left) && left.text === chapterId) || (ts.isStringLiteral(right) && right.text === chapterId);
+  });
+  assert.ok(practiceProperty && lessonBranch, `${chapterId} learner content must be discoverable`);
+  return [chapterId, `${collectLearnerStrings(practiceProperty)}\n${collectLearnerStrings(lessonBranch)}`];
+}));
+
+const learnerText = (chapterId) => openingLearnerText[chapterId] ?? JSON.stringify({
   lesson: structuredLessonContent[chapterId],
   practice: additionalPracticeQuestions[chapterId] ?? [],
 });
@@ -55,11 +91,50 @@ const learnerCode = (chapterId) => [
   ]),
   ...(additionalPracticeQuestions[chapterId] ?? []).map((question) => question.code),
 ].filter(Boolean).join("\n");
-const before = (chapterId) => courseIds.slice(2, courseIds.indexOf(chapterId)).map(learnerText).join("\n");
-const allCode = courseIds.slice(2).map(learnerCode).join("\n");
+const learnerSyntax = (chapterId) => openingLearnerText[chapterId] ?? [
+  learnerCode(chapterId),
+  ...(additionalPracticeQuestions[chapterId] ?? []).flatMap((question) => question.auditRequirements ?? []),
+].filter(Boolean).join("\n");
+const before = (chapterId) => courseIds.slice(0, courseIds.indexOf(chapterId)).map(learnerText).join("\n");
+const allCode = courseIds.map(learnerSyntax).join("\n");
+
+const compactAuditText = (value) => value.replace(/\s+/g, "").replaceAll("String[]args", "");
+const firstUseRules = [
+  { chapterId: "comparisons-booleans", label: "comparison or logical operator syntax", pattern: /==|!=|>=|<=|&&|\|\||(?<![+\-*/%=])[<>](?!=)/ },
+  { chapterId: "if-else", label: "if statement syntax", pattern: /\bif\(/, compact: true },
+  { chapterId: "while-loops", label: "while loop syntax", pattern: /\bwhile\(/, compact: true },
+  { chapterId: "for-loops", label: "for loop syntax", pattern: /\bfor\(/, compact: true },
+  { chapterId: "methods", label: "custom method definition syntax", pattern: /publicstatic(?:void|int|double|boolean|String)(?!main\b)\w+\(/, compact: true },
+  { chapterId: "returns-scope", label: "return statement syntax", pattern: /\breturn\b/ },
+  { chapterId: "arrays", label: "array type syntax", pattern: /(?:int|double|boolean|char|String)\[\]/, compact: true },
+  { chapterId: "arrays-loops", label: "for-each syntax", pattern: /for\([^;()]+:[^;()]+\)/, compact: true },
+  { chapterId: "strings", label: "String API syntax", pattern: /\.(?:charAt|substring|indexOf|contains|equalsIgnoreCase|toLowerCase|toUpperCase)\(/, compact: true },
+  { chapterId: "arraylists", label: "ArrayList syntax", pattern: /ArrayList</, compact: true },
+  { chapterId: "input-output", label: "file and formatted-stream syntax", pattern: /(?:printf\(|hasNext(?:Int)?\(|FileNotFoundException|newFile\()/, compact: true },
+];
+
+for (const rule of firstUseRules) {
+  for (const earlierId of courseIds.slice(0, courseIds.indexOf(rule.chapterId))) {
+    const earlierSyntax = learnerSyntax(earlierId);
+    const value = rule.compact ? compactAuditText(earlierSyntax) : earlierSyntax;
+    assert.ok(!rule.pattern.test(value), `${rule.label} appears in ${earlierId} before ${rule.chapterId}`);
+  }
+}
+
+for (const [chapterId, label, pattern] of [
+  ["decision-programs", "algorithm terminology", /\balgorithm\b/i],
+  ["while-loops", "iteration terminology", /\biteration\b/i],
+  ["methods", "parameter or argument terminology", /\b(?:parameter|argument)s?\b/i],
+  ["arrays", "array-index terminology", /\bindex(?:es)?\b/i],
+  ["arrays-loops", "traversal terminology", /\btravers(?:al|e|ing)\b/i],
+]) {
+  for (const earlierId of courseIds.slice(0, courseIds.indexOf(chapterId))) {
+    assert.ok(!pattern.test(learnerText(earlierId)), `${label} appears in ${earlierId} before ${chapterId}`);
+  }
+}
 
 for (const [label, pattern] of [
-  ["ternary expressions", /\?\s*["']/],
+  ["ternary expressions", /\?\s*[^?\n:]+\s*:\s*[^?\n;]+/],
   ["break statements", /\bbreak\s*;/],
   ["continue statements", /\bcontinue\s*;/],
   ["Character API", /Character\./],
@@ -69,11 +144,7 @@ for (const [label, pattern] of [
   assert.doesNotMatch(allCode, pattern, `untaught ${label} found in learner-facing code`);
 }
 
-assert.doesNotMatch(before("arrays-loops"), /for\s*\([^;()]*:[^;()]*\)/, "for-each appears before Chapter 13");
-assert.doesNotMatch(before("strings"), /\.(?:charAt|substring|indexOf|contains|equalsIgnoreCase|toLowerCase|toUpperCase)\s*\(/, "String API appears before Chapter 14");
-assert.doesNotMatch(before("arraylists"), /ArrayList\s*</, "ArrayList appears before Chapter 15");
 assert.doesNotMatch(before("sorting"), /\bswap(?:ping|ped|s)?\b/i, "swapping appears before Chapter 17");
-assert.doesNotMatch(before("input-output"), /(?:printf|hasNext(?:Int)?|FileNotFoundException|new File)\s*\(?/, "stream/file syntax appears before Chapter 19");
 
 assert.match(learnerText("input-basic-programs"), /nextBoolean/, "Chapter 3 must teach nextBoolean before Chapter 6 uses it");
 assert.match(learnerText("input-basic-programs"), /print displays a prompt without ending the line/, "Chapter 3 must distinguish print from println");
@@ -82,7 +153,6 @@ assert.match(learnerText("arrays-loops"), /For-each traversal/, "Chapter 13 must
 assert.match(learnerText("arraylists"), /isEmpty/, "Chapter 15 must teach isEmpty before cumulative practice uses it");
 assert.match(learnerText("input-output"), /copy throws FileNotFoundException/, "file exception syntax must be labeled as boilerplate");
 
-const commandCenter = await readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8");
 assert.match(commandCenter, /Writing <code>\(double\) sum<\/code> is a <b>cast<\/b>/, "Chapter 2 must teach casts before later averages use them");
 assert.match(commandCenter, /is a <b>comment<\/b>/, "Chapter 2 must explain line comments before later examples use them");
 

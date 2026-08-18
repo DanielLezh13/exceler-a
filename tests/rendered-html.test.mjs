@@ -68,6 +68,8 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /aria-label="Next question"/);
   assert.match(commandCenter, /practice-options/);
   assert.match(commandCenter, /variables-int/);
+  assert.match(commandCenter, /operators-modulus-even-remainder/);
+  assert.doesNotMatch(commandCenter, /boolean even = number % 2 ___ 0/);
   assert.match(commandCenter, /additionalSectionPracticeQuestionIds/);
   assert.match(commandCenter, /Section questions complete/);
   assert.match(commandCenter, /sectionQuestionIds\.filter/);
