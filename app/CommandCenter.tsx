@@ -658,6 +658,8 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
           const selected = item.id === selectedChapter.id;
           const open = item.id === expandedChapterId;
           const done = state.percent === 100;
+          const itemPracticePlan = chapterPracticePlan(item.id);
+          const passedQuestionIds = new Set(practice[item.id]?.passed ?? []);
           const startsUnit = index === 0 || learningChapters[index - 1].unit !== item.unit;
           return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${selected ? "selected" : ""} ${open ? "open" : ""} ${done ? "completed" : ""}`}>
             <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
@@ -665,7 +667,12 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
               <span className="chapter-copy"><b>{titleCase(item.title)}</b></span>
               <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
             </button>
-            <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>
+            <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => {
+              const sectionQuestionIds = section.id.endsWith("practice") ? itemPracticePlan.review : itemPracticePlan.checkpoints[section.id] ?? [];
+              const sectionPassed = sectionQuestionIds.filter((questionId) => passedQuestionIds.has(questionId)).length;
+              const sectionDone = sectionQuestionIds.length > 0 && sectionPassed === sectionQuestionIds.length;
+              return <button key={section.id} tabIndex={open ? 0 : -1} className={`${open && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Section questions complete"><Check size={12} strokeWidth={3.2} /></span> : sectionQuestionIds.length > 0 ? <small>{sectionPassed}/{sectionQuestionIds.length}</small> : null}</button>;
+            })}</div></div></div>
           </div></Fragment>;
         })}
         <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Only passed practice creates course progress. A chapter clears when every exercise passes.</p></div>
