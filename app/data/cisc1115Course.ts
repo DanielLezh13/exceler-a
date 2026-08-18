@@ -54,6 +54,7 @@ export type CoursePracticeQuestion = {
   code?: string;
   placeholder: string;
   hint: string;
+  answer?: string;
   success: string;
   options?: string[];
   auditRequirements?: string[];
@@ -72,11 +73,11 @@ const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split(
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
 
 const exact = (id: string, level: CoursePracticeQuestion["level"], kind: string, title: string, prompt: string, code: string, expected: string, hint: string, success: string, multiline = expected.includes("\n")): CoursePracticeQuestion => ({
-  id, level, kind, title, prompt, code, placeholder: multiline ? "Type the exact output, one line at a time" : "Type the exact answer", hint, success, multiline, validate: (answer) => normalizeLines(answer) === expected,
+  id, level, kind, title, prompt, code, placeholder: multiline ? "Type the exact output, one line at a time" : "Type the exact answer", hint, answer: expected, success, multiline, validate: (answer) => normalizeLines(answer) === expected,
 });
 
 const codeExact = (id: string, level: CoursePracticeQuestion["level"], kind: string, title: string, prompt: string, shownCode: string, expectedCode: string, hint: string, success: string, multiline = false): CoursePracticeQuestion => ({
-  id, level, kind, title, prompt, code: shownCode, placeholder: multiline ? "Write the required Java code" : "Write the corrected code", hint, success, auditRequirements: [expectedCode], multiline, validate: (answer) => compactCode(answer) === compactCode(expectedCode),
+  id, level, kind, title, prompt, code: shownCode, placeholder: multiline ? "Write the required Java code" : "Write the corrected code", hint, answer: expectedCode, success, auditRequirements: [expectedCode], multiline, validate: (answer) => compactCode(answer) === compactCode(expectedCode),
 });
 
 const containsCode = (id: string, level: CoursePracticeQuestion["level"], title: string, prompt: string, required: Array<string | RegExp>, hint: string, success: string): CoursePracticeQuestion => ({
@@ -95,6 +96,7 @@ const multipleChoice = (id: string, title: string, prompt: string, options: stri
   prompt,
   placeholder: "Choose one answer",
   options,
+  answer,
   hint,
   success,
   validate: (value) => value.trim() === answer,
