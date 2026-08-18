@@ -561,13 +561,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .question-route button.passed > span { border-color: var(--lime); background: var(--lime); color: #13200d; }
 .question-route button small { font-size: 7px; }
 .practice-workspace { overflow: hidden; border: 1px solid #3a423e; border-radius: 18px; background: #111514; padding: 24px; animation: practice-question-in .2s ease-out; }
-.practice-workspace > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.practice-workspace > header > div { display: flex; gap: 7px; }
-.practice-workspace > header span { border: 1px solid #3c4440; border-radius: 999px; color: #78817d; padding: 5px 8px; font-size: 8px; }
-.practice-workspace > header .difficulty { border-color: #5b6d4f; background: #1d271a; color: var(--lime); }
-.practice-workspace > header .difficulty.challenge { border-color: #6d5737; background: #251d13; color: var(--amber); }
-.practice-workspace > header > small { color: #646d69; font: 8px var(--font-geist-mono); }
-.practice-workspace h3 { margin: 22px 0 8px; font-size: 23px; letter-spacing: -.035em; }
+.practice-workspace h3 { margin: 0 0 8px; font-size: 23px; letter-spacing: -.035em; }
 .practice-workspace > p { max-width: 650px; margin: 0 0 18px; color: #929b96; font-size: 12px; line-height: 1.65; }
 .practice-code { min-height: 105px; margin: 0 0 19px; border-radius: 13px; background: #080b0b; padding: 17px; overflow: auto; }
 .practice-code code { white-space: pre; color: #d6dcd9; font: 12px/1.75 var(--font-geist-mono); }
@@ -1513,7 +1507,6 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
 .data-type-values code { background: #1a1f1e; }
 .judgment-cards > div > span { background: #1b2635; color: var(--blue); }
 .question-route button.active > span { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(114, 167, 255, .08); color: var(--blue); }
-.practice-workspace > header .difficulty { border-color: #4b6485; background: #192536; color: var(--blue); }
 .practice-feedback.incorrect { background: #261817; border-color: #6a3936; }
 
 @media (max-width: 720px) {
