@@ -1127,13 +1127,6 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   const progress = learningProgress(completed, practice);
   const activeLesson = view === "course" ? courseContext : null;
   const contextLabel = activeLesson ? activeLesson.sectionTitle : view === "degree" ? "Degree Map" : view === "courses" ? "Courses" : view === "dashboard" ? "Overview" : "Home";
-  const quickPrompts = activeLesson
-    ? activeLesson.sectionId.endsWith("practice")
-      ? ["Give me a hint on this practice", "Explain the rule I need", "Quiz me without giving the answer"]
-      : ["Explain this section simply", "Show me another example", "What should I remember?"]
-    : view === "degree"
-      ? ["Explain my degree position", "What should I take next?", "Explain the choice branches"]
-      : ["What should I study next?", "Review my course progress", "How does completion work?"];
 
   useEffect(() => {
     if (!open) return;
@@ -1287,7 +1280,6 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
         {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
         <div ref={bottomRef} />
       </div>
-      {messages.length <= 1 && <div className="tutor-suggestions">{quickPrompts.map((prompt) => <button key={prompt} onClick={() => void submit(prompt)}>{prompt}</button>)}</div>}
       <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
         <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>
