@@ -525,6 +525,19 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .takeaway-list svg { flex: 0 0 auto; color: var(--lime); }
 .takeaway-list code { color: var(--lime); }
 .practice-session { padding-bottom: 80px; }
+.lesson-section > .section-practice { margin: 42px 0 0; border: 1px solid #364039; border-bottom: 1px solid #364039; border-radius: 20px; background: linear-gradient(145deg,rgba(28,36,30,.88),rgba(15,20,18,.96)); padding: 24px; box-shadow: inset 0 1px 0 rgba(255,255,255,.025); }
+.section-practice .practice-header { align-items: center; }
+.section-practice .practice-header h2 { font-size: clamp(23px,2.4vw,30px); }
+.section-practice .practice-score { width: 68px; height: 68px; }
+.section-practice .practice-score b { font-size: 15px; }
+.section-practice .question-route { margin: 24px 4px 18px; }
+.section-practice .practice-workspace { margin-top: 20px; background: #0c100f; }
+.section-practice .practice-complete-card { min-height: 255px; border-radius: 18px; padding: 30px 22px 26px; }
+.section-practice .practice-complete-check { width: 62px; height: 62px; }
+.section-practice .practice-complete-check svg { width: 31px; height: 31px; }
+.section-practice .practice-complete-card > .eyebrow { margin-top: 19px; }
+.section-practice .practice-complete-card h2 { font-size: clamp(27px,3vw,36px); }
+.section-practice.practice-complete-state { padding: 0; }
 .practice-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 25px; }
 .practice-header > div:first-child > p:not(.eyebrow) { max-width: 600px; margin: 10px 0 0; color: #838c87; font-size: 11px; line-height: 1.65; }
 .practice-score { width: 82px; height: 82px; display: grid; place-items: center; align-content: center; flex: 0 0 auto; border: 1px solid #45543d; border-radius: 50%; background: #182117; }
@@ -685,6 +698,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 
 @media (max-width: 700px) {
   .lesson-section, .practice-session { padding: 40px 0; }
+  .lesson-section > .section-practice { margin-top: 30px; padding: 15px; }
+  .section-practice.practice-complete-state { padding: 0; }
   .naming-compare, .expanded-types, .gate-grid, .audit-detected-summary { grid-template-columns: 1fr; }
   .expanded-types > div:last-child { grid-column: auto; }
   .practice-header, .practice-actions { align-items: stretch; flex-direction: column; }

@@ -21,7 +21,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -131,7 +131,7 @@ const learningChapters: LearningChapter[] = [
       { id: "variables-concatenation", title: "Concatenation" },
       { id: "variables-program", title: "Full Program" },
       { id: "variables-takeaways", title: "Key Takeaways" },
-      { id: "variables-practice", title: "Practice Session" },
+      { id: "variables-practice", title: "Chapter Review" },
     ],
   },
   {
@@ -150,7 +150,7 @@ const learningChapters: LearningChapter[] = [
       { id: "operators-concatenation", title: "String + Number Behavior" },
       { id: "operators-evaluation", title: "Evaluating Expressions" },
       { id: "operators-takeaways", title: "Key Takeaways" },
-      { id: "operators-practice", title: "Practice Session" },
+      { id: "operators-practice", title: "Chapter Review" },
     ],
   },
   ...additionalLearningChapters,
@@ -318,6 +318,65 @@ function practiceQuestionWeight(question: PracticeQuestion) {
   return 1;
 }
 
+type ChapterPracticePlan = {
+  checkpoints: Record<string, string[]>;
+  review: string[];
+};
+
+const foundationalPracticePlans: Record<string, ChapterPracticePlan> = {
+  "variables-data-types": {
+    checkpoints: {
+      "variables-types": ["variables-fill", "variables-fix"],
+      "variables-changing": ["variables-predict"],
+      "variables-concatenation": ["variables-concat"],
+      "variables-program": ["variables-constraints"],
+    },
+    review: ["variables-challenge"],
+  },
+  "operators-expressions": {
+    checkpoints: {
+      "operators-division": ["operators-integer-division"],
+      "operators-modulus": ["operators-modulus-calculate"],
+      "operators-precedence": ["operators-arithmetic-predict", "operators-parentheses-repair"],
+      "operators-assignment": ["operators-update-sequence"],
+      "operators-concatenation": ["operators-string-order"],
+      "operators-evaluation": ["operators-state-trace"],
+    },
+    review: ["operators-resource-challenge"],
+  },
+};
+
+function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
+  const explicit = foundationalPracticePlans[chapterId];
+  if (explicit) return explicit;
+
+  const questions = practiceQuestions[chapterId] ?? [];
+  if (["cumulative-challenges", "final-assessment"].includes(chapterId)) return { checkpoints: {}, review: questions.map((question) => question.id) };
+
+  const chapter = learningChapters.find((item) => item.id === chapterId);
+  const lessonSectionIds = (chapter?.sections ?? []).filter((section) => !section.id.endsWith("-practice")).map((section) => section.id);
+  const reviewCount = questions.length >= 8 ? 2 : 1;
+  const checkpointQuestions = questions.slice(0, Math.max(0, questions.length - reviewCount));
+  const review = questions.slice(checkpointQuestions.length).map((question) => question.id);
+  const groups: PracticeQuestion[][] = [];
+  checkpointQuestions.forEach((question, index) => {
+    if (index < 2) {
+      if (!groups[0]) groups[0] = [];
+      groups[0].push(question);
+    } else {
+      groups.push([question]);
+    }
+  });
+
+  const checkpoints: Record<string, string[]> = {};
+  const startIndex = Math.min(2, Math.max(0, lessonSectionIds.length - groups.length));
+  groups.forEach((group, index) => {
+    const sectionId = lessonSectionIds[Math.min(startIndex + index, lessonSectionIds.length - 1)];
+    if (sectionId) checkpoints[sectionId] = [...(checkpoints[sectionId] ?? []), ...group.map((question) => question.id)];
+  });
+  return { checkpoints, review };
+}
+
 function chapterProgress(chapterId: string, _completed: string[], practice: PracticeRecords) {
   const questions = practiceQuestions[chapterId] ?? [];
   const passedQuestions = questions.filter((question) => practice[chapterId]?.passed?.includes(question.id));
@@ -458,6 +517,8 @@ function tutorLessonReference(chapterId: string, sectionId: string) {
   return structuredLessonContent[chapterId]?.find((section) => section.id === sectionId) ?? "The current section is a practice session. Use the chapter description and progress as context.";
 }
 
+const SectionPracticeRendererContext = createContext<(sectionId: string) => React.ReactNode>(() => null);
+
 function CourseView({ completed, practice, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
   const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(learningChapters[0].id);
@@ -468,6 +529,7 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
   const selectedChapter = learningChapters.find((chapter) => chapter.id === selectedChapterId) ?? learningChapters[0];
   const course = learningProgress(completed, practice);
   const chapter = chapterProgress(selectedChapter.id, completed, practice);
+  const practicePlan = useMemo(() => chapterPracticePlan(selectedChapter.id), [selectedChapter.id]);
 
   useLayoutEffect(() => {
     scrollLockRef.current = null;
@@ -503,9 +565,9 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
       lessonReference: tutorLessonReference(selectedChapter.id, section.id),
       practicePassed: chapter.passed,
       practiceTotal: chapter.questions,
-      activePractice: section.id.endsWith("practice") && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
+      activePractice: (section.id.endsWith("practice") || Boolean(practicePlan.checkpoints[section.id])) && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
     });
-  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, onTutorContextChange, practiceTutorContext, selectedChapter]);
+  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, onTutorContextChange, practicePlan.checkpoints, practiceTutorContext, selectedChapter]);
 
   const selectChapter = (next: LearningChapter) => {
     if (next.id === selectedChapterId) {
@@ -529,6 +591,13 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
     reader.scrollTo({ top: Math.max(0, reader.scrollTop + sectionTop - readerTop - 22), behavior: "smooth" });
     window.setTimeout(() => { if (scrollLockRef.current === sectionId) scrollLockRef.current = null; }, 1600);
   };
+  const checkpointEntries = Object.entries(practicePlan.checkpoints);
+  const renderSectionPractice = (sectionId: string) => {
+    const questionIds = practicePlan.checkpoints[sectionId];
+    if (!questionIds?.length) return null;
+    const checkpointNumber = checkpointEntries.findIndex(([id]) => id === sectionId) + 1;
+    return <ChapterPractice chapterId={selectedChapter.id} questionIds={questionIds} variant="checkpoint" checkpointNumber={checkpointNumber} practiceSectionId={`${sectionId}-check`} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId === sectionId} />;
+  };
 
   return <main className="course-page continuous-course">
     <div className="continuous-layout">
@@ -551,13 +620,14 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
         })}
         <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Only passed practice creates course progress. A chapter clears when every exercise passes.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>Study at your own pace</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Pass every exercise to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} /></article></div>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>Learn, check, continue</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Pass every exercise to clear</span></div></header><SectionPracticeRendererContext.Provider value={renderSectionPractice}><ChapterLessonContent chapterId={selectedChapter.id} /></SectionPracticeRendererContext.Provider><ChapterPractice chapterId={selectedChapter.id} questionIds={practicePlan.review} variant="review" practiceSectionId={selectedChapter.sections.at(-1)?.id ?? `${selectedChapter.id}-practice`} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId.endsWith("practice")} /></article></div>
     </div>
   </main>;
 }
 
 function LearningSectionBlock({ id, eyebrow, title, children }: { id: string; eyebrow: string; title: string; children: React.ReactNode }) {
-  return <section className="lesson-section" id={id} data-learning-section><div className="lesson-section-heading"><p className="eyebrow">{eyebrow}</p><h2>{titleCase(title)}</h2></div>{children}</section>;
+  const renderSectionPractice = useContext(SectionPracticeRendererContext);
+  return <section className="lesson-section" id={id} data-learning-section><div className="lesson-section-heading"><p className="eyebrow">{eyebrow}</p><h2>{titleCase(title)}</h2></div>{children}{renderSectionPractice(id)}</section>;
 }
 
 function CodeExample({ label, code }: { label: string; code: string }) {
@@ -582,6 +652,7 @@ function DataTypeLesson({ type, category, meaning, description, declaration, exp
 }
 
 function ChapterLessonContent({ chapterId }: { chapterId: string }) {
+  const renderSectionPractice = useContext(SectionPracticeRendererContext);
   if (chapterId === "variables-data-types") return <>
     <LearningSectionBlock id="variables-overview" eyebrow="Direct definition" title="What is a variable?"><p className="lesson-lead">A variable is a named location in memory used to store a value. The name gives your program a readable way to find and use that value later.</p><CodeExample label="A first variable" code="int age = 25;" /><aside className="key-idea"><Sparkles size={17} /><p><b>The variable and its value are not the same thing.</b><span><code>age</code> is the reusable name. <code>25</code> is the value currently stored under that name.</span></p></aside></LearningSectionBlock>
     <LearningSectionBlock id="variables-declaration" eyebrow="Break it down" title="Declaration anatomy"><p className="lesson-lead">The general pattern is <code>type variableName = value;</code>. A <b>statement</b> is one complete instruction to Java. Read this statement from left to right: what kind of value, what name, and what value to store.</p><CodeExample label="General syntax" code="type variableName = value;" /><div className="declaration-grid"><div><code>int</code><b>Data type</b><small>Only whole numbers fit here</small></div><div><code>age</code><b>Variable name</b><small>The label used later</small></div><div><code>=</code><b>Assignment</b><small>Stores the right side</small></div><div><code>25</code><b>Value</b><small>The actual data</small></div><div><code>;</code><b>Statement end</b><small>Required punctuation</small></div></div><CodeExample label="More declarations" code={'String name = "Daniel";\ndouble height = 6.2;\nboolean hungry = true;\nchar grade = \'A\';'} /></LearningSectionBlock>
@@ -613,16 +684,19 @@ function ChapterLessonContent({ chapterId }: { chapterId: string }) {
   </>;
 
   const structuredSections = structuredLessonContent[chapterId];
-  if (structuredSections) return <StructuredLesson sections={structuredSections} />;
+  if (structuredSections) return <StructuredLesson sections={structuredSections} renderAfterSection={renderSectionPractice} />;
 
   return null;
 }
 
 const emptyPracticeRecord = (): PracticeRecord => ({ answers: {}, attempts: {}, hints: [], passed: [] });
 
-function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPracticeContextChange }: { chapterId: string; record?: PracticeRecord; onChange: (record: PracticeRecord) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void }) {
-  const questions = practiceQuestions[chapterId];
+function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1, practiceSectionId, record: savedRecord, onChange, onTutorPracticeContextChange, tutorActive }: { chapterId: string; questionIds: string[]; variant: "checkpoint" | "review"; checkpointNumber?: number; practiceSectionId: string; record?: PracticeRecord; onChange: (record: PracticeRecord) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void; tutorActive: boolean }) {
+  const allQuestions = practiceQuestions[chapterId] ?? [];
+  const questionIdSet = new Set(questionIds);
+  const questions = allQuestions.filter((question) => questionIdSet.has(question.id));
   const record = savedRecord ?? emptyPracticeRecord();
+  const allValidPassed = allQuestions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
   const validPassed = questions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
   const firstUnpassed = questions.findIndex((question) => !record.passed.includes(question.id));
   const [activeIndex, setActiveIndex] = useState(firstUnpassed < 0 ? 0 : firstUnpassed);
@@ -631,6 +705,7 @@ function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPrac
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
   const allPassed = validPassed.length === questions.length;
+  const chapterAllPassed = allValidPassed.length === allQuestions.length;
   const unansweredIndexes = questions
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => !record.passed.includes(item.id))
@@ -642,6 +717,7 @@ function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPrac
   const clueShown = record.hints.includes(question.id);
 
   useEffect(() => {
+    if (!tutorActive) return;
     onTutorPracticeContextChange({
       chapterId,
       questionId: question.id,
@@ -659,7 +735,7 @@ function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPrac
       clueShown,
       shownClue: clueShown ? question.hint : null,
     });
-  }, [activeIndex, chapterId, clueShown, currentAnswer, currentAttempts, currentFeedback, onTutorPracticeContextChange, passed, question, questions.length]);
+  }, [activeIndex, chapterId, clueShown, currentAnswer, currentAttempts, currentFeedback, onTutorPracticeContextChange, passed, question, questions.length, tutorActive]);
 
   const updateAnswer = (answer: string) => {
     onChange({ ...record, answers: { ...record.answers, [question.id]: answer } });
@@ -669,7 +745,7 @@ function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPrac
     const answer = currentAnswer;
     const correct = question.validate(answer);
     const attempts = { ...record.attempts, [question.id]: (record.attempts[question.id] ?? 0) + 1 };
-    const nextPassed = correct && !passed ? [...validPassed, question.id] : validPassed;
+    const nextPassed = correct && !passed ? [...allValidPassed, question.id] : allValidPassed;
     onChange({ ...record, attempts, passed: nextPassed });
     setFeedback((current) => ({ ...current, [question.id]: correct ? "correct" : "incorrect" }));
   };
@@ -678,24 +754,26 @@ function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPrac
     if (nextQuestionIndex >= 0) setActiveIndex(nextQuestionIndex);
   };
 
-  const practiceSectionId = chapterId === "variables-data-types" ? "variables-practice" : chapterId === "operators-expressions" ? "operators-practice" : `${chapterId}-practice`;
-
-  if (allPassed && !reviewingCompleted) return <section className="practice-session practice-complete-state" id={practiceSectionId} data-learning-section>
-    <div className="practice-complete-card chapter-complete">
-      <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>
+  const completionTitle = variant === "checkpoint" ? "Section Check Complete" : chapterAllPassed ? "Chapter Complete" : "Chapter Review Complete";
+  const completionCopy = variant === "checkpoint" ? "You confirmed this section. Keep going while the idea is still fresh." : chapterAllPassed ? "Every required exercise passed. This chapter is cleared and your progress is saved." : "The cumulative review passed. Finish the remaining section checks to clear the chapter.";
+  const completionCard = <div className={`practice-complete-card ${variant === "checkpoint" ? "section-complete" : chapterAllPassed ? "chapter-complete" : "review-complete"}`}>
+      {variant === "review" && chapterAllPassed && <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>}
       <span className="practice-complete-check"><Check size={42} strokeWidth={3.2} /></span>
-      <p className="eyebrow">Demonstrated Progress</p>
-      <h2>Chapter Complete</h2>
-      <p>Every required exercise passed. This chapter is cleared and your progress is saved.</p>
+      <p className="eyebrow">{variant === "checkpoint" ? `Checkpoint ${checkpointNumber}` : "Cumulative Review"}</p>
+      <h2>{completionTitle}</h2>
+      <p>{completionCopy}</p>
       <div className="practice-complete-stats"><span><b>{questions.length}/{questions.length}</b> exercises passed</span><span><b>{record.hints.length}</b> clues used</span></div>
       <button className="soft-button practice-review-button" onClick={() => setReviewingCompleted(true)}>Review Answers<ChevronDown size={15} /></button>
-    </div>
-  </section>;
+    </div>;
 
-  return <section className={`practice-session ${allPassed ? "reviewing-complete" : ""}`} id={practiceSectionId} data-learning-section>
-    <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
-    <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>
-    <div className="practice-workspace" key={question.id}><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") passed ? goToNextQuestion() : check(); }} autoComplete="off" />}
+  if (allPassed && !reviewingCompleted) return variant === "checkpoint"
+    ? <div className="practice-session section-practice practice-complete-state" id={practiceSectionId}>{completionCard}</div>
+    : <section className="practice-session practice-complete-state" id={practiceSectionId} data-learning-section>{completionCard}</section>;
+
+  const practiceBody = <>
+    <div className="practice-header"><div><p className="eyebrow">{variant === "checkpoint" ? `Check Your Understanding · ${String(checkpointNumber).padStart(2, "0")}` : "Cumulative Review"}</p><h2>{variant === "checkpoint" ? "Section Check" : "Chapter Review"}</h2><p>{variant === "checkpoint" ? "Answer this now before moving forward. Repetition here is intentional." : "Combine what you learned across the chapter. Every earlier section check also counts toward completion."}</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
+    {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>}
+    <div className="practice-workspace" key={question.id}><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" />}
       {record.hints.includes(question.id) && <div className="practice-hint"><Sparkles size={15} /><p><b>Clue</b>{question.hint}</p></div>}
       {(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, use a clue if needed, and try again."}</small></p></div>}
       <div className={`practice-actions ${passed ? "passed" : ""}`}>
@@ -707,9 +785,13 @@ function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPrac
         ) : <button className="primary-button" onClick={check} disabled={!String(record.answers[question.id] ?? "").trim()}>Check Answer<ArrowRight size={14} /></button>}
       </div>
     </div>
-    <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>
-    {allPassed && <div className="chapter-cleared-banner complete"><span><Check size={24} strokeWidth={3} /></span><div><b>Chapter cleared</b><small>Every required exercise passed. This chapter now counts as complete.</small></div><button className="soft-button practice-collapse-button" onClick={() => setReviewingCompleted(false)}>Close Review<ChevronDown size={14} /></button></div>}
-  </section>;
+    {questions.length > 1 && <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>}
+    {allPassed && <div className="chapter-cleared-banner complete"><span><Check size={24} strokeWidth={3} /></span><div><b>{completionTitle}</b><small>{completionCopy}</small></div><button className="soft-button practice-collapse-button" onClick={() => setReviewingCompleted(false)}>Close Review<ChevronDown size={14} /></button></div>}
+  </>;
+
+  return variant === "checkpoint"
+    ? <div className={`practice-session section-practice ${allPassed ? "reviewing-complete" : ""}`} id={practiceSectionId}>{practiceBody}</div>
+    : <section className={`practice-session ${allPassed ? "reviewing-complete" : ""}`} id={practiceSectionId} data-learning-section>{practiceBody}</section>;
 }
 
 function pathNodeStatus(node: DegreePathNode, records: DegreeRecords): DegreeStatus {

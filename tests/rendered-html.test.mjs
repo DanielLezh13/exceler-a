@@ -53,13 +53,18 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /localWorkspace && <TutorAssistant/);
   assert.match(commandCenter, /<ReactMarkdown/);
   assert.match(commandCenter, /remarkPlugins=\{\[remarkGfm\]\}/);
-  assert.match(commandCenter, /activePractice: section\.id\.endsWith\("practice"\)/);
+  assert.match(commandCenter, /Boolean\(practicePlan\.checkpoints\[section\.id\]\)/);
   assert.match(commandCenter, /studentAnswer: currentAnswer\.slice\(0, 8_000\)/);
   assert.match(commandCenter, /status: passed \? "passed" : currentFeedback === "incorrect" \? "incorrect" : "not_checked"/);
   assert.match(commandCenter, /practice-complete-card/);
   assert.match(commandCenter, /Review Answers/);
   assert.match(commandCenter, /practiceQuestionWeight/);
   assert.match(commandCenter, /A chapter clears when every exercise passes/);
+  assert.match(commandCenter, /foundationalPracticePlans/);
+  assert.match(commandCenter, /SectionPracticeRendererContext/);
+  assert.match(commandCenter, /variant="checkpoint"/);
+  assert.match(commandCenter, /Chapter Review Complete/);
+  assert.match(structuredLesson, /renderAfterSection\?\.\(section\.id\)/);
   assert.doesNotMatch(commandCenter, /Mark Lesson as Read|reading checkpoint 25%/i);
   assert.doesNotMatch(structuredLesson, /ReadingCheckpoint|Mark Lesson as Read/);
 

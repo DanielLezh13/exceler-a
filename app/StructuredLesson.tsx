@@ -5,13 +5,14 @@ import type { StructuredLessonSection } from "./data/cisc1115Course";
 
 type StructuredLessonProps = {
   sections: StructuredLessonSection[];
+  renderAfterSection?: (sectionId: string) => React.ReactNode;
 };
 
 function CodeExample({ label, code }: { label: string; code: string }) {
   return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small></div><pre><code>{code}</code></pre></div>;
 }
 
-export default function StructuredLesson({ sections }: StructuredLessonProps) {
+export default function StructuredLesson({ sections, renderAfterSection }: StructuredLessonProps) {
   return <>{sections.map((section) => {
     return <section className="lesson-section structured-lesson-section" id={section.id} data-learning-section key={section.id}>
       <div className="lesson-section-heading"><p className="eyebrow">{section.eyebrow}</p><h2>{section.title}</h2></div>
@@ -37,6 +38,7 @@ export default function StructuredLesson({ sections }: StructuredLessonProps) {
       {section.output && <div className="output-card"><span>OUTPUT</span><code>{section.output}</code></div>}
 
       {section.takeaways?.length ? <ul className="takeaway-list">{section.takeaways.map((takeaway) => <li key={takeaway}><Check size={16} />{takeaway}</li>)}</ul> : null}
+      {renderAfterSection?.(section.id)}
     </section>;
   })}</>;
 }

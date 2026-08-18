@@ -26,6 +26,7 @@ for (const chapter of additionalLearningChapters) {
   assert.ok(lesson?.length, `${chapter.id} needs lesson content`);
   assert.ok(practice?.length >= 6, `${chapter.id} needs substantial practice`);
   assert.equal(chapter.sections.at(-1)?.id, `${chapter.id}-practice`, `${chapter.id} must end with practice`);
+  assert.equal(chapter.sections.at(-1)?.title, "Chapter Review", `${chapter.id} must end with a cumulative chapter review`);
   allQuestionIds.push(...practice.map((question) => question.id));
 }
 assert.equal(new Set(allQuestionIds).size, allQuestionIds.length, "practice question ids must be unique");

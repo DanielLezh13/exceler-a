@@ -443,7 +443,7 @@ export const additionalLearningChapters: CourseLearningChapter[] = chapterSpecs.
   title: chapter.title,
   description: chapter.description,
   status: "authored",
-  sections: [...chapter.sections.map(({ id, title }) => ({ id, title })), { id: `${chapter.id}-practice`, title: "Practice Session" }],
+  sections: [...chapter.sections.map(({ id, title }) => ({ id, title })), { id: `${chapter.id}-practice`, title: "Chapter Review" }],
 }));
 
 export const structuredLessonContent: Record<string, StructuredLessonSection[]> = Object.fromEntries(chapterSpecs.map((chapter) => [chapter.id, chapter.sections]));
