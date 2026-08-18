@@ -165,7 +165,8 @@ const foundationalTutorReferences: Record<string, Record<string, string>> = {
   },
 };
 
-const STORAGE_KEY = "daymark-education-v4";
+const PRIVATE_STORAGE_KEY = "daymark-education-v4";
+const PUBLIC_STORAGE_KEY = "exceler-public-learning-v1";
 
 const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
@@ -241,7 +242,7 @@ const degreePathLevels: { label: string; description: string; nodes: DegreePathN
   { label: "Foundations", description: "Completed placement and the selected programming entry point.", nodes: [
     { id: "math-1006", label: "Required", title: "College algebra", codes: ["MATH 1006"], kind: "required" },
     { id: "math-1011", label: "Required", title: "Precalculus", codes: ["MATH 1011"], kind: "required" },
-    { id: "programming-entry", label: "Choose one", title: "Programming foundation", codes: ["CISC 1115", "CISC 1170"], note: "Your audit currently applies CISC 1115.", kind: "choice" },
+    { id: "programming-entry", label: "Choose one", title: "Programming foundation", codes: ["CISC 1115", "CISC 1170"], note: "The degree accepts either programming entry route; the learning library currently begins with CISC 1115.", kind: "choice" },
   ] },
   { label: "First unlocks", description: "Math and CS courses that open the rest of the major.", nodes: [
     { id: "math-1201", label: "Required", title: "Calculus I", codes: ["MATH 1201"], kind: "required" },
@@ -249,7 +250,7 @@ const degreePathLevels: { label: string; description: string; nodes: DegreePathN
     { id: "cisc-3115", label: "Required", title: "Modern programming techniques", codes: ["CISC 3115"], kind: "required" },
   ] },
   { label: "Core construction", description: "The required data, implementation, and calculus sequence.", nodes: [
-    { id: "math-1206", label: "Selected math path", title: "Calculus II", codes: ["MATH 1206"], note: "Your completed MATH 1201 selects this DegreeWorks branch.", kind: "required" },
+    { id: "math-1206", label: "Standard math path", title: "Calculus II", codes: ["MATH 1206"], note: "This map follows the standard calculus sequence; transferred or substituted credit should be confirmed in DegreeWorks.", kind: "required" },
     { id: "cisc-3130", label: "Required", title: "Data structures", codes: ["CISC 3130"], kind: "required" },
     { id: "cisc-3140", label: "Required", title: "Design & implementation II", codes: ["CISC 3140"], kind: "required" },
   ] },
@@ -264,30 +265,29 @@ const degreePathLevels: { label: string; description: string; nodes: DegreePathN
   ] },
   { label: "Finish line", description: "Capstone choice and degree-wide graduation gates.", nodes: [
     { id: "capstone-choice", label: "Choose one", title: "Independent group / study", codes: ["CISC 4900", "CISC 5001"], kind: "choice" },
-    { id: "writing-intensive", label: "Degree requirement", title: "One writing-intensive CISC course", note: "DegreeWorks currently shows 1 CISC @W still needed.", kind: "finish" },
-    { id: "degree-gates", label: "Graduation gates", title: "Credits, residency, GPA", note: "These update from the audit summary below.", kind: "finish" },
+    { id: "writing-intensive", label: "Degree requirement", title: "One writing-intensive CISC course", note: "A qualifying CISC writing-intensive course must appear in the completed degree audit.", kind: "finish" },
+    { id: "degree-gates", label: "Graduation gates", title: "Credits, residency, GPA", note: "Personal totals appear only after a visitor loads their own audit.", kind: "finish" },
   ] },
 ];
 
 const degreeWorksSnapshot: AuditSnapshot = {
-  auditDate: "08/09/2026",
-  degreeProgress: 57,
-  appliedCredits: 59,
-  remainingCredits: 61,
-  gpa: 1.2,
-  majorApplied: 14,
-  majorRemaining: 53.5,
-  collegeOptionRemaining: 3,
-  residencyRemaining: 20,
-  advancedCiscRemaining: 24,
-  bsCreditsRemaining: 15,
-  sourceName: "DegreeWorks.pdf",
+  auditDate: "Not loaded",
+  degreeProgress: 0,
+  appliedCredits: 0,
+  remainingCredits: 0,
+  gpa: 0,
+  majorApplied: 0,
+  majorRemaining: 0,
+  collegeOptionRemaining: 0,
+  residencyRemaining: 0,
+  advancedCiscRemaining: 0,
+  bsCreditsRemaining: 0,
+  sourceName: "No audit uploaded",
 };
 
-const initialDegreeRecords: DegreeRecords = Object.fromEntries([
-  ...degreeCourses.map((course) => [course.code, "not_started" as DegreeStatus]),
-  ["MATH 1006", "complete"], ["MATH 1011", "complete"], ["MATH 1201", "complete"], ["CISC 1115", "in_progress"],
-]) as DegreeRecords;
+const initialDegreeRecords: DegreeRecords = Object.fromEntries(
+  degreeCourses.map((course) => [course.code, "unknown" as DegreeStatus]),
+) as DegreeRecords;
 
 const readingCheckpointId = (chapterId: string) => chapterId === "operators-expressions" ? `${chapterId}:read:v2` : `${chapterId}:read`;
 
@@ -331,7 +331,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
   return <span className={`mission-status ${done ? "done" : active ? "active" : ""}`}>{done ? <Check size={17} strokeWidth={3} /> : active ? <Play size={13} fill="currentColor" /> : <span />}</span>;
 }
 
-function Sidebar({ view, setView, completed, practice }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords }) {
+function Sidebar({ view, setView, completed, practice, onOpenInfo }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords; onOpenInfo: () => void }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
     <button className="brand exceler-brand" onClick={() => setView("home")} aria-label="Exceler A home"><img className="sidebar-brand-logo" src="/exceler-a-mark-512.png" alt="" /></button>
@@ -343,7 +343,7 @@ function Sidebar({ view, setView, completed, practice }: { view: View; setView: 
       <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />Courses</button>
     </nav>
     {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button></div>}
-    <div className="sidebar-footer"><div className="sync-state"><span />Progress saved on this device</div></div>
+    <div className="sidebar-footer"><button className="about-sidebar-button" onClick={onOpenInfo}><CircleHelp size={16} />About Exceler A</button><div className="sync-state"><span />Progress saved on this device</div></div>
   </aside>;
 }
 
@@ -351,18 +351,21 @@ function MobileNav({ view, setView }: { view: View; setView: (view: View) => voi
   return <nav className="mobile-nav" aria-label="Mobile navigation"><button className={view === "home" ? "active" : ""} onClick={() => setView("home")}><House size={18} />Home</button><button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><BookOpen size={18} />Overview</button><button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap size={18} />Courses</button><button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch size={18} />Degree</button><button className={view === "course" ? "active" : ""} onClick={() => setView("course")}><Code2 size={18} />Java</button></nav>;
 }
 
-function HomeView({ completed, practice, snapshot, setView }: { completed: string[]; practice: PracticeRecords; snapshot: AuditSnapshot; setView: (view: View) => void }) {
+function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { completed: string[]; practice: PracticeRecords; snapshot: AuditSnapshot; setView: (view: View) => void; onOpenInfo: () => void }) {
   const progress = learningProgress(completed, practice);
   const nextChapter = authoredChapters.find((chapter) => chapterProgress(chapter.id, completed, practice).percent < 100) ?? authoredChapters[0];
   const nextState = chapterProgress(nextChapter.id, completed, practice);
+  const hasAudit = snapshot.sourceName !== "No audit uploaded";
   return <main className="home-page">
     <section className="home-stage">
       <div className="home-title-lockup" aria-label="Exceler A"><b>EXCELER</b><img src="/exceler-a-mark-512.png" alt="A" /></div>
+      <button className="home-about-button" onClick={onOpenInfo}><CircleHelp size={15} />About</button>
       <div className="home-primary">
         <div className="home-intro">
           <p className="eyebrow">Self-Directed Academic Learning</p>
           <h1>Your Education,<br /><span>Under Your Direction.</span></h1>
           <p className="home-declaration">Structured teaching, academic guidance, and a clear degree path—without giving up control of how you learn.</p>
+          <p className="home-maker-line">Built by Daniel Lezhanskiy · Brooklyn College Computer Science</p>
         </div>
         <button className="pinned-course-card" onClick={() => setView("course")}>
           <span className="pinned-course-glyph">J</span>
@@ -373,13 +376,13 @@ function HomeView({ completed, practice, snapshot, setView }: { completed: strin
       </div>
       <aside className="home-guidance-stack" aria-label="Learning guidance">
         <button className="home-guidance-card next-move" onClick={() => setView("course")}><span className="home-card-icon"><Play size={15} fill="currentColor" /></span><span><small>Recommended Next Move</small><b>{titleCase(nextChapter.title)}</b><em>{nextState.readingDone ? `${nextState.passed} of ${nextState.questions} practice questions passed` : "Continue the lesson, then demonstrate it in practice"}</em></span><ArrowRight size={16} /></button>
-        <button className="home-guidance-card degree-status" onClick={() => setView("degree")}><span className="home-card-icon"><GraduationCap size={17} /></span><span><small>Degree Position</small><b>{snapshot.degreeProgress}% Degree Progress</b><em>{snapshot.remainingCredits} total credits remaining · {snapshot.majorRemaining} major credits remaining</em></span><ArrowRight size={16} /></button>
+        <button className="home-guidance-card degree-status" onClick={() => setView("degree")}><span className="home-card-icon"><GraduationCap size={17} /></span><span><small>{hasAudit ? "Degree Position" : "Degree Path"}</small><b>{hasAudit ? `${snapshot.degreeProgress}% Degree Progress` : "Brooklyn College CS B.S."}</b><em>{hasAudit ? `${snapshot.remainingCredits} total credits remaining · ${snapshot.majorRemaining} major credits remaining` : "Required courses, choice branches, and graduation gates"}</em></span><ArrowRight size={16} /></button>
         <div className="home-guidance-card learning-proof"><span className="home-card-icon"><Check size={17} strokeWidth={3} /></span><span><small>Demonstrated Learning</small><b>{progress.completedChapters} Chapters Cleared</b><em>Reading creates familiarity. Completed practice creates progress.</em></span></div>
       </aside>
       <div className="home-console-dock">
         <div className="home-console" aria-label="Current learning status">
           <div className="console-bar"><span /><span /><span /><small>learning_state.java</small></div>
-          <div className="console-body"><code><i>String</i> learner = <b>&quot;Daniel&quot;</b>;</code><code><i>String</i> focus = <b>&quot;Computer Science + Math&quot;</b>;</code><code><i>int</i> chaptersCleared = <strong>{progress.completedChapters}</strong>;</code><code><i>boolean</i> keepBuilding = <em>true</em>;</code></div>
+          <div className="console-body"><code><i>String</i> project = <b>&quot;Exceler A&quot;</b>;</code><code><i>String</i> path = <b>&quot;Brooklyn College CS&quot;</b>;</code><code><i>int</i> chaptersCleared = <strong>{progress.completedChapters}</strong>;</code><code><i>boolean</i> keepBuilding = <em>true</em>;</code></div>
           <div className="console-progress"><span><small>CISC 1115</small><b>{progress.percent}%</b></span><ProgressBar value={progress.percent} /><p>{progress.completedChapters} of {learningChapters.length} chapters cleared</p></div>
         </div>
       </div>
@@ -400,7 +403,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
     </section>
     <section className="education-dashboard-grid">
       <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.requiresReading ? state.readingDone ? "Lesson read" : "Reading open" : "Demonstration open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
-      <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Daymark does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
+      <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Exceler A does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
 }
@@ -408,7 +411,7 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
 function CoursesView({ completed, practice, onOpenCourse }: { completed: string[]; practice: PracticeRecords; onOpenCourse: () => void }) {
   const progress = learningProgress(completed, practice);
   return <main className="page-content courses-page">
-    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>{titleCase("Your Courses")}</h2><p>Open a course to continue its lessons, practice, and chapter progression.</p></div><div className="course-count"><b>1</b><small>Course Available</small></div></header>
+    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Open a course to continue its lessons, practice, and chapter progression. Additional Brooklyn College CS courses will be added as they are built and reviewed.</p></div><div className="course-count"><b>1</b><small>Course Available</small></div></header>
     <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>{titleCase("Programming Courses")}</h3></div><span>1 course</span></header><div className="course-library-list">
       <button className="course-library-card" onClick={onOpenCourse}>
         <span className="course-glyph large">J</span>
@@ -659,12 +662,13 @@ function DegreeMap({ records, setRecords, snapshot, onImport }: { records: Degre
   const [selected, setSelected] = useState<DegreeCourse | null>(null);
   const completed = degreeCourses.filter((course) => records[course.code] === "complete").length;
   const inProgress = degreeCourses.filter((course) => records[course.code] === "in_progress").length;
+  const hasAudit = snapshot.sourceName !== "No audit uploaded";
   return <main className="page-content degree-page focused-degree vertical-degree">
-    <section className="degree-hero audit-backed-hero"><div><p className="eyebrow accent-text">Brooklyn College · DegreeWorks mapped</p><h2>{titleCase("Your path to the degree")}</h2><p>Required courses stay separate from choice groups. Branches mean “choose one,” not “take everything.” Your uploaded audit controls the status colors.</p><div className="hero-actions"><button className="primary-button" onClick={onImport}><Upload size={15} />Upload DegreeWorks PDF</button><span className="honesty-note"><Check size={14} /> Audit reviewed {snapshot.auditDate}</span></div></div><div className="degree-verification"><div><b>{snapshot.degreeProgress}%</b><small>DegreeWorks progress</small></div><div><b>{snapshot.appliedCredits}</b><small>credits applied</small></div><div><b>{snapshot.remainingCredits}</b><small>credits remaining</small></div></div></section>
-    <section className="audit-summary-strip"><div><small>Major block</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div><div><small>Mapped course states</small><b>{completed} complete · {inProgress} in progress</b></div><div><small>Current GPA</small><b className={snapshot.gpa < 2 ? "needs-attention" : ""}>{snapshot.gpa.toFixed(3)} · {snapshot.gpa < 2 ? "2.0 required" : "requirement met"}</b></div><div><small>Source</small><b>{snapshot.sourceName}</b></div></section>
+    <section className="degree-hero audit-backed-hero"><div><p className="eyebrow accent-text">Brooklyn College · Computer Science B.S.</p><h2>{hasAudit ? titleCase("Your path to the degree") : titleCase("Computer Science degree path")}</h2><p>{hasAudit ? "Required courses stay separate from choice groups. Branches mean “choose one,” not “take everything.” Your uploaded audit controls the status colors." : "Explore the required courses, choice groups, and graduation gates without exposing anyone’s personal academic record. Load your own DegreeWorks audit only when you want a private, device-local view."}</p><div className="hero-actions"><button className="primary-button" onClick={onImport}><Upload size={15} />{hasAudit ? "Update DegreeWorks PDF" : "Load Your DegreeWorks PDF"}</button><span className="honesty-note">{hasAudit ? <><Check size={14} /> Audit reviewed {snapshot.auditDate}</> : <><LockKeyhole size={14} /> No personal audit loaded</>}</span></div></div><div className="degree-verification">{hasAudit ? <><div><b>{snapshot.degreeProgress}%</b><small>DegreeWorks progress</small></div><div><b>{snapshot.appliedCredits}</b><small>credits applied</small></div><div><b>{snapshot.remainingCredits}</b><small>credits remaining</small></div></> : <><div><b>B.S.</b><small>degree route</small></div><div><b>BC</b><small>Brooklyn College</small></div><div><b>Local</b><small>private audit data</small></div></>}</div></section>
+    {hasAudit && <section className="audit-summary-strip"><div><small>Major block</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div><div><small>Mapped course states</small><b>{completed} complete · {inProgress} in progress</b></div><div><small>Current GPA</small><b className={snapshot.gpa < 2 ? "needs-attention" : ""}>{snapshot.gpa.toFixed(3)} · {snapshot.gpa < 2 ? "2.0 required" : "requirement met"}</b></div><div><small>Source</small><b>{snapshot.sourceName}</b></div></section>}
     <div className="degree-map-heading"><div><p className="eyebrow">Requirement family tree</p><h3>{titleCase("Start at the top. Follow the branches downward.")}</h3></div><div className="degree-legend"><span><i className="complete" />Complete</span><span><i className="in_progress" />In progress</span><span><i className="not_started" />Remaining</span><span><i className="unknown" />Audit rule</span></div></div>
-    <section className="degree-family-tree">{degreePathLevels.map((level, levelIndex) => <div className="degree-family-level" key={level.label}>{levelIndex > 0 && <div className="family-connector"><span /></div>}<header><span>{String(levelIndex + 1).padStart(2, "0")}</span><div><b>{titleCase(level.label)}</b><small>{level.description}</small></div></header><div className="family-node-row">{level.nodes.map((node) => { const status = pathNodeStatus(node, records); return <div className={`degree-branch-bubble ${node.kind} ${status}`} key={node.id}><div className="bubble-top"><span className="degree-status-icon">{status === "complete" ? <Check size={16} strokeWidth={3} /> : status === "in_progress" ? <Play size={12} fill="currentColor" /> : status === "not_started" ? <LockKeyhole size={14} /> : <GitBranch size={14} />}</span><small>{node.label}</small></div><h4>{titleCase(node.title)}</h4>{node.codes && <div className="bubble-options">{node.codes.map((code, index) => { const course = degreeCourses.find((item) => item.code === code); const optionStatus = records[code] ?? "unknown"; return <div className="bubble-option-wrap" key={code}>{index > 0 && <span className="or-label">OR</span>}<button className={optionStatus} onClick={() => course && setSelected(course)}><b>{code}</b><small>{course ? titleCase(course.title) : ""}</small><i>{optionStatus === "in_progress" ? "In progress" : optionStatus === "complete" ? "Complete" : "Still needed"}</i></button></div>; })}</div>}{node.kind === "electives" && <div className="elective-slots"><span>1</span><span>2</span><span>3</span></div>}{node.note && <p>{node.note}</p>}</div>; })}</div></div>)}</section>
-    <section className="degree-wide-gates"><div className="gate-heading"><p className="eyebrow">Degree-wide requirements</p><h3>{titleCase("Courses are only one branch of graduation.")}</h3></div><div className="gate-grid"><div className="degree-gate in_progress"><span><Play size={14} fill="currentColor" /></span><p><small>College option</small><b>{snapshot.collegeOptionRemaining} credits remaining</b><em>ANTH 1200 is currently in progress toward this block.</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Brooklyn residency</small><b>{snapshot.residencyRemaining} credits remaining</b><em>DegreeWorks shows 10 completed in residence.</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Advanced CISC in residence</small><b>{snapshot.advancedCiscRemaining} credits remaining</b><em>CISC 2210-5004 with C or better.</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Additional B.S. credits</small><b>{snapshot.bsCreditsRemaining} credits remaining</b><em>Approved science, math, CS, and related courses.</em></p></div></div></section>
+    <section className="degree-family-tree">{degreePathLevels.map((level, levelIndex) => <div className="degree-family-level" key={level.label}>{levelIndex > 0 && <div className="family-connector"><span /></div>}<header><span>{String(levelIndex + 1).padStart(2, "0")}</span><div><b>{titleCase(level.label)}</b><small>{level.description}</small></div></header><div className="family-node-row">{level.nodes.map((node) => { const status = pathNodeStatus(node, records); return <div className={`degree-branch-bubble ${node.kind} ${status}`} key={node.id}><div className="bubble-top"><span className="degree-status-icon">{status === "complete" ? <Check size={16} strokeWidth={3} /> : status === "in_progress" ? <Play size={12} fill="currentColor" /> : status === "not_started" ? <LockKeyhole size={14} /> : <GitBranch size={14} />}</span><small>{node.label}</small></div><h4>{titleCase(node.title)}</h4>{node.codes && <div className="bubble-options">{node.codes.map((code, index) => { const course = degreeCourses.find((item) => item.code === code); const optionStatus = records[code] ?? "unknown"; return <div className="bubble-option-wrap" key={code}>{index > 0 && <span className="or-label">OR</span>}<button className={optionStatus} onClick={() => course && setSelected(course)}><b>{code}</b><small>{course ? titleCase(course.title) : ""}</small><i>{optionStatus === "in_progress" ? "In progress" : optionStatus === "complete" ? "Complete" : optionStatus === "not_started" ? "Still needed" : "Requirement"}</i></button></div>; })}</div>}{node.kind === "electives" && <div className="elective-slots"><span>1</span><span>2</span><span>3</span></div>}{node.note && <p>{node.note}</p>}</div>; })}</div></div>)}</section>
+    <section className="degree-wide-gates"><div className="gate-heading"><p className="eyebrow">Degree-wide requirements</p><h3>{titleCase("Courses are only one branch of graduation.")}</h3></div><div className="gate-grid"><div className={`degree-gate ${hasAudit ? "in_progress" : "unknown"}`}><span>{hasAudit ? <Play size={14} fill="currentColor" /> : <GraduationCap size={15} />}</span><p><small>College option</small><b>{hasAudit ? `${snapshot.collegeOptionRemaining} credits remaining` : "Separate graduation requirement"}</b><em>{hasAudit ? "The loaded audit determines the remaining college-option work." : "Load an audit to see how this block applies to you."}</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Brooklyn residency</small><b>{hasAudit ? `${snapshot.residencyRemaining} credits remaining` : "Residency minimum applies"}</b><em>{hasAudit ? "Calculated from the loaded DegreeWorks summary." : "Only an official audit can confirm the personal remainder."}</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Advanced CISC in residence</small><b>{hasAudit ? `${snapshot.advancedCiscRemaining} credits remaining` : "Upper-level residency applies"}</b><em>CISC 2210-5004 with C or better.</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Additional B.S. credits</small><b>{hasAudit ? `${snapshot.bsCreditsRemaining} credits remaining` : "Approved B.S. credits required"}</b><em>Approved science, math, CS, and related courses.</em></p></div></div></section>
     <section className="degree-footnotes"><p><b>Important:</b> DegreeWorks reports both completed and in-progress credits in the applied total. In-progress does not mean earned yet.</p><p><b>Planning boundary:</b> graduate-level substitutions and double-counting rules require department or Degree Audit approval.</p></section>
     <DegreeCourseDrawer course={selected} status={selected ? records[selected.code] ?? "unknown" : "unknown"} onClose={() => setSelected(null)} onStatus={(status) => { if (!selected) return; setRecords({ ...records, [selected.code]: status }); }} />
   </main>;
@@ -676,7 +680,7 @@ function DegreeCourseDrawer({ course, status, onClose, onStatus }: { course: Deg
     { status: "complete", label: "Complete", description: "Credit earned or requirement satisfied" },
     { status: "in_progress", label: "In progress", description: "Currently enrolled or officially underway" },
     { status: "not_started", label: "Not started", description: "Confirmed remaining" },
-    { status: "unknown", label: "Unknown", description: "Keep Daymark from assuming" },
+    { status: "unknown", label: "Unknown", description: "Keep Exceler A from assuming" },
   ];
   return <div className="drawer-backdrop" onMouseDown={onClose}><aside className="degree-drawer" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={onClose}><X size={20} /></button><p className="eyebrow">{course.requirement}</p><h2>{course.code}</h2><h3>{titleCase(course.title)}</h3><div className="drawer-facts"><div><small>CREDITS</small><b>{course.credits}</b></div><div><small>MAP STAGE</small><b>{course.stage + 1}</b></div></div><section><p className="eyebrow">Requirement context</p><p>{course.prerequisiteText}</p>{course.choiceLabel && <div className="choice-callout"><small>CHOICE GROUP</small><b>{titleCase(course.choiceLabel)}</b><p>Only one option is counted toward this requirement.</p></div>}</section><section><p className="eyebrow">Your official status</p><div className="status-options">{options.map((option) => <button className={status === option.status ? "active" : ""} key={option.status} onClick={() => onStatus(option.status)}><i className={option.status} /> <span><b>{option.label}</b><small>{option.description}</small></span>{status === option.status && <Check size={15} />}</button>)}</div></section><small className="source-note">Set this from DegreeWorks or your official record—not from self-study progress.</small></aside></div>;
 }
@@ -750,10 +754,33 @@ function DegreeWorksImport({ open, records, onClose, onApply }: { open: boolean;
     try {
       const value = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf") ? await extractPdfText(file) : await file.text();
       setText(value); analyze(value, file.name);
-    } catch { setError("Daymark could not read this PDF. Export a fresh DegreeWorks PDF and try again."); }
+    } catch { setError("Exceler A could not read this PDF. Export a fresh DegreeWorks PDF and try again."); }
     finally { setLoading(false); }
   };
-  return <div className="dialog-backdrop" onMouseDown={onClose}><div className="audit-dialog pdf-audit-dialog" onMouseDown={(event) => event.stopPropagation()}><header><span><FileInput size={20} /></span><div><p className="eyebrow">DegreeWorks import</p><h2>Upload the audit. Review the map update.</h2></div><button onClick={onClose}><X size={20} /></button></header><div className="audit-guidance"><p><b>PDF stays in this browser.</b> Daymark extracts its text locally and does not upload the file to a server.</p><p><b>Nothing applies automatically.</b> You review every detected course state before saving it to the map.</p></div><label className={`file-import pdf-drop ${loading ? "loading" : ""}`}><Upload size={20} /><span><b>{loading ? "Reading DegreeWorks…" : fileName || "Choose DegreeWorks PDF"}</b><small>PDF preferred · text and HTML also supported</small></span><input type="file" accept=".pdf,.txt,.html,.htm,.csv,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadFile(file); }} /></label>{error && <p className="import-error">{error}</p>}{text && <div className="audit-detected-summary"><div><small>Audit date</small><b>{snapshot.auditDate}</b></div><div><small>Overall progress</small><b>{snapshot.degreeProgress}%</b></div><div><small>Credits</small><b>{snapshot.appliedCredits} applied · {snapshot.remainingCredits} remaining</b></div><div><small>Major</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div></div>}<details className="paste-fallback"><summary>Paste audit text instead</summary><label className="audit-text-label">DegreeWorks text<textarea value={text} onChange={(event) => { setText(event.target.value); setProposal({}); setFileName(""); }} placeholder={'CISC 1115 — In Progress\nCISC 2210 — Still Needed'} /></label><button className="secondary-button analyze-button" disabled={!text.trim()} onClick={() => analyze()}>Analyze pasted audit</button></details>{detected.length > 0 && <div className="detected-courses"><div><p className="eyebrow">Review before applying</p><span>{detected.length} courses detected</span></div>{detected.map((course) => <div className="detected-row" key={course.code}><span><b>{course.code}</b><small>{course.title}</small></span><div>{(["complete", "in_progress", "not_started", "unknown"] as DegreeStatus[]).map((status) => <button key={status} className={proposal[course.code] === status ? "active" : ""} onClick={() => setProposal({ ...proposal, [course.code]: status })}>{status === "complete" ? "Complete" : status === "in_progress" ? "In progress" : status === "not_started" ? "Remaining" : "Ignore"}</button>)}</div></div>)}</div>}<footer><span>Choice groups count once. In-progress is shown separately from earned credit.</span><button className="primary-button" disabled={!detected.length} onClick={() => { const applied = { ...records }; Object.entries(proposal).forEach(([code, status]) => { if (status !== "unknown") applied[code] = status; }); onApply(applied, snapshot); onClose(); }}>Update degree map <ArrowRight size={14} /></button></footer></div></div>;
+  return <div className="dialog-backdrop" onMouseDown={onClose}><div className="audit-dialog pdf-audit-dialog" onMouseDown={(event) => event.stopPropagation()}><header><span><FileInput size={20} /></span><div><p className="eyebrow">DegreeWorks import</p><h2>Upload the audit. Review the map update.</h2></div><button onClick={onClose}><X size={20} /></button></header><div className="audit-guidance"><p><b>PDF stays in this browser.</b> Exceler A extracts its text locally and does not upload the file to a server.</p><p><b>Nothing applies automatically.</b> You review every detected course state before saving it to the map.</p></div><label className={`file-import pdf-drop ${loading ? "loading" : ""}`}><Upload size={20} /><span><b>{loading ? "Reading DegreeWorks…" : fileName || "Choose DegreeWorks PDF"}</b><small>PDF preferred · text and HTML also supported</small></span><input type="file" accept=".pdf,.txt,.html,.htm,.csv,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadFile(file); }} /></label>{error && <p className="import-error">{error}</p>}{text && <div className="audit-detected-summary"><div><small>Audit date</small><b>{snapshot.auditDate}</b></div><div><small>Overall progress</small><b>{snapshot.degreeProgress}%</b></div><div><small>Credits</small><b>{snapshot.appliedCredits} applied · {snapshot.remainingCredits} remaining</b></div><div><small>Major</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div></div>}<details className="paste-fallback"><summary>Paste audit text instead</summary><label className="audit-text-label">DegreeWorks text<textarea value={text} onChange={(event) => { setText(event.target.value); setProposal({}); setFileName(""); }} placeholder={'CISC 1115 — In Progress\nCISC 2210 — Still Needed'} /></label><button className="secondary-button analyze-button" disabled={!text.trim()} onClick={() => analyze()}>Analyze pasted audit</button></details>{detected.length > 0 && <div className="detected-courses"><div><p className="eyebrow">Review before applying</p><span>{detected.length} courses detected</span></div>{detected.map((course) => <div className="detected-row" key={course.code}><span><b>{course.code}</b><small>{course.title}</small></span><div>{(["complete", "in_progress", "not_started", "unknown"] as DegreeStatus[]).map((status) => <button key={status} className={proposal[course.code] === status ? "active" : ""} onClick={() => setProposal({ ...proposal, [course.code]: status })}>{status === "complete" ? "Complete" : status === "in_progress" ? "In progress" : status === "not_started" ? "Remaining" : "Ignore"}</button>)}</div></div>)}</div>}<footer><span>Choice groups count once. In-progress is shown separately from earned credit.</span><button className="primary-button" disabled={!detected.length} onClick={() => { const applied = { ...records }; Object.entries(proposal).forEach(([code, status]) => { if (status !== "unknown") applied[code] = status; }); onApply(applied, snapshot); onClose(); }}>Update degree map <ArrowRight size={14} /></button></footer></div></div>;
+}
+
+function ProjectInfoDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return <div className="project-info-backdrop" role="presentation" onMouseDown={onClose}>
+    <section className="project-info-dialog" role="dialog" aria-modal="true" aria-labelledby="project-info-title" onMouseDown={(event) => event.stopPropagation()}>
+      <header><div className="project-info-brand"><span><img src="/exceler-a-mark-512.png" alt="" /></span><div><p className="eyebrow">Independent Learning Project</p><h2 id="project-info-title">About Exceler A</h2></div></div><button onClick={onClose} aria-label="Close project information"><X size={19} /></button></header>
+      <div className="project-info-intro"><p>Exceler A is a student-built learning system that turns the Brooklyn College Computer Science B.S. path into sequenced teaching, demonstrated practice, and a visual degree map.</p><span>Built by <b>Daniel Lezhanskiy</b></span></div>
+      <div className="project-info-grid">
+        <article><span><Code2 size={17} /></span><div><b>What Is Available</b><p>CISC 1115 currently includes 24 connected chapters with lessons, practice, and completion based mainly on demonstrated work. More Brooklyn College computer science and supporting math courses will be added as they are built and reviewed.</p></div></article>
+        <article><span><GraduationCap size={18} /></span><div><b>Degree-Path Context</b><p>The map organizes required courses, either-or choices, elective groups, and graduation gates. It is a planning aid—not an official Brooklyn College service or a replacement for DegreeWorks and academic advisement.</p></div></article>
+        <article><span><LockKeyhole size={17} /></span><div><b>Privacy and AI</b><p>The public experience starts without Daniel’s grades, GPA, audit, or college progress. Visitor progress and optional DegreeWorks data stay in that visitor’s browser. The AI tutor is disabled on the hosted public build so strangers cannot use Daniel’s API credits.</p></div></article>
+      </div>
+      <footer><span>Self-directed education, built course by course.</span><button className="primary-button" onClick={onClose}>Explore Exceler A<ArrowRight size={14} /></button></footer>
+    </section>
+  </div>;
 }
 
 const tutorWelcomeMessage = (): TutorMessage => ({
@@ -925,12 +952,16 @@ export default function CommandCenter() {
   const [degreeRecords, setDegreeRecords] = useState<DegreeRecords>(initialDegreeRecords);
   const [auditSnapshot, setAuditSnapshot] = useState<AuditSnapshot>(degreeWorksSnapshot);
   const [importOpen, setImportOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [courseTutorContext, setCourseTutorContext] = useState<TutorCourseContext | null>(null);
+  const [localWorkspace, setLocalWorkspace] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      setLocalWorkspace(isLocal);
+      const stored = localStorage.getItem(isLocal ? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as { completed?: string[]; practice?: PracticeRecords; degreeRecords?: DegreeRecords; auditSnapshot?: AuditSnapshot };
         if (parsed.completed) setCompleted(parsed.completed);
@@ -944,9 +975,9 @@ export default function CommandCenter() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ completed, practice, degreeRecords, auditSnapshot }));
-  }, [completed, practice, degreeRecords, auditSnapshot, hydrated]);
+    localStorage.setItem(localWorkspace ? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY, JSON.stringify({ completed, practice, degreeRecords, auditSnapshot }));
+  }, [completed, practice, degreeRecords, auditSnapshot, hydrated, localWorkspace]);
 
   const complete = (id: string) => setCompleted((current) => current.includes(id) ? current : [...current, id]);
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} /><TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} /><DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /></div>;
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} onOpenInfo={() => setInfoOpen(true)} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} />{localWorkspace && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} />}<DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} /></div>;
 }

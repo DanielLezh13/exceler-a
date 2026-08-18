@@ -63,6 +63,10 @@ function errorResponse(message: string, status: number) {
 }
 
 export async function POST(request: Request) {
+  const hostname = new URL(request.url).hostname;
+  const localRequest = process.env.NODE_ENV !== "production" && (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1");
+  if (!localRequest) return errorResponse("The AI tutor is available only in the private Exceler A desktop workspace.", 403);
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return errorResponse("The tutor is not configured yet.", 503);
 
