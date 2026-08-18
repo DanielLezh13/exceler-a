@@ -1120,7 +1120,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   const [messages, setMessages] = useState<TutorMessage[]>([tutorWelcomeMessage()]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; rect: DOMRect } | null>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -1130,7 +1130,13 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
 
   useEffect(() => {
     if (!open) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const messagesNode = messagesRef.current;
+    if (!messagesNode) return;
+    const finishAtBottom = () => { messagesNode.scrollTop = messagesNode.scrollHeight; };
+    messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: "smooth" });
+    const frame = window.requestAnimationFrame(finishAtBottom);
+    const settle = window.setTimeout(finishAtBottom, 220);
+    return () => { window.cancelAnimationFrame(frame); window.clearTimeout(settle); };
   }, [busy, messages, open]);
 
   useEffect(() => {
@@ -1276,9 +1282,9 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
         <div className="tutor-header-actions"><button onClick={clearConversation} aria-label="Clear tutor conversation" title="Clear conversation"><Trash2 size={16} /></button><button onClick={() => setOpen(false)} aria-label="Close tutor"><X size={18} /></button></div>
       </header>
       <div className="tutor-context"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div>
-      <div className="tutor-messages">
+      <div ref={messagesRef} className="tutor-messages">
         {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
-        <div ref={bottomRef} className="tutor-scroll-anchor" />
+        <div className="tutor-scroll-anchor" />
       </div>
       <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
