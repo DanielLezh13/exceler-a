@@ -64,6 +64,8 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /SectionPracticeRendererContext/);
   assert.match(commandCenter, /variant="checkpoint"/);
   assert.match(commandCenter, /Chapter Review Complete/);
+  assert.match(commandCenter, /aria-label="Previous question"/);
+  assert.match(commandCenter, /aria-label="Next question"/);
   assert.match(structuredLesson, /renderAfterSection\?\.\(section\.id\)/);
   assert.doesNotMatch(commandCenter, /Mark Lesson as Read|reading checkpoint 25%/i);
   assert.doesNotMatch(structuredLesson, /ReadingCheckpoint|Mark Lesson as Read/);

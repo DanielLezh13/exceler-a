@@ -5,6 +5,8 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleHelp,
   Code2,
   Download,
@@ -785,7 +787,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
         ) : <button className="primary-button" onClick={check} disabled={!String(record.answers[question.id] ?? "").trim()}>Check Answer<ArrowRight size={14} /></button>}
       </div>
     </div>
-    {questions.length > 1 && <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>}
+    {questions.length > 1 && <div className="practice-pagination"><button aria-label="Previous question" title="Previous question" onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}><ChevronLeft size={18} strokeWidth={2.4} /></button><span>Question {activeIndex + 1} of {questions.length}</span><button aria-label="Next question" title="Next question" onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}><ChevronRight size={18} strokeWidth={2.4} /></button></div>}
     {allPassed && <div className="chapter-cleared-banner complete"><span><Check size={24} strokeWidth={3} /></span><div><b>{completionTitle}</b><small>{completionCopy}</small></div><button className="soft-button practice-collapse-button" onClick={() => setReviewingCompleted(false)}>Close Review<ChevronDown size={14} /></button></div>}
   </>;
 

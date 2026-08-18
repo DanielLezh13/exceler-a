@@ -585,10 +585,12 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .practice-actions.passed { justify-content: flex-end; }
 .practice-next-button { min-width: 190px; min-height: 44px; }
 .practice-actions button:disabled { opacity: .45; cursor: not-allowed; }
-.practice-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
-.practice-pagination button { border: 0; background: transparent; color: #8e9792; padding: 8px; font-size: 9px; }
-.practice-pagination button:disabled { opacity: .3; }
-.practice-pagination span { color: #616a66; font: 8px var(--font-geist-mono); }
+.practice-pagination { display: grid; grid-template-columns: 42px 1fr 42px; align-items: center; gap: 12px; margin-top: 15px; }
+.practice-pagination button { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #3c4541; border-radius: 50%; background: #151a18; color: #aeb8b2; padding: 0; cursor: pointer; transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease; }
+.practice-pagination button:hover:not(:disabled) { border-color: #6f8a5d; background: #1c251a; color: var(--lime); transform: translateY(-1px); }
+.practice-pagination button:active:not(:disabled) { transform: translateY(0) scale(.96); }
+.practice-pagination button:disabled { opacity: .25; cursor: default; }
+.practice-pagination span { color: #737d78; text-align: center; font: 9px var(--font-geist-mono); }
 .chapter-cleared-banner { display: flex; align-items: center; gap: 13px; margin-top: 20px; border: 1px solid #4c623f; border-radius: 15px; background: #192317; padding: 15px 17px; }
 .chapter-cleared-banner.waiting { border-color: #5a513e; background: #211d15; }
 .chapter-cleared-banner > span { width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: var(--lime); color: #14200d; }
