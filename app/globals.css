@@ -797,7 +797,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .tutor-thinking i { width: 4px; height: 4px; border-radius: 50%; background: var(--lime); animation: tutor-dot .9s infinite ease-in-out; }
 .tutor-thinking i:nth-child(2) { animation-delay: .12s; }.tutor-thinking i:nth-child(3) { animation-delay: .24s; }
 @keyframes tutor-dot { 0%, 70%, 100% { opacity: .28; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-3px); } }
-.tutor-composer { margin: 0 12px; min-height: 52px; display: grid; grid-template-columns: minmax(0,1fr) 36px; align-items: end; gap: 8px; border: 1px solid #3a443f; border-radius: 15px; background: #0c100f; padding: 7px 7px 7px 12px; }
+.tutor-composer { margin: 0 12px 12px; min-height: 52px; display: grid; grid-template-columns: minmax(0,1fr) 36px; align-items: end; gap: 8px; border: 1px solid #3a443f; border-radius: 15px; background: #0c100f; padding: 7px 7px 7px 12px; }
 .tutor-composer:focus-within { border-color: #668257; box-shadow: 0 0 0 3px rgba(191,245,90,.06); }
 .tutor-composer textarea { width: 100%; max-height: 110px; min-height: 34px; resize: none; border: 0; outline: 0; background: transparent; color: #e2e7e4; padding: 7px 0 4px; font: 10px/1.45 var(--font-geist-sans); }
 .tutor-composer textarea::placeholder { color: #5d6661; }
