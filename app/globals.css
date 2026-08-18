@@ -754,8 +754,10 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .tutor-identity b { font-size: 12px; letter-spacing: -.015em; }
 .tutor-identity small { color: #6f7873; font-size: 8px; margin-top: 3px; }
 .tutor-header-actions { display: flex; align-items: center; gap: 3px; }
-.tutor-header-actions button { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: #707975; }
-.tutor-header-actions button:hover { background: #1d2320; color: #c4cac7; }
+.tutor-header-actions button { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: #707975; box-shadow: none; transition: color .15s ease, transform .15s ease; }
+.tutor-header-actions button:hover { background: transparent; box-shadow: none; transform: scale(1.16); }
+.tutor-header-actions button:first-child:hover { color: #e16d67; }
+.tutor-header-actions button:last-child:hover { color: var(--lime); }
 .tutor-context { min-height: 36px; padding: 0 15px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #242a27; color: #66706a; font-size: 8px; }
 .tutor-context svg { color: var(--lime); }
 .tutor-context span { text-transform: uppercase; letter-spacing: .11em; font-weight: 750; }
