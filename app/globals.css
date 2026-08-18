@@ -586,7 +586,9 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .practice-hint svg { flex: 0 0 auto; }
 .practice-hint p { margin: 0; color: #a7957a; font-size: 10px; line-height: 1.55; }
 .practice-hint b { display: block; margin-bottom: 2px; color: var(--amber); }
-.practice-feedback { display: flex; align-items: center; gap: 11px; margin-top: 13px; border-radius: 12px; padding: 12px 14px; }
+.practice-response-row { min-height: 62px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 14px; margin-top: 15px; }
+.practice-feedback-slot { min-width: 0; }
+.practice-feedback { display: flex; align-items: center; gap: 11px; margin: 0; border-radius: 12px; padding: 10px 12px; }
 .practice-feedback.correct { background: #192417; border: 1px solid #40573a; }
 .practice-feedback.incorrect { background: #241c14; border: 1px solid #5b4631; }
 .practice-feedback > span { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; }
@@ -596,7 +598,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .practice-feedback b, .practice-feedback small { display: block; }
 .practice-feedback b { font-size: 10px; }
 .practice-feedback small { margin-top: 3px; color: #89918d; font-size: 9px; line-height: 1.45; }
-.practice-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.practice-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 0; }
 .practice-actions.passed { justify-content: flex-end; }
 .practice-next-button { min-width: 190px; min-height: 44px; }
 .practice-actions button:disabled { opacity: .45; cursor: not-allowed; }
@@ -811,6 +813,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
   .practice-complete-card { min-height: 330px; border-radius: 19px; padding: 38px 18px 30px; }
   .practice-complete-check { width: 72px; height: 72px; }
   .practice-complete-stats { align-items: stretch; flex-direction: column; }
+  .practice-response-row { min-height: 0; grid-template-columns: 1fr; }
+  .practice-feedback-slot:empty { display: none; }
   .section-practice .practice-complete-card.section-complete { grid-template-columns: 44px 1fr; padding: 16px; }
   .section-practice .section-complete .practice-complete-check { width: 44px; height: 44px; }
   .section-practice .section-complete .practice-review-button { grid-column: 1 / -1; grid-row: 4; width: 100%; margin-top: 12px; }
