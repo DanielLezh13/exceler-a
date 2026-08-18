@@ -13,6 +13,7 @@ import {
   FileInput,
   GitBranch,
   GraduationCap,
+  GripHorizontal,
   House,
   LockKeyhole,
   Play,
@@ -1114,10 +1115,14 @@ function TutorMessageContent({ content }: { content: string }) {
 
 function TutorAssistant({ view, completed, practice, courseContext, snapshot }: { view: View; completed: string[]; practice: PracticeRecords; courseContext: TutorCourseContext | null; snapshot: AuditSnapshot }) {
   const [open, setOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [drawerPosition, setDrawerPosition] = useState({ x: 0, y: 0 });
   const [messages, setMessages] = useState<TutorMessage[]>([tutorWelcomeMessage()]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; rect: DOMRect } | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const progress = learningProgress(completed, practice);
   const activeLesson = view === "course" ? courseContext : null;
@@ -1134,6 +1139,48 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
     if (!open) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [busy, messages, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  const beginDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (window.innerWidth <= 700 || (event.target as HTMLElement).closest("button")) return;
+    const rect = drawerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: drawerPosition.x, originY: drawerPosition.y, rect };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+  };
+
+  const moveDrag = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const padding = 10;
+    const deltaX = Math.min(window.innerWidth - padding - drag.rect.right, Math.max(padding - drag.rect.left, event.clientX - drag.startX));
+    const deltaY = Math.min(window.innerHeight - padding - drag.rect.bottom, Math.max(padding - drag.rect.top, event.clientY - drag.startY));
+    setDrawerPosition({ x: drag.originX + deltaX, y: drag.originY + deltaY });
+  };
+
+  const endDrag = (event: React.PointerEvent<HTMLElement>) => {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setDragging(false);
+  };
+
+  const toggleTutor = () => {
+    if (!open) setDrawerPosition({ x: 0, y: 0 });
+    setOpen((current) => !current);
+  };
 
   const clearConversation = () => {
     requestRef.current?.abort();
@@ -1233,10 +1280,12 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
     }
   };
 
-  return <div className={`tutor-shell ${open ? "open" : ""}`}>
-    {open && <section className="tutor-drawer" aria-label="Exceler tutor" aria-live="polite">
-      <header className="tutor-header">
+  return <>{open && <div className="tutor-backdrop" role="presentation" onMouseDown={() => setOpen(false)} />}
+  <div className={`tutor-shell ${open ? "open" : ""}`}>
+    {open && <section ref={drawerRef} className={`tutor-drawer ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} role="dialog" aria-modal="true" aria-label="Exceler tutor" aria-live="polite">
+      <header className="tutor-header" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="tutor-identity"><span><img src="/exceler-a-mark-512.png" alt="" /></span><p><b>Exceler Tutor</b><small>Using your current page</small></p></div>
+        <span className="tutor-drag-handle" aria-hidden="true"><GripHorizontal size={18} /></span>
         <div className="tutor-header-actions"><button onClick={clearConversation} aria-label="Clear tutor conversation" title="Clear conversation"><Trash2 size={16} /></button><button onClick={() => setOpen(false)} aria-label="Close tutor"><X size={18} /></button></div>
       </header>
       <div className="tutor-context"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div>
@@ -1251,10 +1300,10 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
       </form>
       <p className="tutor-footnote">Hints don’t change course progress. Your work still has to pass.</p>
     </section>}
-    <button className="tutor-launcher" onClick={() => setOpen((current) => !current)} aria-label={open ? "Close Exceler tutor" : "Open Exceler tutor"} aria-expanded={open}>
+    <button className="tutor-launcher" onClick={toggleTutor} aria-label={open ? "Close Exceler tutor" : "Open Exceler tutor"} aria-expanded={open}>
       {open ? <X size={20} /> : <><img src="/exceler-a-mark-512.png" alt="" /><span>Ask Tutor</span></>}
     </button>
-  </div>;
+  </div></>;
 }
 
 export default function CommandCenter() {

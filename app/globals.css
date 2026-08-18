@@ -737,14 +737,18 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 }
 
 /* Contextual tutor */
+.tutor-backdrop { position: fixed; z-index: 79; inset: 0; background: rgba(3,5,4,.12); }
 .tutor-shell { position: fixed; z-index: 80; right: 24px; bottom: 24px; display: grid; justify-items: end; gap: 12px; pointer-events: none; }
 .tutor-launcher { pointer-events: auto; min-width: 52px; height: 52px; border: 1px solid #42563d; border-radius: 999px; background: #172017; color: var(--lime); padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 9px; box-shadow: 0 16px 44px rgba(0,0,0,.42), 0 0 0 1px rgba(191,245,90,.04); font-size: 11px; font-weight: 780; transition: transform .18s ease, border-color .18s ease, background .18s ease; }
 .tutor-launcher:hover { transform: translateY(-2px); border-color: #6d8b5d; background: #1b271a; }
 .tutor-launcher img { width: 25px; height: 25px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(191,245,90,.3)); }
 .tutor-shell.open .tutor-launcher { width: 46px; min-width: 46px; height: 46px; padding: 0; background: #151918; border-color: #39413e; color: #9da5a1; }
-.tutor-drawer { pointer-events: auto; width: min(410px, calc(100vw - var(--sidebar) - 48px)); height: min(690px, calc(100vh - 104px)); min-height: 470px; display: grid; grid-template-rows: auto auto minmax(0,1fr) auto auto auto; overflow: hidden; border: 1px solid #353e39; border-radius: 22px; background: rgba(16,20,18,.98); box-shadow: 0 30px 90px rgba(0,0,0,.58), 0 0 0 1px rgba(255,255,255,.018); backdrop-filter: blur(22px); transform-origin: right bottom; animation: tutor-enter .2s cubic-bezier(.2,.8,.2,1) both; }
+.tutor-drawer { pointer-events: auto; width: min(410px, calc(100vw - var(--sidebar) - 48px)); height: min(690px, calc(100vh - 104px)); min-height: 470px; display: grid; grid-template-rows: auto auto minmax(0,1fr) auto auto auto; overflow: hidden; border: 1px solid #353e39; border-radius: 22px; background: rgba(16,20,18,.98); box-shadow: 0 30px 90px rgba(0,0,0,.58), 0 0 0 1px rgba(255,255,255,.018); backdrop-filter: blur(22px); transform-origin: right bottom; animation: tutor-enter .2s cubic-bezier(.2,.8,.2,1) both; will-change: translate; }
+.tutor-drawer.dragging { user-select: none; box-shadow: 0 36px 110px rgba(0,0,0,.66),0 0 0 1px rgba(191,245,90,.06); }
 @keyframes tutor-enter { from { opacity: 0; transform: translateY(12px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.tutor-header { min-height: 67px; padding: 12px 13px 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #282e2b; background: #131816; }
+.tutor-header { position: relative; min-height: 67px; padding: 12px 13px 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #282e2b; background: #131816; cursor: grab; touch-action: none; }
+.tutor-drawer.dragging .tutor-header { cursor: grabbing; }
+.tutor-drag-handle { position: absolute; left: 50%; top: 7px; display: grid; place-items: center; color: #46504b; transform: translateX(-50%); pointer-events: none; }
 .tutor-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .tutor-identity > span { width: 35px; height: 35px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid #3f523a; border-radius: 11px; background: #1a2418; }
 .tutor-identity img { width: 24px; height: 24px; object-fit: contain; }
@@ -808,6 +812,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 @media (max-width: 700px) {
   .tutor-shell { right: 12px; bottom: 73px; }
   .tutor-drawer { position: fixed; left: 10px; right: 10px; bottom: 130px; width: auto; height: min(660px, calc(100dvh - 148px)); min-height: 410px; border-radius: 19px; }
+  .tutor-header { cursor: default; touch-action: auto; }
+  .tutor-drag-handle { display: none; }
   .tutor-launcher { height: 48px; padding: 0 14px; }
   .tutor-message { max-width: 95%; }
   .practice-complete-card { min-height: 330px; border-radius: 19px; padding: 38px 18px 30px; }
