@@ -100,16 +100,21 @@ const allCode = courseIds.map(learnerSyntax).join("\n");
 
 const compactAuditText = (value) => value.replace(/\s+/g, "").replaceAll("String[]args", "");
 const firstUseRules = [
+  { chapterId: "variables-data-types", label: "final constant syntax", pattern: /\bfinal\s+(?:int|double|boolean|char|String|long)\b/ },
   { chapterId: "comparisons-booleans", label: "comparison or logical operator syntax", pattern: /==|!=|>=|<=|&&|\|\||(?<![+\-*/%=])[<>](?!=)/ },
+  { chapterId: "comparisons-booleans", label: "conditional operator syntax", pattern: /\?\s*[^?\n:]+\s*:\s*[^?\n;]+/ },
   { chapterId: "if-else", label: "if statement syntax", pattern: /\bif\(/, compact: true },
   { chapterId: "while-loops", label: "while loop syntax", pattern: /\bwhile\(/, compact: true },
+  { chapterId: "while-loops", label: "do-while syntax", pattern: /\bdo\{/ , compact: true },
   { chapterId: "for-loops", label: "for loop syntax", pattern: /\bfor\(/, compact: true },
   { chapterId: "methods", label: "custom method definition syntax", pattern: /publicstatic(?:void|int|double|boolean|String)(?!main\b)\w+\(/, compact: true },
+  { chapterId: "methods", label: "standard-library utility syntax", pattern: /(?:Math\.(?:sqrt|random)|Integer\.parseInt|Double\.parseDouble|System\.currentTimeMillis)\(/ },
   { chapterId: "returns-scope", label: "return statement syntax", pattern: /\breturn\b/ },
   { chapterId: "arrays", label: "array type syntax", pattern: /(?:int|double|boolean|char|String)\[\]/, compact: true },
   { chapterId: "arrays-loops", label: "for-each syntax", pattern: /for\([^;()]+:[^;()]+\)/, compact: true },
-  { chapterId: "strings", label: "String API syntax", pattern: /\.(?:charAt|substring|indexOf|contains|equalsIgnoreCase|toLowerCase|toUpperCase)\(/, compact: true },
+  { chapterId: "strings", label: "String API syntax", pattern: /\.(?:charAt|substring|indexOf|lastIndexOf|contains|concat|compareTo|trim|equalsIgnoreCase|toLowerCase|toUpperCase)\(/, compact: true },
   { chapterId: "arraylists", label: "ArrayList syntax", pattern: /ArrayList</, compact: true },
+  { chapterId: "searching", label: "binary search terminology", pattern: /\bbinary\s+search\b/i },
   { chapterId: "input-output", label: "file and formatted-stream syntax", pattern: /(?:printf\(|hasNext(?:Int)?\(|FileNotFoundException|newFile\()/, compact: true },
 ];
 
@@ -134,7 +139,6 @@ for (const [chapterId, label, pattern] of [
 }
 
 for (const [label, pattern] of [
-  ["ternary expressions", /\?\s*[^?\n:]+\s*:\s*[^?\n;]+/],
   ["break statements", /\bbreak\s*;/],
   ["continue statements", /\bcontinue\s*;/],
   ["Character API", /Character\./],
@@ -144,9 +148,18 @@ for (const [label, pattern] of [
   assert.doesNotMatch(allCode, pattern, `untaught ${label} found in learner-facing code`);
 }
 
-assert.doesNotMatch(before("sorting"), /\bswap(?:ping|ped|s)?\b/i, "swapping appears before Chapter 17");
+assert.doesNotMatch(before("arrays-loops"), /\bswap(?:ping|ped|s)?\b/i, "swapping appears before the array-transformation lesson");
 
 assert.match(learnerText("input-basic-programs"), /nextBoolean/, "Chapter 3 must teach nextBoolean before Chapter 6 uses it");
+assert.match(openingLearnerText["variables-data-types"], /final int MAX_ATTEMPTS/, "Chapter 1 must teach final constants");
+assert.match(openingLearnerText["operators-expressions"], /POSTFIX: USE, THEN CHANGE/, "Chapter 2 must teach postfix expression timing");
+assert.match(learnerText("comparisons-booleans"), /conditional operator/i, "Chapter 4 must teach the conditional operator");
+assert.match(learnerText("while-loops"), /do-while/i, "Chapter 7 must teach do-while loops");
+assert.match(learnerText("methods"), /Java API Documentation/, "Chapter 10 must teach API documentation");
+assert.match(learnerText("returns-scope"), /Overloading and Method Signatures/, "Chapter 11 must teach method overloading and signatures after return types");
+assert.match(learnerText("arrays-loops"), /Reversing and Array-to-Array Operations/, "Chapter 13 must teach array transformations");
+assert.match(learnerText("strings"), /lastIndexOf/, "Chapter 14 must teach the required String search variants");
+assert.match(learnerText("searching"), /Binary Search/, "Chapter 16 must teach binary search");
 assert.match(learnerText("input-basic-programs"), /print displays a prompt without ending the line/, "Chapter 3 must distinguish print from println");
 assert.match(learnerText("decision-programs"), /called an algorithm/, "algorithm terminology must be introduced before repeated use");
 assert.match(learnerText("arrays-loops"), /For-each traversal/, "Chapter 13 must teach for-each before practice uses it");
@@ -156,7 +169,7 @@ assert.match(learnerText("input-output"), /copy throws FileNotFoundException/, "
 assert.match(commandCenter, /Writing <code>\(double\) sum<\/code> is a <b>cast<\/b>/, "Chapter 2 must teach casts before later averages use them");
 assert.match(commandCenter, /is a <b>comment<\/b>/, "Chapter 2 must explain line comments before later examples use them");
 
-const foundationalQuestionCount = 36;
+const foundationalQuestionCount = 40;
 const totals = Object.values(additionalPracticeQuestions).reduce((sum, questions) => sum + questions.length, foundationalQuestionCount);
 assert.ok(totals >= 477, "the complete course should retain dense section checks and cumulative practice");
 
