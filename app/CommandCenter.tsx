@@ -365,7 +365,7 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
           <p className="eyebrow">Self-Directed Academic Learning</p>
           <h1>Your Education,<br /><span>Under Your Direction.</span></h1>
           <p className="home-declaration">Structured teaching, academic guidance, and a clear degree path—without giving up control of how you learn.</p>
-          <p className="home-maker-line">Built by Daniel Lezhanskiy · Brooklyn College Computer Science</p>
+          <p className="home-maker-line"><span>Built by</span><b>Daniel Lezhanskiy</b><i />Brooklyn College Computer Science</p>
         </div>
         <button className="pinned-course-card" onClick={() => setView("course")}>
           <span className="pinned-course-glyph">J</span>
