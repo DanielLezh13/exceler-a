@@ -11,6 +11,7 @@ import {
   Code2,
   Download,
   Eye,
+  EyeOff,
   FileInput,
   GitBranch,
   GraduationCap,
@@ -781,6 +782,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const firstUnpassed = questions.findIndex((question) => !record.passed.includes(question.id));
   const [activeIndex, setActiveIndex] = useState(firstUnpassed < 0 ? 0 : firstUnpassed);
   const [feedback, setFeedback] = useState<Record<string, "correct" | "incorrect">>({});
+  const [visibleAnswers, setVisibleAnswers] = useState<Record<string, boolean>>({});
   const [reviewingCompleted, setReviewingCompleted] = useState(false);
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
@@ -794,7 +796,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const currentAnswer = record.answers[question.id] ?? "";
   const currentFeedback = feedback[question.id];
   const currentAttempts = record.attempts[question.id] ?? 0;
-  const answerShown = record.hints.includes(question.id);
+  const answerShown = Boolean(visibleAnswers[question.id]);
   const shownAnswer = question.answer ?? question.options?.find((option) => question.validate(option)) ?? question.hint;
 
   useEffect(() => {
@@ -830,7 +832,12 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
     onChange({ ...record, attempts, passed: nextPassed });
     setFeedback((current) => ({ ...current, [question.id]: correct ? "correct" : "incorrect" }));
   };
-  const revealAnswer = () => onChange({ ...record, hints: record.hints.includes(question.id) ? record.hints : [...record.hints, question.id] });
+  const toggleAnswer = () => {
+    if (!answerShown && !record.hints.includes(question.id)) {
+      onChange({ ...record, hints: [...record.hints, question.id] });
+    }
+    setVisibleAnswers((current) => ({ ...current, [question.id]: !current[question.id] }));
+  };
   const goToNextQuestion = () => {
     if (nextQuestionIndex >= 0) setActiveIndex(nextQuestionIndex);
   };
@@ -858,7 +865,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
       <div className="practice-response-row">
         <div className="practice-feedback-slot">{(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, show the answer if needed, and try again."}</small></p></div>}</div>
         <div className={`practice-actions ${passed ? "passed" : ""}`}>
-          {!passed && <button className="soft-button" onClick={revealAnswer} disabled={answerShown}><Eye size={14} />{answerShown ? "Answer Shown" : "Show Answer"}</button>}
+          {!passed && <button className="soft-button" onClick={toggleAnswer} aria-pressed={answerShown}>{answerShown ? <EyeOff size={14} /> : <Eye size={14} />}{answerShown ? "Hide Answer" : "Show Answer"}</button>}
           {passed ? (
             nextQuestionIndex >= 0
               ? <button className="primary-button practice-next-button" onClick={goToNextQuestion}>Next Question<ArrowRight size={16} /></button>
