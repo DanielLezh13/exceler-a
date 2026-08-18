@@ -1278,7 +1278,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
       <div className="tutor-context"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div>
       <div className="tutor-messages">
         {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="tutor-scroll-anchor" />
       </div>
       <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />

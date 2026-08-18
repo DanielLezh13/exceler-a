@@ -762,7 +762,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .tutor-context svg { color: var(--lime); }
 .tutor-context span { text-transform: uppercase; letter-spacing: .11em; font-weight: 750; }
 .tutor-context b { min-width: 0; margin-left: 2px; color: #a5ada8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 650; }
-.tutor-messages { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 17px 15px 11px; display: flex; flex-direction: column; gap: 15px; box-sizing: border-box; }
+.tutor-messages { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 17px 15px 6px; display: flex; flex-direction: column; gap: 15px; box-sizing: border-box; }
+.tutor-scroll-anchor { height: 0; margin-top: -10px; }
 .tutor-message { min-width: 0; max-width: 92%; display: grid; gap: 5px; }
 .tutor-message.user { align-self: flex-end; justify-items: end; max-width: 86%; }
 .tutor-message > small { color: #606a64; font-size: 7px; text-transform: uppercase; letter-spacing: .11em; font-weight: 760; }
