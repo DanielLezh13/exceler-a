@@ -32,6 +32,7 @@ import StructuredLesson from "./StructuredLesson";
 import {
   additionalLearningChapters,
   additionalPracticeQuestions,
+  additionalSectionPracticeQuestionIds,
   structuredLessonContent,
 } from "./data/cisc1115Course";
 
@@ -112,6 +113,7 @@ type PracticeQuestion = {
   placeholder: string;
   hint: string;
   success: string;
+  options?: string[];
   multiline?: boolean;
   validate: (answer: string) => boolean;
 };
@@ -214,22 +216,57 @@ const titleCase = (value: string) => {
   }).join(" ");
 };
 
+const multipleChoiceQuestion = (id: string, title: string, prompt: string, options: string[], answer: string, hint: string, success: string): PracticeQuestion => ({
+  id,
+  level: "Warm-up",
+  kind: "Multiple choice",
+  title,
+  prompt,
+  placeholder: "Choose one answer",
+  options,
+  hint,
+  success,
+  validate: (value) => value.trim() === answer,
+});
+
 const practiceQuestions: Record<string, PracticeQuestion[]> = {
   "variables-data-types": [
+    multipleChoiceQuestion("variables-meaning", "Recognize a variable", "What is a variable?", ["A named location in memory used to store a value", "A command that always prints text", "A Java data type for whole numbers", "A symbol used only for addition"], "A named location in memory used to store a value", "Think about the reusable name and the value stored under it.", "Correct. A variable gives a stored value a reusable, readable name."),
+    multipleChoiceQuestion("variables-name-part", "Find the variable name", "In int age = 25;, which part is the variable name?", ["25", "int", "age", "="], "age", "The variable name is the reusable word you choose.", "Correct. age is the name; 25 is its current value."),
+    multipleChoiceQuestion("variables-assignment-part", "Find the assignment operator", "In int age = 25;, which symbol assigns the value?", [";", "=", "int", "25"], "=", "Look for the symbol between the name and value.", "Correct. = assigns the value on its right to the variable on its left."),
+    multipleChoiceQuestion("variables-statement-end", "End the statement", "Which symbol ends an ordinary Java statement?", [".", ":", ";", ","], ";", "It appears at the end of every declaration in this lesson.", "Correct. A semicolon ends the statement."),
+    { id: "variables-int", level: "Warm-up", kind: "Write one declaration", title: "Assign an int", prompt: "Declare a whole-number variable named score with the value 100.", placeholder: "Write one Java statement", hint: "Whole numbers use int.", success: "Correct. int score = 100; stores a whole number.", validate: (answer) => compactCode(answer) === "intscore=100;" },
+    { id: "variables-double", level: "Warm-up", kind: "Write one declaration", title: "Assign a double", prompt: "Declare a decimal variable named price with the value 9.99.", placeholder: "Write one Java statement", hint: "Decimal numbers use double.", success: "Correct. double price = 9.99; stores a decimal.", validate: (answer) => compactCode(answer) === "doubleprice=9.99;" },
+    { id: "variables-boolean", level: "Warm-up", kind: "Write one declaration", title: "Assign a boolean", prompt: "Declare a boolean variable named gameOver with the value false.", placeholder: "Write one Java statement", hint: "false is written without quotation marks.", success: "Correct. A boolean stores true or false without quotes.", validate: (answer) => compactCode(answer) === "booleangameOver=false;" },
     { id: "variables-predict", level: "Warm-up", kind: "Predict output", title: "Follow the value", prompt: "What is the exact output?", code: "int lives = 3;\nlives = 2;\nSystem.out.println(lives);", placeholder: "Type the output", hint: "The second assignment replaces the first value.", success: "Right—the name stays lives, but its stored value is now 2.", validate: (answer) => normalizeLines(answer) === "2" },
     { id: "variables-fill", level: "Warm-up", kind: "Fill missing code", title: "Choose the exact type", prompt: "Replace the blank so the declaration is valid Java.", code: "___ grade = 'A';", placeholder: "Type only the missing word", hint: "One character in single quotes has its own primitive type.", success: "Correct. char stores exactly one character and uses single quotes.", validate: (answer) => answer.trim() === "char" },
     { id: "variables-fix", level: "Apply", kind: "Fix the error", title: "Repair the quotes", prompt: "Rewrite the line as valid Java.", code: "String name = 'Daniel';", placeholder: "Rewrite the complete line", hint: "String and char do not use the same quotation marks.", success: "Fixed. String text uses double quotes.", validate: (answer) => compactCode(answer) === 'Stringname="Daniel";' },
+    multipleChoiceQuestion("variables-primitive", "Separate primitive and reference types", "Which list contains only the four primitive types introduced in this chapter?", ["int, double, boolean, char", "int, double, boolean, String", "String, char, text, number", "int, decimal, true, char"], "int, double, boolean, char", "String is the reference type introduced here.", "Correct. int, double, boolean, and char are primitive types; String is a reference type."),
+    multipleChoiceQuestion("variables-valid-name", "Choose a clear valid name", "Which is the best valid Java variable name for a player's remaining health?", ["2health", "player health", "int", "playerHealth"], "playerHealth", "Use a descriptive camelCase name with no spaces, leading number, or Java keyword.", "Correct. playerHealth is descriptive and follows the naming rules."),
+    multipleChoiceQuestion("variables-case-sensitive", "Track capitalization", "Java is case-sensitive. Which statement is true about score and Score?", ["They are two different variable names", "They always store the same value", "Both are invalid", "Java automatically changes both to score"], "They are two different variable names", "Capitalization is part of the name.", "Correct. score and Score refer to different names."),
+    { id: "variables-reassign", level: "Apply", kind: "Write one update", title: "Reassign without redeclaring", prompt: "A variable was declared with int lives = 3;. Write only the statement that changes its stored value to 2.", code: "int lives = 3;", placeholder: "Write the update", hint: "Reuse the name without writing int again.", success: "Correct. Reassignment changes the stored value without declaring a second variable.", validate: (answer) => compactCode(answer) === "lives=2;" },
+    multipleChoiceQuestion("variables-print-name", "Print a variable or literal", "Given int age = 25;, which statement prints the stored value 25 rather than the word age?", ["System.out.println(\"age\");", "System.out.println(age);", "System.out.println(25 age);", "System.out.println = age;"], "System.out.println(age);", "Quotation marks create literal text; a bare variable name retrieves its value.", "Correct. println(age) reads and prints the value stored under age."),
+    { id: "variables-print-text", level: "Warm-up", kind: "Write one statement", title: "Print literal text", prompt: "Write one statement that prints exactly Hello.", placeholder: "Write one Java statement", hint: "Literal String text belongs in double quotes.", success: "Correct. The String literal is passed to println.", validate: (answer) => compactCode(answer) === 'System.out.println("Hello");' },
     { id: "variables-concat", level: "Apply", kind: "Exact output", title: "Trace concatenation", prompt: "What is printed? Match capitalization, spaces, and punctuation.", code: 'String name = "Daniel";\nint age = 25;\nSystem.out.println("Name: " + name + ", Age: " + age);', placeholder: "Type the exact output", hint: "Read the println from left to right and keep the spaces inside each String.", success: "Exactly. Java joined the text and both variable values into one line.", validate: (answer) => normalizeLines(answer) === "Name: Daniel, Age: 25" },
+    { id: "variables-concat-space", level: "Apply", kind: "Fix exact output", title: "Preserve the space", prompt: "Rewrite only the println statement so the output is exactly Hello Daniel.", code: 'String name = "Daniel";\nSystem.out.println("Hello" + name);', placeholder: "Write the corrected println statement", hint: "The space must live inside one of the String literals.", success: "Correct. The literal includes the space Java needs to print.", validate: (answer) => compactCode(answer) === 'System.out.println("Hello"+name);' && /"Hello\s"/.test(answer) },
     { id: "variables-constraints", level: "Apply", kind: "Write code", title: "Build four variables", prompt: "Declare name as Daniel, age as 25, height as 6.2, and hungry as true. Then print each variable on its own line.", placeholder: "Write the declarations and print statements", hint: "You need String, int, double, and boolean—plus four println statements.", success: "All four values are declared with matching types and printed.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /Stringname="Daniel";/.test(code) && /intage=25;/.test(code) && /doubleheight=6\.2;/.test(code) && /booleanhungry=true;/.test(code) && ["name", "age", "height", "hungry"].every((name) => code.includes(`System.out.println(${name});`)); } },
     { id: "variables-challenge", level: "Challenge", kind: "Editor challenge", title: "Create a player profile", prompt: "Create name Daniel, age 25, height 6.2, hungry true, and grade A. Reassign age to 26. Print exactly: Daniel | 26 | 6.2 | true | A", placeholder: "Write Java statements that satisfy every constraint", hint: "Declare five variables, update age without writing int again, then concatenate the values with \" | \".", success: "Chapter challenge cleared. You declared, updated, and combined five correctly typed values.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /Stringname="Daniel";/.test(code) && /intage=25;/.test(code) && /doubleheight=6\.2;/.test(code) && /booleanhungry=true;/.test(code) && /chargrade='A';/.test(code) && /age=26;/.test(code) && /System\.out\.println\(name\+"\|"/.test(code.replace(/" \| "/g, '"|"')) && ["age", "height", "hungry", "grade"].every((name) => code.includes(`+${name}`)); } },
   ],
   "operators-expressions": [
+    multipleChoiceQuestion("operators-terms", "Separate operator and operand", "In 8 + 2, which part is the operator?", ["8", "+", "2", "10"], "+", "The operator is the symbol that performs the action.", "Correct. + is the operator; 8 and 2 are operands."),
+    { id: "operators-basic-arithmetic", level: "Warm-up", kind: "Predict output", title: "Use several arithmetic operators", prompt: "What is the exact output?", code: "int result = 12 - 3 * 2;\nSystem.out.println(result);", placeholder: "Type the output", hint: "Multiply before subtracting.", success: "Correct. 3 * 2 is 6, then 12 - 6 is 6.", validate: (answer) => normalizeLines(answer) === "6" },
     { id: "operators-arithmetic-predict", level: "Warm-up", kind: "Predict output", title: "Use precedence", prompt: "What is the exact output?", code: "int score = 4 + 3 * 2;\nSystem.out.println(score);", placeholder: "Type the output", hint: "Multiplication happens before addition.", success: "Correct: 3 × 2 happens first, then 4 is added.", validate: (answer) => normalizeLines(answer) === "10" },
     { id: "operators-integer-division", level: "Warm-up", kind: "Predict output", title: "Use integer division", prompt: "What is the exact output?", code: "int groups = 10 / 3;\nSystem.out.println(groups);", placeholder: "Type the output", hint: "Both operands are integers, so Java performs integer division.", success: "Correct. 10 / 3 is integer division, so the fractional part is discarded and 3 is stored.", validate: (answer) => normalizeLines(answer) === "3" },
+    { id: "operators-decimal-division", level: "Apply", kind: "Predict output", title: "Keep decimal division", prompt: "What is the exact output?", code: "double result = 10.0 / 4;\nSystem.out.println(result);", placeholder: "Type the output", hint: "One operand is a double, so Java keeps the fractional result.", success: "Correct. Decimal division produces 2.5.", validate: (answer) => normalizeLines(answer) === "2.5" },
+    { id: "operators-cast-division", level: "Apply", kind: "Fix the calculation", title: "Cast before dividing", prompt: "Rewrite only the assignment so average stores 2.5. Keep total and count as int variables.", code: "int total = 5;\nint count = 2;\ndouble average = total / count;", placeholder: "Write the corrected assignment", hint: "Cast one operand to double before division occurs.", success: "Correct. The cast changes this calculation to decimal division.", validate: (answer) => compactCode(answer) === "doubleaverage=(double)total/count;" },
     { id: "operators-modulus-calculate", level: "Apply", kind: "Calculate the remainder", title: "Find what is left", prompt: "What is the exact output?", code: "int remainder = 23 % 6;\nSystem.out.println(remainder);", placeholder: "Type the output", hint: "Six fits into 23 three full times. What remains?", success: "Correct. 6 × 3 uses 18, leaving a remainder of 5.", validate: (answer) => normalizeLines(answer) === "5" },
+    { id: "operators-modulus-even", level: "Apply", kind: "Complete a condition", title: "Use modulus for evenness", prompt: "Replace the blank so even is true when number is divisible by 2 with no remainder.", code: "boolean even = number % 2 ___ 0;", placeholder: "Type only the missing operator", hint: "Compare the remainder with zero.", success: "Correct. A remainder equal to zero means the number is even.", validate: (answer) => answer.trim() === "==" },
     { id: "operators-update-sequence", level: "Apply", kind: "Trace mixed updates", title: "Follow each change", prompt: "What is the final output?", code: "int score = 10;\nscore++;\nscore += 5;\nscore--;\nSystem.out.println(score);", placeholder: "Type the output", hint: "Track score after every line: add one, add five, then subtract one.", success: "Correct. Score changes from 10 to 11 to 16 to 15.", validate: (answer) => normalizeLines(answer) === "15" },
+    { id: "operators-increment", level: "Warm-up", kind: "Write two updates", title: "Increment and decrement", prompt: "Write two statements: first increase lives by one with ++, then decrease score by one with --.", placeholder: "Write the two statements", hint: "Each operator comes directly after its variable name.", success: "Correct. Both values change by exactly one.", multiline: true, validate: (answer) => compactCode(answer) === "lives++;score--;" },
+    { id: "operators-compound", level: "Apply", kind: "Rewrite with shorthand", title: "Use compound assignment", prompt: "Rewrite score = score + 5; using compound assignment.", code: "score = score + 5;", placeholder: "Write the shorter statement", hint: "The operator comes before the equals sign.", success: "Correct. += calculates and stores the updated value.", validate: (answer) => compactCode(answer) === "score+=5;" },
     { id: "operators-parentheses-repair", level: "Apply", kind: "Fix the expression", title: "Make addition happen first", prompt: "Rewrite the full line so total stores 14. Change only the expression by adding parentheses.", code: "int total = 4 + 3 * 2;", placeholder: "Rewrite the full corrected line", hint: "Group 4 + 3 so Java evaluates it before multiplying by 2.", success: "Fixed. Parentheses make 4 + 3 happen first, so 7 × 2 stores 14.", validate: (answer) => compactCode(answer) === "inttotal=(4+3)*2;" },
     { id: "operators-string-order", level: "Challenge", kind: "Predict exact text", title: "Catch the concatenation trap", prompt: "What is the exact output, including spaces?", code: "int x = 2;\nint y = 3;\nSystem.out.println(\"Total: \" + x + y);", placeholder: "Type the exact output", hint: "Once Java starts with the String, each later value is joined as text from left to right.", success: "Correct. Java builds \"Total: 2\" first, then appends 3, producing Total: 23.", validate: (answer) => normalizeLines(answer) === "Total: 23" },
+    { id: "operators-string-parentheses", level: "Apply", kind: "Predict exact text", title: "Force arithmetic first", prompt: "What is the exact output?", code: "int x = 2;\nint y = 3;\nSystem.out.println(\"Total: \" + (x + y));", placeholder: "Type the exact output", hint: "Parentheses finish the numeric addition before concatenation.", success: "Correct. x + y becomes 5 before it joins the String.", validate: (answer) => normalizeLines(answer) === "Total: 5" },
     { id: "operators-state-trace", level: "Challenge", kind: "Trace stored state", title: "Track a longer update chain", prompt: "What is the final output?", code: "int energy = 20;\nenergy /= 2;\nenergy += 7;\nenergy *= 3;\nenergy %= 10;\nSystem.out.println(energy);", placeholder: "Type the output", hint: "Write down energy after each statement before moving to the next one.", success: "Correct. Energy changes 20 → 10 → 17 → 51 → 1.", validate: (answer) => normalizeLines(answer) === "1" },
     { id: "operators-resource-challenge", level: "Challenge", kind: "Editor challenge", title: "Build a resource calculator", prompt: "Declare missions as 4, reward as 15, multiplier as 2, and fee as 7. Calculate balance with missions * reward * multiplier - fee. Print exactly: Balance: 113 credits", placeholder: "Write the declarations, calculation, and println statement", hint: "Store the longer expression in an int named balance, then concatenate balance between the two text pieces.", success: "Operators challenge cleared. You combined declarations, precedence, a longer expression, and exact String output.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /intmissions=4;/.test(code) && /intreward=15;/.test(code) && /intmultiplier=2;/.test(code) && /intfee=7;/.test(code) && /intbalance=missions\*reward\*multiplier-fee;/.test(code) && /System\.out\.println\("Balance:"\+balance\+"credits"\);/.test(code); } },
   ],
@@ -328,20 +365,26 @@ type ChapterPracticePlan = {
 const foundationalPracticePlans: Record<string, ChapterPracticePlan> = {
   "variables-data-types": {
     checkpoints: {
-      "variables-types": ["variables-fill", "variables-fix"],
-      "variables-changing": ["variables-predict"],
-      "variables-concatenation": ["variables-concat"],
+      "variables-overview": ["variables-meaning"],
+      "variables-declaration": ["variables-name-part", "variables-assignment-part", "variables-statement-end"],
+      "variables-types": ["variables-int", "variables-double", "variables-boolean", "variables-fill", "variables-fix", "variables-primitive"],
+      "variables-naming": ["variables-valid-name", "variables-case-sensitive"],
+      "variables-changing": ["variables-predict", "variables-reassign"],
+      "variables-printing": ["variables-print-name", "variables-print-text"],
+      "variables-concatenation": ["variables-concat", "variables-concat-space"],
       "variables-program": ["variables-constraints"],
     },
     review: ["variables-challenge"],
   },
   "operators-expressions": {
     checkpoints: {
-      "operators-division": ["operators-integer-division"],
-      "operators-modulus": ["operators-modulus-calculate"],
+      "operators-arithmetic": ["operators-terms", "operators-basic-arithmetic"],
+      "operators-division": ["operators-integer-division", "operators-decimal-division", "operators-cast-division"],
+      "operators-modulus": ["operators-modulus-calculate", "operators-modulus-even"],
       "operators-precedence": ["operators-arithmetic-predict", "operators-parentheses-repair"],
-      "operators-assignment": ["operators-update-sequence"],
-      "operators-concatenation": ["operators-string-order"],
+      "operators-increment": ["operators-increment"],
+      "operators-assignment": ["operators-update-sequence", "operators-compound"],
+      "operators-concatenation": ["operators-string-order", "operators-string-parentheses"],
       "operators-evaluation": ["operators-state-trace"],
     },
     review: ["operators-resource-challenge"],
@@ -357,9 +400,12 @@ function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
 
   const chapter = learningChapters.find((item) => item.id === chapterId);
   const lessonSectionIds = (chapter?.sections ?? []).filter((section) => !section.id.endsWith("-practice")).map((section) => section.id);
+  const generatedCheckpoints = additionalSectionPracticeQuestionIds[chapterId] ?? {};
   const reviewCount = questions.length >= 8 ? 2 : 1;
-  const checkpointQuestions = questions.slice(0, Math.max(0, questions.length - reviewCount));
-  const review = questions.slice(checkpointQuestions.length).map((question) => question.id);
+  const generatedIds = new Set(Object.values(generatedCheckpoints).flat());
+  const authoredQuestions = questions.filter((question) => !generatedIds.has(question.id));
+  const checkpointQuestions = authoredQuestions.slice(0, Math.max(0, authoredQuestions.length - reviewCount));
+  const review = authoredQuestions.slice(checkpointQuestions.length).map((question) => question.id);
   const groups: PracticeQuestion[][] = [];
   checkpointQuestions.forEach((question, index) => {
     if (index < 2) {
@@ -370,7 +416,9 @@ function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
     }
   });
 
-  const checkpoints: Record<string, string[]> = {};
+  const checkpoints: Record<string, string[]> = Object.fromEntries(
+    Object.entries(generatedCheckpoints).map(([sectionId, questionIds]) => [sectionId, [...questionIds]]),
+  );
   const startIndex = Math.min(2, Math.max(0, lessonSectionIds.length - groups.length));
   groups.forEach((group, index) => {
     const sectionId = lessonSectionIds[Math.min(startIndex + index, lessonSectionIds.length - 1)];
@@ -775,7 +823,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const practiceBody = <>
     <div className="practice-header"><div><p className="eyebrow">{variant === "checkpoint" ? `Check Your Understanding · ${String(checkpointNumber).padStart(2, "0")}` : "Cumulative Review"}</p><h2>{variant === "checkpoint" ? "Section Check" : "Chapter Review"}</h2><p>{variant === "checkpoint" ? "Answer this now before moving forward. Repetition here is intentional." : "Combine what you learned across the chapter. Every earlier section check also counts toward completion."}</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>}
-    <div className="practice-workspace" key={question.id}><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" />}
+    <div className="practice-workspace" key={question.id}><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.options?.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{question.options.map((option, index) => <button type="button" role="radio" aria-checked={currentAnswer === option} className={currentAnswer === option ? "selected" : ""} key={option} onClick={() => updateAnswer(option)}><span>{String.fromCharCode(65 + index)}</span><b>{option}</b></button>)}</div> : question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" />}
       {record.hints.includes(question.id) && <div className="practice-hint"><Sparkles size={15} /><p><b>Clue</b>{question.hint}</p></div>}
       {(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, use a clue if needed, and try again."}</small></p></div>}
       <div className={`practice-actions ${passed ? "passed" : ""}`}>

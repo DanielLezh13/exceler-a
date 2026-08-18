@@ -55,6 +55,7 @@ export type CoursePracticeQuestion = {
   placeholder: string;
   hint: string;
   success: string;
+  options?: string[];
   multiline?: boolean;
   validate: (answer: string) => boolean;
 };
@@ -83,6 +84,19 @@ const containsCode = (id: string, level: CoursePracticeQuestion["level"], title:
     const code = compactCode(answer);
     return required.every((requirement) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code));
   },
+});
+
+const multipleChoice = (id: string, title: string, prompt: string, options: string[], answer: string, hint: string, success: string): CoursePracticeQuestion => ({
+  id,
+  level: "Warm-up",
+  kind: "Multiple choice",
+  title,
+  prompt,
+  placeholder: "Choose one answer",
+  options,
+  hint,
+  success,
+  validate: (value) => value.trim() === answer,
 });
 
 const chapterSpecs: CourseChapterSpec[] = [
@@ -448,7 +462,7 @@ export const additionalLearningChapters: CourseLearningChapter[] = chapterSpecs.
 
 export const structuredLessonContent: Record<string, StructuredLessonSection[]> = Object.fromEntries(chapterSpecs.map((chapter) => [chapter.id, chapter.sections]));
 
-export const additionalPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
+const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
   "input-basic-programs": [
     exact("input-q1", "Warm-up", "Predict output", "Follow sequential execution", "What is the exact output?", "int minutes = 135;\nint hours = minutes / 60;\nint remaining = minutes % 60;\nSystem.out.println(hours + \":\" + remaining);", "2:15", "Calculate integer division and remainder before concatenating.", "Correct. 135 minutes becomes 2 hours with 15 remaining."),
     codeExact("input-q2", "Warm-up", "Fill missing code", "Create the input reader", "Replace the blank with the complete Scanner creation statement.", "import java.util.Scanner;\n\n___\nint age = input.nextInt();", "Scanner input = new Scanner(System.in);", "Write Scanner as the type and after new; the input source is System.in.", "Correct. One Scanner named input is ready to read the keyboard."),
@@ -672,3 +686,68 @@ export const additionalPracticeQuestions: Record<string, CoursePracticeQuestion[
     containsCode("final-q12", "Challenge", "Final program: enrollment report", "Read name-score pairs until the name END. Store names and scores in ArrayLists. Print each student's Pass/Retry result, the class average, and the highest student's name. Handle END as the first input by printing No records.", ["ArrayList<String> names=new ArrayList<>();", "ArrayList<Integer> scores=new ArrayList<>();", "String name=input.next();", /while\(!name\.equals\("END"\)\)/, "names.add(name);", "scores.add(input.nextInt());", "name=input.next();", /if\(scores\.isEmpty\(\)\)/, /System\.out\.println\("Norecords"\)/, "int bestIndex=0;", /score>=70/, /\(double\)sum\/scores\.size\(\)/, /names\.get\(bestIndex\)/], "Treat input, empty-case handling, record reporting, and summaries as separate stages.", "Final assessment cleared. The program integrates sentinel input, collections, control flow, algorithms, and output."),
   ],
 };
+
+const generatedSectionPractice = Object.fromEntries(chapterSpecs.map((chapter) => {
+  if (["cumulative-challenges", "final-assessment"].includes(chapter.id)) return [chapter.id, { questions: [], sectionIds: {} }];
+
+  const chapterConceptDetails = chapter.sections.flatMap((section) => section.concepts?.map((concept) => concept.detail) ?? []);
+  const chapterLeads = chapter.sections.map((section) => section.lead);
+  const questions: CoursePracticeQuestion[] = [];
+  const sectionIds: Record<string, string[]> = {};
+
+  const choicesFor = (answer: string, pool: string[]) => {
+    const alternatives = [...new Set(pool.filter((choice) => choice !== answer))].slice(0, 3);
+    const choices = [answer, ...alternatives];
+    const shift = answer.length % Math.max(1, choices.length);
+    return [...choices.slice(shift), ...choices.slice(0, shift)];
+  };
+
+  chapter.sections.forEach((section) => {
+    if (section.id.endsWith("takeaways")) return;
+    const sectionQuestions: CoursePracticeQuestion[] = [];
+    const concepts = section.concepts ?? [];
+
+    if (concepts.length > 1) {
+      concepts.forEach((concept, index) => {
+        const id = `${section.id}-concept-${index + 1}`;
+        sectionQuestions.push(multipleChoice(
+          id,
+          `Recognize ${concept.label}`,
+          `Which description correctly matches ${concept.label}?`,
+          choicesFor(concept.detail, [...chapterConceptDetails, ...chapterLeads]),
+          concept.detail,
+          `Return to the ${section.title} explanation and connect the term to the job it performs.`,
+          `Correct. ${concept.label}: ${concept.detail}`,
+        ));
+      });
+    } else {
+      const id = `${section.id}-understanding`;
+      const answer = concepts[0]?.detail ?? section.lead;
+      sectionQuestions.push(multipleChoice(
+        id,
+        `Understand ${section.title}`,
+        `Which statement best captures ${section.title}?`,
+        choicesFor(answer, [...chapterLeads, ...chapterConceptDetails]),
+        answer,
+        `Focus on the direct purpose introduced at the start of this section.`,
+        `Correct. You identified the central idea before applying it in code.`,
+      ));
+    }
+
+    questions.push(...sectionQuestions);
+    sectionIds[section.id] = sectionQuestions.map((question) => question.id);
+  });
+
+  return [chapter.id, { questions, sectionIds }];
+})) as Record<string, { questions: CoursePracticeQuestion[]; sectionIds: Record<string, string[]> }>;
+
+export const additionalSectionPracticeQuestionIds: Record<string, Record<string, string[]>> = Object.fromEntries(
+  Object.entries(generatedSectionPractice).map(([chapterId, practice]) => [chapterId, practice.sectionIds]),
+);
+
+export const additionalPracticeQuestions: Record<string, CoursePracticeQuestion[]> = Object.fromEntries(
+  Object.entries(authoredPracticeQuestions).map(([chapterId, questions]) => [
+    chapterId,
+    [...(generatedSectionPractice[chapterId]?.questions ?? []), ...questions],
+  ]),
+);
