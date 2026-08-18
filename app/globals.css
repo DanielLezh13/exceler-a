@@ -733,9 +733,8 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 
 /* Contextual tutor */
 .tutor-shell { position: fixed; z-index: 80; right: 24px; bottom: 24px; display: grid; justify-items: end; gap: 12px; pointer-events: none; }
-.tutor-launcher { pointer-events: auto; min-width: 52px; height: 52px; border: 1px solid #42563d; border-radius: 999px; background: #172017; color: var(--lime); padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 9px; box-shadow: 0 16px 44px rgba(0,0,0,.42), 0 0 0 1px rgba(191,245,90,.04); font-size: 11px; font-weight: 780; transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+.tutor-launcher { pointer-events: auto; width: 56px; min-width: 56px; height: 56px; border: 1px solid #42563d; border-radius: 50%; background: #172017; color: var(--lime); padding: 0; display: grid; place-items: center; box-shadow: 0 16px 44px rgba(0,0,0,.42), 0 0 0 1px rgba(191,245,90,.04), 0 0 18px rgba(191,245,90,.07); transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease; }
 .tutor-launcher:hover { transform: translateY(-2px); border-color: #6d8b5d; background: #1b271a; }
-.tutor-launcher img { width: 25px; height: 25px; object-fit: contain; filter: drop-shadow(0 0 5px rgba(191,245,90,.3)); }
 .tutor-shell.open .tutor-launcher { width: 46px; min-width: 46px; height: 46px; padding: 0; background: #151918; border-color: #39413e; color: #9da5a1; }
 .tutor-drawer { pointer-events: auto; width: min(410px, calc(100vw - var(--sidebar) - 48px)); height: min(690px, calc(100vh - 104px)); min-height: 470px; display: grid; grid-template-rows: auto auto minmax(0,1fr) auto; overflow: hidden; border: 1px solid rgba(148,185,105,.46); border-radius: 22px; background: rgba(16,20,18,.98); box-shadow: 0 30px 90px rgba(0,0,0,.58), 0 0 0 1px rgba(191,245,90,.10), 0 0 18px rgba(191,245,90,.07); backdrop-filter: blur(22px); transform-origin: right bottom; animation: tutor-enter .2s cubic-bezier(.2,.8,.2,1) both; transition: border-color .14s ease, box-shadow .18s ease; will-change: translate; }
 .tutor-drawer.dragging { user-select: none; border-color: rgba(191,245,90,.72); box-shadow: 0 38px 110px rgba(0,0,0,.68), 0 0 0 1px rgba(191,245,90,.34), 0 0 24px rgba(191,245,90,.18), inset 0 0 0 1px rgba(191,245,90,.08); }
@@ -805,7 +804,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
   .tutor-drawer { position: fixed; left: 10px; right: 10px; bottom: 130px; width: auto; height: min(660px, calc(100dvh - 148px)); min-height: 410px; border-radius: 19px; }
   .tutor-header { cursor: default; touch-action: auto; }
   .tutor-drag-handle { display: none; }
-  .tutor-launcher { height: 48px; padding: 0 14px; }
+  .tutor-launcher { width: 50px; min-width: 50px; height: 50px; }
   .tutor-message { max-width: 95%; }
   .practice-complete-card { min-height: 330px; border-radius: 19px; padding: 38px 18px 30px; }
   .practice-complete-check { width: 72px; height: 72px; }

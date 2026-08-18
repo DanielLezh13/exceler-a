@@ -16,6 +16,7 @@ import {
   GripHorizontal,
   House,
   LockKeyhole,
+  MessageCircle,
   Play,
   RotateCcw,
   Send,
@@ -1300,8 +1301,8 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
         <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>
       </form>
     </section>}
-    <button className="tutor-launcher" onClick={toggleTutor} aria-label={open ? "Close Exceler tutor" : "Open Exceler tutor"} aria-expanded={open}>
-      {open ? <X size={20} /> : <><img src="/exceler-a-mark-512.png" alt="" /><span>Ask Tutor</span></>}
+    <button className="tutor-launcher" onClick={toggleTutor} aria-label={open ? "Close Exceler tutor" : "Ask Exceler tutor"} aria-expanded={open} title={open ? "Close Tutor" : "Ask Tutor"}>
+      {open ? <X size={20} /> : <MessageCircle size={24} strokeWidth={2.15} />}
     </button>
   </div>;
 }
