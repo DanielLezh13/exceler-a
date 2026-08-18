@@ -169,7 +169,11 @@ assert.match(learnerText("input-output"), /copy throws FileNotFoundException/, "
 assert.match(commandCenter, /Writing <code>\(double\) sum<\/code> is a <b>cast<\/b>/, "Chapter 2 must teach casts before later averages use them");
 assert.match(commandCenter, /is a <b>comment<\/b>/, "Chapter 2 must explain line comments before later examples use them");
 
-const foundationalQuestionCount = 40;
+const foundationalQuestionCount = openingIds.reduce((sum, chapterId) => {
+  const practiceProperty = practiceQuestionsNode.properties.find((property) => propertyName(property) === chapterId);
+  assert.ok(practiceProperty && ts.isPropertyAssignment(practiceProperty) && ts.isArrayLiteralExpression(practiceProperty.initializer), `${chapterId} practice must remain a directly auditable question list`);
+  return sum + practiceProperty.initializer.elements.length;
+}, 0);
 const totals = Object.values(additionalPracticeQuestions).reduce((sum, questions) => sum + questions.length, foundationalQuestionCount);
 assert.ok(totals >= 477, "the complete course should retain dense section checks and cumulative practice");
 
