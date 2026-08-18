@@ -1142,14 +1142,9 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
+    return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
   const beginDrag = (event: React.PointerEvent<HTMLElement>) => {
@@ -1280,9 +1275,8 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
     }
   };
 
-  return <>{open && <div className="tutor-backdrop" role="presentation" onMouseDown={() => setOpen(false)} />}
-  <div className={`tutor-shell ${open ? "open" : ""}`}>
-    {open && <section ref={drawerRef} className={`tutor-drawer ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} role="dialog" aria-modal="true" aria-label="Exceler tutor" aria-live="polite">
+  return <div className={`tutor-shell ${open ? "open" : ""}`}>
+    {open && <section ref={drawerRef} className={`tutor-drawer ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} aria-label="Exceler tutor" aria-live="polite">
       <header className="tutor-header" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="tutor-identity"><span><img src="/exceler-a-mark-512.png" alt="" /></span><p><b>Exceler Tutor</b><small>Using your current page</small></p></div>
         <span className="tutor-drag-handle" aria-hidden="true"><GripHorizontal size={18} /></span>
@@ -1303,7 +1297,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
     <button className="tutor-launcher" onClick={toggleTutor} aria-label={open ? "Close Exceler tutor" : "Open Exceler tutor"} aria-expanded={open}>
       {open ? <X size={20} /> : <><img src="/exceler-a-mark-512.png" alt="" /><span>Ask Tutor</span></>}
     </button>
-  </div></>;
+  </div>;
 }
 
 export default function CommandCenter() {

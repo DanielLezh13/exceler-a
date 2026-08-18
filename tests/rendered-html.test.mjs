@@ -71,9 +71,8 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /additionalSectionPracticeQuestionIds/);
   assert.match(commandCenter, /Section questions complete/);
   assert.match(commandCenter, /sectionQuestionIds\.filter/);
-  assert.match(commandCenter, /className="tutor-backdrop"/);
+  assert.doesNotMatch(commandCenter, /className="tutor-backdrop"/);
   assert.match(commandCenter, /onPointerDown=\{beginDrag\}/);
-  assert.match(commandCenter, /aria-modal="true"/);
   assert.match(structuredLesson, /renderAfterSection\?\.\(section\.id\)/);
   assert.doesNotMatch(commandCenter, /Mark Lesson as Read|reading checkpoint 25%/i);
   assert.doesNotMatch(structuredLesson, /ReadingCheckpoint|Mark Lesson as Read/);
