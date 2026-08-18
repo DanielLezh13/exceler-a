@@ -1284,7 +1284,6 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
         <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
         <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>
       </form>
-      <p className="tutor-footnote">Hints don’t change course progress. Your work still has to pass.</p>
     </section>}
     <button className="tutor-launcher" onClick={toggleTutor} aria-label={open ? "Close Exceler tutor" : "Open Exceler tutor"} aria-expanded={open}>
       {open ? <X size={20} /> : <><img src="/exceler-a-mark-512.png" alt="" /><span>Ask Tutor</span></>}
