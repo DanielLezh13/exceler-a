@@ -62,6 +62,24 @@ type PracticeRecord = {
 
 type PracticeRecords = Record<string, PracticeRecord>;
 
+type TutorPracticeContext = {
+  chapterId: string;
+  questionId: string;
+  questionNumber: number;
+  questionTotal: number;
+  level: PracticeQuestion["level"];
+  kind: string;
+  title: string;
+  prompt: string;
+  starterCode: string | null;
+  studentAnswer: string;
+  answerTruncated: boolean;
+  attempts: number;
+  status: "not_checked" | "incorrect" | "passed";
+  clueShown: boolean;
+  shownClue: string | null;
+};
+
 type TutorCourseContext = {
   courseCode: string;
   courseTitle: string;
@@ -75,6 +93,7 @@ type TutorCourseContext = {
   lessonReference: unknown;
   practicePassed: number;
   practiceTotal: number;
+  activePractice: TutorPracticeContext | null;
 };
 
 type TutorMessage = {
@@ -436,6 +455,7 @@ function CourseView({ completed, practice, onComplete, onPracticeChange, onTutor
   const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(learningChapters[0].id);
   const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0]?.id ?? "");
+  const [practiceTutorContext, setPracticeTutorContext] = useState<TutorPracticeContext | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const scrollLockRef = useRef<string | null>(null);
   const selectedChapter = learningChapters.find((chapter) => chapter.id === selectedChapterId) ?? learningChapters[0];
@@ -476,8 +496,9 @@ function CourseView({ completed, practice, onComplete, onPracticeChange, onTutor
       lessonReference: tutorLessonReference(selectedChapter.id, section.id),
       practicePassed: chapter.passed,
       practiceTotal: chapter.questions,
+      activePractice: section.id.endsWith("practice") && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
     });
-  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, onTutorContextChange, selectedChapter]);
+  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, onTutorContextChange, practiceTutorContext, selectedChapter]);
 
   const selectChapter = (next: LearningChapter) => {
     if (next.id === selectedChapterId) {
@@ -523,7 +544,7 @@ function CourseView({ completed, practice, onComplete, onPracticeChange, onTutor
         })}
         <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Lessons use a 25% reading checkpoint and 75% demonstrated practice. Final campaigns clear only through passed work.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>{chapter.requiresReading ? "One complete lesson" : "Demonstration campaign"}</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onChange={(record) => onPracticeChange(selectedChapter.id, record)} /></article></div>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>{chapter.requiresReading ? "One complete lesson" : "Demonstration campaign"}</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} /></article></div>
     </div>
   </main>;
 }
@@ -597,7 +618,7 @@ function ChapterLessonContent({ chapterId, readingDone, requiresReading, onRead 
 
 const emptyPracticeRecord = (): PracticeRecord => ({ answers: {}, attempts: {}, hints: [], passed: [] });
 
-function ChapterPractice({ chapterId, record: savedRecord, readingDone, requiresReading, onChange }: { chapterId: string; record?: PracticeRecord; readingDone: boolean; requiresReading: boolean; onChange: (record: PracticeRecord) => void }) {
+function ChapterPractice({ chapterId, record: savedRecord, readingDone, requiresReading, onChange, onTutorPracticeContextChange }: { chapterId: string; record?: PracticeRecord; readingDone: boolean; requiresReading: boolean; onChange: (record: PracticeRecord) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void }) {
   const questions = practiceQuestions[chapterId];
   const record = savedRecord ?? emptyPracticeRecord();
   const validPassed = questions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
@@ -612,13 +633,37 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
     .filter(({ item }) => !record.passed.includes(item.id))
     .map(({ index }) => index);
   const nextQuestionIndex = unansweredIndexes.find((index) => index > activeIndex) ?? unansweredIndexes[0] ?? -1;
+  const currentAnswer = record.answers[question.id] ?? "";
+  const currentFeedback = feedback[question.id];
+  const currentAttempts = record.attempts[question.id] ?? 0;
+  const clueShown = record.hints.includes(question.id);
+
+  useEffect(() => {
+    onTutorPracticeContextChange({
+      chapterId,
+      questionId: question.id,
+      questionNumber: activeIndex + 1,
+      questionTotal: questions.length,
+      level: question.level,
+      kind: question.kind,
+      title: titleCase(question.title),
+      prompt: question.prompt,
+      starterCode: question.code ?? null,
+      studentAnswer: currentAnswer.slice(0, 8_000),
+      answerTruncated: currentAnswer.length > 8_000,
+      attempts: currentAttempts,
+      status: passed ? "passed" : currentFeedback === "incorrect" ? "incorrect" : "not_checked",
+      clueShown,
+      shownClue: clueShown ? question.hint : null,
+    });
+  }, [activeIndex, chapterId, clueShown, currentAnswer, currentAttempts, currentFeedback, onTutorPracticeContextChange, passed, question, questions.length]);
 
   const updateAnswer = (answer: string) => {
     onChange({ ...record, answers: { ...record.answers, [question.id]: answer } });
     setFeedback((current) => { const next = { ...current }; delete next[question.id]; return next; });
   };
   const check = () => {
-    const answer = record.answers[question.id] ?? "";
+    const answer = currentAnswer;
     const correct = question.validate(answer);
     const attempts = { ...record.attempts, [question.id]: (record.attempts[question.id] ?? 0) + 1 };
     const nextPassed = correct && !passed ? [...validPassed, question.id] : validPassed;

@@ -51,9 +51,13 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /localWorkspace && <TutorAssistant/);
   assert.match(commandCenter, /<ReactMarkdown/);
   assert.match(commandCenter, /remarkPlugins=\{\[remarkGfm\]\}/);
+  assert.match(commandCenter, /activePractice: section\.id\.endsWith\("practice"\)/);
+  assert.match(commandCenter, /studentAnswer: currentAnswer\.slice\(0, 8_000\)/);
+  assert.match(commandCenter, /status: passed \? "passed" : currentFeedback === "incorrect" \? "incorrect" : "not_checked"/);
 
   assert.match(tutorRoute, /if \(!localRequest\) return errorResponse/);
   assert.match(tutorRoute, /available only in the private Exceler A desktop workspace/);
+  assert.match(tutorRoute, /Never claim you cannot see the question or submission/);
   assert.match(packageJson, /"react-markdown"/);
   assert.match(packageJson, /"remark-gfm"/);
 });
