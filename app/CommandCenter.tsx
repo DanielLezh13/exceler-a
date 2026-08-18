@@ -805,13 +805,13 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   };
 
   const completionTitle = variant === "checkpoint" ? "Section Check Complete" : chapterAllPassed ? "Chapter Complete" : "Chapter Review Complete";
-  const completionCopy = variant === "checkpoint" ? "You confirmed this section. Keep going while the idea is still fresh." : chapterAllPassed ? "Every required exercise passed. This chapter is cleared and your progress is saved." : "The cumulative review passed. Finish the remaining section checks to clear the chapter.";
+  const completionCopy = variant === "checkpoint" ? "" : chapterAllPassed ? "Every required exercise passed. This chapter is cleared and your progress is saved." : "The cumulative review passed. Finish the remaining section checks to clear the chapter.";
   const completionCard = <div className={`practice-complete-card ${variant === "checkpoint" ? "section-complete" : chapterAllPassed ? "chapter-complete" : "review-complete"}`}>
       {variant === "review" && chapterAllPassed && <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>}
       <span className="practice-complete-check"><Check size={42} strokeWidth={3.2} /></span>
       <p className="eyebrow">{variant === "checkpoint" ? `Checkpoint ${checkpointNumber}` : "Cumulative Review"}</p>
       <h2>{completionTitle}</h2>
-      <p>{completionCopy}</p>
+      {completionCopy && <p>{completionCopy}</p>}
       <div className="practice-complete-stats"><span><b>{questions.length}/{questions.length}</b> exercises passed</span><span><b>{record.hints.length}</b> clues used</span></div>
       <button className="soft-button practice-review-button" onClick={() => setReviewingCompleted(true)}>Review Answers<ChevronDown size={15} /></button>
     </div>;
