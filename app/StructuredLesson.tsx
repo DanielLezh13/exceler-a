@@ -5,23 +5,14 @@ import type { StructuredLessonSection } from "./data/cisc1115Course";
 
 type StructuredLessonProps = {
   sections: StructuredLessonSection[];
-  readingDone: boolean;
-  requiresReading: boolean;
-  onRead: () => void;
 };
 
 function CodeExample({ label, code }: { label: string; code: string }) {
   return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small></div><pre><code>{code}</code></pre></div>;
 }
 
-function ReadingCheckpoint({ done, onRead }: { done: boolean; onRead: () => void }) {
-  if (done) return <div className="reading-checkpoint done"><span><Check size={20} strokeWidth={3} /></span><b>Lesson Read</b></div>;
-  return <button type="button" className="reading-checkpoint mark-read" onClick={onRead}><span><Check size={20} strokeWidth={3} /></span><b>Mark Lesson as Read</b></button>;
-}
-
-export default function StructuredLesson({ sections, readingDone, requiresReading, onRead }: StructuredLessonProps) {
-  return <>{sections.map((section, index) => {
-    const finalSection = index === sections.length - 1;
+export default function StructuredLesson({ sections }: StructuredLessonProps) {
+  return <>{sections.map((section) => {
     return <section className="lesson-section structured-lesson-section" id={section.id} data-learning-section key={section.id}>
       <div className="lesson-section-heading"><p className="eyebrow">{section.eyebrow}</p><h2>{section.title}</h2></div>
       <p className="lesson-lead">{section.lead}</p>
@@ -46,8 +37,6 @@ export default function StructuredLesson({ sections, readingDone, requiresReadin
       {section.output && <div className="output-card"><span>OUTPUT</span><code>{section.output}</code></div>}
 
       {section.takeaways?.length ? <ul className="takeaway-list">{section.takeaways.map((takeaway) => <li key={takeaway}><Check size={16} />{takeaway}</li>)}</ul> : null}
-
-      {finalSection && requiresReading && <ReadingCheckpoint done={readingDone} onRead={onRead} />}
     </section>;
   })}</>;
 }

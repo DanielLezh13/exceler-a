@@ -524,15 +524,6 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .takeaway-list li { display: flex; align-items: flex-start; gap: 10px; border: 1px solid #2e3432; border-radius: 12px; background: #121615; padding: 12px 14px; color: #a9b0ad; font-size: 11px; line-height: 1.5; }
 .takeaway-list svg { flex: 0 0 auto; color: var(--lime); }
 .takeaway-list code { color: var(--lime); }
-.reading-checkpoint { width: 100%; min-height: 78px; display: flex; align-items: center; justify-content: flex-start; gap: 15px; margin-top: 25px; border: 1px solid #3b4636; border-radius: 16px; background: #151a14; color: #e5ebe2; padding: 15px 17px; text-align: left; }
-.reading-checkpoint.done { justify-content: flex-start; border-color: #49613e; background: #182117; }
-.reading-checkpoint > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--lime); color: #14200d; box-shadow: 0 8px 25px rgba(199,243,107,.18); }
-.reading-checkpoint b { display: block; font-size: 13px; }
-.reading-checkpoint.mark-read { cursor: pointer; transition: border-color .15s ease, background .15s ease; }
-.reading-checkpoint.mark-read > span { border: 2px solid #607254; background: transparent; color: #738269; box-shadow: none; transition: border-color .15s ease, color .15s ease, background .15s ease; }
-.reading-checkpoint.mark-read:hover { border-color: #566d49; background: #182016; }
-.reading-checkpoint.mark-read:hover > span { border-color: var(--lime); background: #202b1d; color: var(--lime); }
-
 .practice-session { padding-bottom: 80px; }
 .practice-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 25px; }
 .practice-header > div:first-child > p:not(.eyebrow) { max-width: 600px; margin: 10px 0 0; color: #838c87; font-size: 11px; line-height: 1.65; }

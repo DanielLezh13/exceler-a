@@ -31,7 +31,6 @@ import {
   additionalLearningChapters,
   additionalPracticeQuestions,
   structuredLessonContent,
-  type CompletionMode,
 } from "./data/cisc1115Course";
 
 type View = "home" | "dashboard" | "courses" | "degree" | "course";
@@ -49,7 +48,6 @@ type LearningChapter = {
   title: string;
   description: string;
   status: "authored";
-  completionMode?: CompletionMode;
   sections: LearningSection[];
 };
 
@@ -311,24 +309,33 @@ const initialDegreeRecords: DegreeRecords = Object.fromEntries(
   degreeCourses.map((course) => [course.code, "unknown" as DegreeStatus]),
 ) as DegreeRecords;
 
-const readingCheckpointId = (chapterId: string) => chapterId === "operators-expressions" ? `${chapterId}:read:v2` : `${chapterId}:read`;
+// Retained only so older progress-backup files can still be imported.
+const legacyReadingCheckpointId = (chapterId: string) => chapterId === "operators-expressions" ? `${chapterId}:read:v2` : `${chapterId}:read`;
 
-function chapterProgress(chapterId: string, completed: string[], practice: PracticeRecords) {
-  const chapter = learningChapters.find((item) => item.id === chapterId);
-  const requiresReading = chapter?.completionMode !== "practice-only";
+function practiceQuestionWeight(question: PracticeQuestion) {
+  if (question.level === "Challenge") return 3;
+  if (question.level === "Apply") return 2;
+  return 1;
+}
+
+function chapterProgress(chapterId: string, _completed: string[], practice: PracticeRecords) {
   const questions = practiceQuestions[chapterId] ?? [];
-  const readingDone = requiresReading && completed.includes(readingCheckpointId(chapterId));
-  const passed = questions.filter((question) => practice[chapterId]?.passed?.includes(question.id)).length;
+  const passedQuestions = questions.filter((question) => practice[chapterId]?.passed?.includes(question.id));
+  const passed = passedQuestions.length;
   const practiceDone = questions.length > 0 && passed >= questions.length;
-  const points = requiresReading ? (readingDone ? 1 : 0) + (practiceDone ? 3 : 0) : (practiceDone ? 4 : 0);
-  return { requiresReading, readingDone, practiceDone, passed, questions: questions.length, points, total: 4, percent: points * 25 };
+  const points = passedQuestions.reduce((sum, question) => sum + practiceQuestionWeight(question), 0);
+  const total = questions.reduce((sum, question) => sum + practiceQuestionWeight(question), 0);
+  const weightedPercent = total ? Math.round((points / total) * 100) : 0;
+  return { practiceDone, passed, questions: questions.length, points, total, percent: practiceDone ? 100 : Math.min(99, weightedPercent) };
 }
 
 function learningProgress(completed: string[], practice: PracticeRecords) {
   const chapters = learningChapters.map((chapter) => chapterProgress(chapter.id, completed, practice));
   const points = chapters.reduce((sum, chapter) => sum + chapter.points, 0);
-  const total = chapters.length * 4;
-  return { points, total, percent: total ? Math.round((points / total) * 100) : 0, completedChapters: chapters.filter((chapter) => chapter.percent === 100).length };
+  const total = chapters.reduce((sum, chapter) => sum + chapter.total, 0);
+  const completedChapters = chapters.filter((chapter) => chapter.practiceDone).length;
+  const weightedPercent = total ? Math.round((points / total) * 100) : 0;
+  return { points, total, percent: completedChapters === chapters.length ? 100 : Math.min(99, weightedPercent), completedChapters };
 }
 
 function requirementKey(course: DegreeCourse) {
@@ -397,7 +404,7 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
         </button>
       </div>
       <aside className="home-guidance-stack" aria-label="Learning guidance">
-        <button className="home-guidance-card next-move" onClick={() => setView("course")}><span className="home-card-icon"><Play size={15} fill="currentColor" /></span><span><small>Recommended Next Move</small><b>{titleCase(nextChapter.title)}</b><em>{nextState.readingDone ? `${nextState.passed} of ${nextState.questions} practice questions passed` : "Continue the lesson, then demonstrate it in practice"}</em></span><ArrowRight size={16} /></button>
+        <button className="home-guidance-card next-move" onClick={() => setView("course")}><span className="home-card-icon"><Play size={15} fill="currentColor" /></span><span><small>Recommended Next Move</small><b>{titleCase(nextChapter.title)}</b><em>{nextState.passed ? `${nextState.passed} of ${nextState.questions} practice questions passed` : "Study the lesson, then begin the practice"}</em></span><ArrowRight size={16} /></button>
         <button className="home-guidance-card degree-status" onClick={() => setView("degree")}><span className="home-card-icon"><GraduationCap size={17} /></span><span><small>{hasAudit ? "Degree Position" : "Degree Path"}</small><b>{hasAudit ? `${snapshot.degreeProgress}% Degree Progress` : "Brooklyn College CS B.S."}</b><em>{hasAudit ? `${snapshot.remainingCredits} total credits remaining · ${snapshot.majorRemaining} major credits remaining` : "Required courses, choice branches, and graduation gates"}</em></span><ArrowRight size={16} /></button>
         <div className="home-guidance-card learning-proof"><span className="home-card-icon"><Check size={17} strokeWidth={3} /></span><span><small>Demonstrated Learning</small><b>{progress.completedChapters} Chapters Cleared</b><em>Reading creates familiarity. Completed practice creates progress.</em></span></div>
       </aside>
@@ -421,10 +428,10 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
   return <main className="page-content education-home">
     <section className="education-hero">
       <div className="hero-copy"><p className="eyebrow accent-text">Continue Learning</p><span className="section-chip">{nextChapter.unit}</span><h2>{titleCase(nextChapter.title)}</h2><p>{nextChapter.description}</p><div className="hero-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Open chapter</button><button className="soft-button" onClick={() => setView("degree")}>View degree path <ArrowRight size={14} /></button></div></div>
-      <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Each chapter: reading checkpoint 25% · completed practice 75%</small></div></div>
+      <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Only passed practice creates progress. Apply and challenge questions carry more weight.</small></div></div>
     </section>
     <section className="education-dashboard-grid">
-      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.requiresReading ? state.readingDone ? "Lesson read" : "Reading open" : "Demonstration open"} · ${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
+      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
       <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Exceler A does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
@@ -437,7 +444,7 @@ function CoursesView({ completed, practice, onOpenCourse }: { completed: string[
     <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>{titleCase("Programming Courses")}</h3></div><span>1 course</span></header><div className="course-library-list">
       <button className="course-library-card" onClick={onOpenCourse}>
         <span className="course-glyph large">J</span>
-        <span className="course-library-copy"><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>{learningChapters.length} chapters · Reading and demonstrated practice</em></span>
+        <span className="course-library-copy"><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>{learningChapters.length} chapters · Lessons and demonstrated practice</em></span>
         <span className="course-library-progress"><strong>{progress.percent}%</strong><small>{progress.completedChapters} / {learningChapters.length} chapters cleared</small><ProgressBar value={progress.percent} /></span>
         <ArrowRight size={17} />
       </button>
@@ -451,7 +458,7 @@ function tutorLessonReference(chapterId: string, sectionId: string) {
   return structuredLessonContent[chapterId]?.find((section) => section.id === sectionId) ?? "The current section is a practice session. Use the chapter description and progress as context.";
 }
 
-function CourseView({ completed, practice, onComplete, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; onComplete: (id: string) => void; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
+function CourseView({ completed, practice, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
   const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(learningChapters[0].id);
   const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0]?.id ?? "");
@@ -542,9 +549,9 @@ function CourseView({ completed, practice, onComplete, onPracticeChange, onTutor
             <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{item.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={open ? 0 : -1} className={open && activeSectionId === section.id ? "active" : ""} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{section.id.endsWith("practice") && <small>{state.passed}/{state.questions}</small>}</button>)}</div></div></div>
           </div></Fragment>;
         })}
-        <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Lessons use a 25% reading checkpoint and 75% demonstrated practice. Final campaigns clear only through passed work.</p></div>
+        <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Only passed practice creates course progress. A chapter clears when every exercise passes.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>{chapter.requiresReading ? "One complete lesson" : "Demonstration campaign"}</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Practice required to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onRead={() => onComplete(readingCheckpointId(selectedChapter.id))} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} readingDone={chapter.readingDone} requiresReading={chapter.requiresReading} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} /></article></div>
+      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p><div><span>Study at your own pace</span><span>{practiceQuestions[selectedChapter.id]?.length ?? 0} practice exercises</span><span>Pass every exercise to clear</span></div></header><ChapterLessonContent chapterId={selectedChapter.id} /><ChapterPractice chapterId={selectedChapter.id} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} /></article></div>
     </div>
   </main>;
 }
@@ -555,11 +562,6 @@ function LearningSectionBlock({ id, eyebrow, title, children }: { id: string; ey
 
 function CodeExample({ label, code }: { label: string; code: string }) {
   return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small></div><pre><code>{code}</code></pre></div>;
-}
-
-function ReadingCheckpoint({ done, onRead }: { done: boolean; onRead: () => void }) {
-  if (done) return <div className="reading-checkpoint done"><span><Check size={20} strokeWidth={3} /></span><b>Lesson Read</b></div>;
-  return <button type="button" className="reading-checkpoint mark-read" onClick={onRead}><span><Check size={20} strokeWidth={3} /></span><b>Mark Lesson as Read</b></button>;
 }
 
 function DataTypeLesson({ type, category, meaning, description, declaration, explanation, values, rule }: { type: string; category: string; meaning: string; description: string; declaration: string; explanation: string; values: string[]; rule: React.ReactNode }) {
@@ -579,7 +581,7 @@ function DataTypeLesson({ type, category, meaning, description, declaration, exp
   </article>;
 }
 
-function ChapterLessonContent({ chapterId, readingDone, requiresReading, onRead }: { chapterId: string; readingDone: boolean; requiresReading: boolean; onRead: () => void }) {
+function ChapterLessonContent({ chapterId }: { chapterId: string }) {
   if (chapterId === "variables-data-types") return <>
     <LearningSectionBlock id="variables-overview" eyebrow="Direct definition" title="What is a variable?"><p className="lesson-lead">A variable is a named location in memory used to store a value. The name gives your program a readable way to find and use that value later.</p><CodeExample label="A first variable" code="int age = 25;" /><aside className="key-idea"><Sparkles size={17} /><p><b>The variable and its value are not the same thing.</b><span><code>age</code> is the reusable name. <code>25</code> is the value currently stored under that name.</span></p></aside></LearningSectionBlock>
     <LearningSectionBlock id="variables-declaration" eyebrow="Break it down" title="Declaration anatomy"><p className="lesson-lead">The general pattern is <code>type variableName = value;</code>. A <b>statement</b> is one complete instruction to Java. Read this statement from left to right: what kind of value, what name, and what value to store.</p><CodeExample label="General syntax" code="type variableName = value;" /><div className="declaration-grid"><div><code>int</code><b>Data type</b><small>Only whole numbers fit here</small></div><div><code>age</code><b>Variable name</b><small>The label used later</small></div><div><code>=</code><b>Assignment</b><small>Stores the right side</small></div><div><code>25</code><b>Value</b><small>The actual data</small></div><div><code>;</code><b>Statement end</b><small>Required punctuation</small></div></div><CodeExample label="More declarations" code={'String name = "Daniel";\ndouble height = 6.2;\nboolean hungry = true;\nchar grade = \'A\';'} /></LearningSectionBlock>
@@ -595,7 +597,7 @@ function ChapterLessonContent({ chapterId, readingDone, requiresReading, onRead 
     <LearningSectionBlock id="variables-printing" eyebrow="See the value" title="Printing output"><p className="lesson-lead"><code>System.out.println</code> prints one line. Put text in double quotes; put a variable name without quotes when you want its stored value.</p><div className="comparison-code"><pre><small>PRINT TEXT</small><code>System.out.println("Hello");</code><b>Hello</b></pre><pre><small>PRINT A VARIABLE</small><code>{'int age = 25;\nSystem.out.println(age);'}</code><b>25</b></pre></div><div className="rule-callout"><b>Quotes decide what Java prints</b><p><code>println(age)</code> prints the value 25. <code>println("age")</code> literally prints the word age.</p></div></LearningSectionBlock>
     <LearningSectionBlock id="variables-concatenation" eyebrow="Joining text" title="Concatenation"><p className="lesson-lead">Use <code>+</code> to join text and variables into one output line. This is called concatenation.</p><CodeExample label="A greeting built from a variable" code={'String name = "Daniel";\nSystem.out.println("Hello " + name);'} /><div className="output-card"><span>OUTPUT</span><code>Hello Daniel</code></div><p className="lesson-note">Spaces are not added automatically. The space after <code>Hello</code> exists because it is inside <code>"Hello "</code>.</p></LearningSectionBlock>
     <LearningSectionBlock id="variables-program" eyebrow="Put it together" title="A complete program"><p className="lesson-lead">This program declares four variables and prints each stored value.</p><CodeExample label="Variables working inside Main" code={'public class Main {\n    public static void main(String[] args) {\n        String name = "Daniel";\n        int age = 25;\n        double height = 6.2;\n        boolean likesJava = true;\n\n        System.out.println(name);\n        System.out.println(age);\n        System.out.println(height);\n        System.out.println(likesJava);\n    }\n}'} /><div className="rule-callout muted"><b>Ignore the wrapper for now</b><p><code>public class Main</code> and <code>public static void main(String[] args)</code> are required structure. We will learn what they mean later.</p></div></LearningSectionBlock>
-    <LearningSectionBlock id="variables-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} />Every variable has a data type.</li><li><Check size={16} />A variable name points to a stored value.</li><li><Check size={16} /><code>=</code> assigns the value on the right.</li><li><Check size={16} />Statements end with <code>;</code>.</li><li><Check size={16} /><code>String</code> uses double quotes; <code>char</code> uses single quotes.</li><li><Check size={16} />Reassignment changes a value without declaring again.</li><li><Check size={16} /><code>+</code> joins text and variables when a String is involved.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
+    <LearningSectionBlock id="variables-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} />Every variable has a data type.</li><li><Check size={16} />A variable name points to a stored value.</li><li><Check size={16} /><code>=</code> assigns the value on the right.</li><li><Check size={16} />Statements end with <code>;</code>.</li><li><Check size={16} /><code>String</code> uses double quotes; <code>char</code> uses single quotes.</li><li><Check size={16} />Reassignment changes a value without declaring again.</li><li><Check size={16} /><code>+</code> joins text and variables when a String is involved.</li></ul></LearningSectionBlock>
   </>;
 
   if (chapterId === "operators-expressions") return <>
@@ -607,18 +609,18 @@ function ChapterLessonContent({ chapterId, readingDone, requiresReading, onRead 
     <LearningSectionBlock id="operators-assignment" eyebrow="Update stored state" title="Compound assignment"><p className="lesson-lead">Compound assignment performs an operation using the current value, then stores the result back in the same variable.</p><div className="operator-grid"><div><code>+=</code><b>Add, assign</b><small>score += 5</small></div><div><code>-=</code><b>Subtract, assign</b><small>lives -= 1</small></div><div><code>*=</code><b>Multiply, assign</b><small>coins *= 2</small></div><div><code>/=</code><b>Divide, assign</b><small>team /= 3</small></div><div><code>%=</code><b>Remainder, assign</b><small>index %= 4</small></div></div><CodeExample label="Follow the stored value" code={'int energy = 10;\nenergy += 5;  // 15\nenergy *= 2;  // 30\nenergy -= 4;  // 26'} /><aside className="key-idea"><RotateCcw size={17} /><p><b>The operator comes before the equals sign.</b><span>Write <code>+=</code>, not <code>=+</code>. Read it as “add, then assign.”</span></p></aside></LearningSectionBlock>
     <LearningSectionBlock id="operators-concatenation" eyebrow="A crucial edge case" title="String + number behavior"><p className="lesson-lead">The <code>+</code> symbol adds numbers, but it joins values when a String is involved. Operations with the same precedence are evaluated from left to right.</p><div className="expression-steps string-order"><div><span>1</span><code>System.out.println(2 + 3);</code><small>5</small></div><div><span>2</span><code>System.out.println("Total: " + 2 + 3);</code><small>Total: 23</small></div><div><span>3</span><code>System.out.println("Total: " + (2 + 3));</code><small>Total: 5</small></div><div><span>4</span><code>System.out.println(2 + 3 + " total");</code><small>5 total</small></div></div><div className="rule-callout"><b>Find the first String</b><p>Before Java reaches a String, numeric <code>+</code> still adds. After Java starts building text, later values are appended unless parentheses force arithmetic first.</p></div></LearningSectionBlock>
     <LearningSectionBlock id="operators-evaluation" eyebrow="Put the rules together" title="Evaluating expressions"><p className="lesson-lead">For a longer expression, do not guess. Mark the parentheses, calculate high-precedence operations, work left to right among ties, and only then follow String concatenation.</p><div className="expression-checklist"><div><span>1</span><p><b>Find parentheses</b><small>Evaluate the innermost group first.</small></p></div><div><span>2</span><p><b>Handle *, /, and %</b><small>For ties, move left to right.</small></p></div><div><span>3</span><p><b>Handle + and -</b><small>Continue left to right.</small></p></div><div><span>4</span><p><b>Store or print</b><small>Watch for the first String when + appears.</small></p></div></div><CodeExample label="A complete resource calculation" code={'int missions = 4;\nint reward = 15;\nint multiplier = 2;\nint fee = 7;\n\nint balance = missions * reward * multiplier - fee;\nSystem.out.println("Balance: " + balance + " credits");'} /><div className="output-card"><span>OUTPUT</span><code>Balance: 113 credits</code></div></LearningSectionBlock>
-    <LearningSectionBlock id="operators-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} /><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code> create numeric results.</li><li><Check size={16} />The values an operator works with are operands.</li><li><Check size={16} />Integer division discards the decimal part; a double operand keeps it.</li><li><Check size={16} /><code>(double)</code> casts a value for decimal calculation.</li><li><Check size={16} /><code>{'//'}</code> begins a comment that Java ignores.</li><li><Check size={16} /><code>%</code> returns the remainder.</li><li><Check size={16} />Parentheses run before <code>* / %</code>, which run before <code>+ -</code>.</li><li><Check size={16} /><code>++</code> and <code>--</code> change a value by one.</li><li><Check size={16} /><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> update and assign.</li><li><Check size={16} />Equal-precedence operators are evaluated left to right.</li><li><Check size={16} />Once a String is involved, <code>+</code> concatenates unless parentheses force arithmetic first.</li></ul><ReadingCheckpoint done={readingDone} onRead={onRead} /></LearningSectionBlock>
+    <LearningSectionBlock id="operators-takeaways" eyebrow="Chapter summary" title="Key takeaways"><ul className="takeaway-list"><li><Check size={16} /><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code> create numeric results.</li><li><Check size={16} />The values an operator works with are operands.</li><li><Check size={16} />Integer division discards the decimal part; a double operand keeps it.</li><li><Check size={16} /><code>(double)</code> casts a value for decimal calculation.</li><li><Check size={16} /><code>{'//'}</code> begins a comment that Java ignores.</li><li><Check size={16} /><code>%</code> returns the remainder.</li><li><Check size={16} />Parentheses run before <code>* / %</code>, which run before <code>+ -</code>.</li><li><Check size={16} /><code>++</code> and <code>--</code> change a value by one.</li><li><Check size={16} /><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, and <code>%=</code> update and assign.</li><li><Check size={16} />Equal-precedence operators are evaluated left to right.</li><li><Check size={16} />Once a String is involved, <code>+</code> concatenates unless parentheses force arithmetic first.</li></ul></LearningSectionBlock>
   </>;
 
   const structuredSections = structuredLessonContent[chapterId];
-  if (structuredSections) return <StructuredLesson sections={structuredSections} readingDone={readingDone} requiresReading={requiresReading} onRead={onRead} />;
+  if (structuredSections) return <StructuredLesson sections={structuredSections} />;
 
   return null;
 }
 
 const emptyPracticeRecord = (): PracticeRecord => ({ answers: {}, attempts: {}, hints: [], passed: [] });
 
-function ChapterPractice({ chapterId, record: savedRecord, readingDone, requiresReading, onChange, onTutorPracticeContextChange }: { chapterId: string; record?: PracticeRecord; readingDone: boolean; requiresReading: boolean; onChange: (record: PracticeRecord) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void }) {
+function ChapterPractice({ chapterId, record: savedRecord, onChange, onTutorPracticeContextChange }: { chapterId: string; record?: PracticeRecord; onChange: (record: PracticeRecord) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void }) {
   const questions = practiceQuestions[chapterId];
   const record = savedRecord ?? emptyPracticeRecord();
   const validPassed = questions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
@@ -679,12 +681,12 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
   const practiceSectionId = chapterId === "variables-data-types" ? "variables-practice" : chapterId === "operators-expressions" ? "operators-practice" : `${chapterId}-practice`;
 
   if (allPassed && !reviewingCompleted) return <section className="practice-session practice-complete-state" id={practiceSectionId} data-learning-section>
-    <div className={`practice-complete-card ${readingDone || !requiresReading ? "chapter-complete" : "practice-complete"}`}>
+    <div className="practice-complete-card chapter-complete">
       <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>
       <span className="practice-complete-check"><Check size={42} strokeWidth={3.2} /></span>
       <p className="eyebrow">Demonstrated Progress</p>
-      <h2>{readingDone || !requiresReading ? "Chapter Complete" : "Practice Complete"}</h2>
-      <p>{readingDone || !requiresReading ? "Every required exercise passed. This chapter is cleared and your progress is saved." : "Every exercise passed. Your work is saved; complete the reading checkpoint to clear the chapter."}</p>
+      <h2>Chapter Complete</h2>
+      <p>Every required exercise passed. This chapter is cleared and your progress is saved.</p>
       <div className="practice-complete-stats"><span><b>{questions.length}/{questions.length}</b> exercises passed</span><span><b>{record.hints.length}</b> clues used</span></div>
       <button className="soft-button practice-review-button" onClick={() => setReviewingCompleted(true)}>Review Answers<ChevronDown size={15} /></button>
     </div>
@@ -706,7 +708,7 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
       </div>
     </div>
     <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>
-    {allPassed && <div className={`chapter-cleared-banner ${readingDone || !requiresReading ? "complete" : "waiting"}`}><span>{readingDone || !requiresReading ? <Check size={24} strokeWidth={3} /> : <BookOpen size={22} />}</span><div><b>{readingDone || !requiresReading ? "Chapter cleared" : "Practice cleared—reading checkpoint remains"}</b><small>{readingDone || !requiresReading ? "Every required exercise passed. This chapter now counts as complete." : "Return to Key takeaways and mark the lesson read to finish the chapter."}</small></div><button className="soft-button practice-collapse-button" onClick={() => setReviewingCompleted(false)}>Close Review<ChevronDown size={14} /></button></div>}
+    {allPassed && <div className="chapter-cleared-banner complete"><span><Check size={24} strokeWidth={3} /></span><div><b>Chapter cleared</b><small>Every required exercise passed. This chapter now counts as complete.</small></div><button className="soft-button practice-collapse-button" onClick={() => setReviewingCompleted(false)}>Close Review<ChevronDown size={14} /></button></div>}
   </section>;
 }
 
@@ -836,7 +838,7 @@ function readProgressBackup(value: unknown): PortableProgress | null {
   const data = objectValue(root?.data);
   if (root?.app !== "Exceler A" || root.version !== 1 || !data) return null;
 
-  const validCheckpoints = new Set(learningChapters.map((chapter) => readingCheckpointId(chapter.id)));
+  const validCheckpoints = new Set(learningChapters.map((chapter) => legacyReadingCheckpointId(chapter.id)));
   const completed = Array.isArray(data.completed) ? data.completed.filter((item): item is string => typeof item === "string" && validCheckpoints.has(item)) : [];
   const practice: PracticeRecords = {};
   const rawPractice = objectValue(data.practice) ?? {};
@@ -918,7 +920,7 @@ function ProgressBackupDialog({ open, progress, onClose, onRestore }: { open: bo
       <header><div className="project-info-brand"><span><Download size={21} /></span><div><p className="eyebrow">No Account Required</p><h2 id="progress-backup-title">Progress Backup</h2></div></div><button onClick={onClose} aria-label="Close progress backup"><X size={19} /></button></header>
       <div className="progress-backup-intro"><h3>Your progress already saves automatically.</h3><p>Download a portable copy when you want a backup or need to move your work to another browser or device.</p></div>
       <div className="progress-backup-grid">
-        <article><span className="backup-card-icon"><Download size={18} /></span><div><p className="eyebrow">Export</p><h3>Download Your Progress</h3><p>Saves lesson checkpoints, practice answers, course completion, and your current degree-map state.</p><div className="backup-current-summary"><b>{exportedProgress.completedChapters} / {learningChapters.length}</b><span>chapters cleared</span></div><button className="primary-button" onClick={exportBackup}><Download size={15} />Download Backup</button></div></article>
+        <article><span className="backup-card-icon"><Download size={18} /></span><div><p className="eyebrow">Export</p><h3>Download Your Progress</h3><p>Saves practice answers, attempts, course completion, and your current degree-map state.</p><div className="backup-current-summary"><b>{exportedProgress.completedChapters} / {learningChapters.length}</b><span>chapters cleared</span></div><button className="primary-button" onClick={exportBackup}><Download size={15} />Download Backup</button></div></article>
         <article><span className="backup-card-icon"><Upload size={18} /></span><div><p className="eyebrow">Restore</p><h3>Import a Backup</h3><p>Choose a previous Exceler A backup. Nothing changes until you confirm the restore.</p><label className="backup-file-button"><FileInput size={15} /><span>Choose Backup File</span><input type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void chooseBackup(file); event.currentTarget.value = ""; }} /></label>{error && <p className="backup-error">{error}</p>}{preview && previewProgress && <div className="backup-preview"><small>{preview.name}</small><b>{previewProgress.completedChapters} chapters · {previewPassed} exercises passed</b><button className="primary-button" onClick={() => { onRestore(preview.progress); onClose(); }}>Restore This Backup<ArrowRight size={14} /></button></div>}</div></article>
       </div>
       <footer><LockKeyhole size={14} /><p><b>Keep the file private.</b> A backup may contain practice answers and DegreeWorks-derived academic information.</p></footer>
@@ -1148,8 +1150,7 @@ export default function CommandCenter() {
     localStorage.setItem(localWorkspace ? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY, JSON.stringify({ completed, practice, degreeRecords, auditSnapshot }));
   }, [completed, practice, degreeRecords, auditSnapshot, hydrated, localWorkspace]);
 
-  const complete = (id: string) => setCompleted((current) => current.includes(id) ? current : [...current, id]);
   const openBackup = () => { setInfoOpen(false); setBackupOpen(true); };
   const restoreProgress = (next: PortableProgress) => { setCompleted(next.completed); setPractice(next.practice); setDegreeRecords(next.degreeRecords); setAuditSnapshot(next.auditSnapshot); };
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} onOpenInfo={() => setInfoOpen(true)} onOpenBackup={openBackup} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} />{localWorkspace && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} />}<DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} onOpenInfo={() => setInfoOpen(true)} onOpenBackup={openBackup} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} />{localWorkspace && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} />}<DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
 }

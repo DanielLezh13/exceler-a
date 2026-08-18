@@ -39,8 +39,9 @@ test("server-renders the Exceler A public experience", async () => {
 });
 
 test("keeps public progress and AI access separate from the private workspace", async () => {
-  const [commandCenter, tutorRoute, tutorStyles, packageJson] = await Promise.all([
+  const [commandCenter, structuredLesson, tutorRoute, tutorStyles, packageJson] = await Promise.all([
     readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/StructuredLesson.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/tutor/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -57,6 +58,10 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /status: passed \? "passed" : currentFeedback === "incorrect" \? "incorrect" : "not_checked"/);
   assert.match(commandCenter, /practice-complete-card/);
   assert.match(commandCenter, /Review Answers/);
+  assert.match(commandCenter, /practiceQuestionWeight/);
+  assert.match(commandCenter, /A chapter clears when every exercise passes/);
+  assert.doesNotMatch(commandCenter, /Mark Lesson as Read|reading checkpoint 25%/i);
+  assert.doesNotMatch(structuredLesson, /ReadingCheckpoint|Mark Lesson as Read/);
 
   assert.match(tutorRoute, /if \(!localRequest\) return errorResponse/);
   assert.match(tutorRoute, /available only in the private Exceler A desktop workspace/);

@@ -1,5 +1,3 @@
-export type CompletionMode = "lesson-practice" | "practice-only";
-
 export type CourseLearningSection = {
   id: string;
   title: string;
@@ -11,7 +9,6 @@ export type CourseLearningChapter = {
   title: string;
   description: string;
   status: "authored";
-  completionMode?: CompletionMode;
   sections: CourseLearningSection[];
 };
 
@@ -45,7 +42,6 @@ export type CourseChapterSpec = {
   unit: string;
   title: string;
   description: string;
-  completionMode?: CompletionMode;
   sections: StructuredLessonSection[];
 };
 
@@ -395,7 +391,6 @@ const chapterSpecs: CourseChapterSpec[] = [
     unit: "Final · Course Synthesis",
     title: "Cumulative Programming Challenges",
     description: "Solve substantial programs that require choosing and combining the full CISC 1115 toolkit.",
-    completionMode: "practice-only",
     sections: [
       { id: "challenges-briefing", title: "Challenge Briefing", eyebrow: "Demonstrate, do not review", lead: "This chapter is a programming campaign rather than another reading lesson. Each challenge supplies requirements and tests; you decide which variables, conditions, loops, methods, collections, and algorithms belong in the solution.", concepts: [{ label: "Interpret", detail: "Extract inputs, outputs, constraints, and cases." }, { label: "Design", detail: "Choose data structures and method boundaries." }, { label: "Implement", detail: "Build in testable increments." }, { label: "Verify", detail: "Trace and test boundaries before submitting." }], callout: { title: "Guidance deliberately decreases", body: "Later challenges name the behavior, not the Java features. Selecting an appropriate approach is part of the work." } },
       { id: "challenges-standard", title: "Submission Standard", eyebrow: "What a cleared challenge proves", lead: "A successful solution must satisfy the exact output and structural constraints, handle stated edge cases, and use readable decomposition rather than only matching one example.", rules: ["Match exact required output.", "Do not hard-code a result that should be calculated.", "Use methods for repeated or clearly separate subtasks.", "Protect indexes and invalid input.", "Test the provided case plus at least one boundary case."] },
@@ -406,7 +401,6 @@ const chapterSpecs: CourseChapterSpec[] = [
     unit: "Final · Course Synthesis",
     title: "CISC 1115 Final Assessment",
     description: "Demonstrate course-level tracing, debugging, algorithm choice, and programming without relying on reading completion.",
-    completionMode: "practice-only",
     sections: [
       { id: "final-instructions", title: "Assessment Instructions", eyebrow: "Cumulative demonstration", lead: "The assessment mixes exact-output tracing, missing code, debugging, algorithm explanation, and larger editor problems. Completion comes only from passing every assessment item.", concepts: [{ label: "Trace", detail: "Predict the exact executed behavior." }, { label: "Repair", detail: "Correct broken syntax or logic." }, { label: "Choose", detail: "Select an appropriate algorithm or structure." }, { label: "Build", detail: "Write code from requirements." }], callout: { title: "Use evidence, not guessing", body: "For difficult items, write a trace table, test boundary cases, and reduce the problem into smaller methods before entering the final answer." } },
     ],
@@ -449,7 +443,6 @@ export const additionalLearningChapters: CourseLearningChapter[] = chapterSpecs.
   title: chapter.title,
   description: chapter.description,
   status: "authored",
-  completionMode: chapter.completionMode,
   sections: [...chapter.sections.map(({ id, title }) => ({ id, title })), { id: `${chapter.id}-practice`, title: "Practice Session" }],
 }));
 
