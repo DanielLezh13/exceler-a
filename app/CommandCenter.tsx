@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { degreeCourses, type DegreeCourse } from "./data/curriculum";
 import StructuredLesson from "./StructuredLesson";
 import {
@@ -898,12 +900,15 @@ const tutorWelcomeMessage = (): TutorMessage => ({
 const tutorMessageId = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
 function TutorMessageContent({ content }: { content: string }) {
-  const parts = content.split("```");
-  return <>{parts.map((part, index) => {
-    if (index % 2 === 0) return <span key={index}>{part}</span>;
-    const code = part.replace(/^[a-zA-Z+#.-]+\n/, "").trim();
-    return <pre key={index}><code>{code}</code></pre>;
-  })}</>;
+  return <div className="tutor-markdown"><ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      a: ({ node, children, ...props }) => {
+        void node;
+        return <a {...props} target="_blank" rel="noreferrer">{children}</a>;
+      },
+    }}
+  >{content}</ReactMarkdown></div>;
 }
 
 function TutorAssistant({ view, completed, practice, courseContext, snapshot }: { view: View; completed: string[]; practice: PracticeRecords; courseContext: TutorCourseContext | null; snapshot: AuditSnapshot }) {

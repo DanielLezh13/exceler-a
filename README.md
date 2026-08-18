@@ -1,100 +1,59 @@
-# vinext-starter
+# Exceler A
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Exceler A is a self-directed learning workspace built around the Brooklyn College computer science degree path. It combines structured teaching, real practice, course progress, and a visual degree map in one focused interface.
 
-## Prerequisites
+The project is built by Daniel Lezhanskiy and is currently centered on CISC 1115: Introduction to Programming Using Java.
 
-- Node.js `>=22.13.0`
+## What It Includes
 
-## Quick Start
+- A 24-chapter CISC 1115 course with prerequisite-safe sequencing
+- Detailed lessons, worked examples, edge cases, reviews, and cumulative practice
+- Checked exercises with hints, attempts, difficulty levels, and completion states
+- Course progress based on meaningful chapter completion rather than estimated time
+- A visual Brooklyn College computer science degree map
+- Local DegreeWorks PDF import for updating a private degree view
+- Browser-local progress saving with portable export and import backups
+- A contextual AI tutor in the private local workspace
+
+## Privacy and the Public Site
+
+The public site starts with a clean, anonymous profile. A visitor's learning progress stays in that visitor's browser and does not expose Daniel's personal GPA, DegreeWorks audit, or course history.
+
+DegreeWorks imports are processed for the local experience and are not included in this repository. The AI tutor is also disabled on the public deployment so an unrestricted visitor cannot use the project's private OpenAI API key.
+
+## Run Locally
+
+Requirements: Node.js 22.13 or newer.
 
 ```bash
 npm install
-npm run dev
+npm run dev -- --port 1300
+```
+
+Then open [http://localhost:1300](http://localhost:1300).
+
+The learning workspace works without an API key. To enable the private AI tutor, create a `.env.local` file:
+
+```bash
+OPENAI_API_KEY=your_key_here
+```
+
+Never commit that file or paste the key into client-side code.
+
+## Validate the Project
+
+```bash
 npm run build
+npm test
+npm run audit:continuity
 ```
 
-This starter does not use `wrangler.jsonc`.
+## Status
 
-## Included Shape
+Exceler A is an independent student-built project. It is not an official Brooklyn College product and does not replace the college catalog or academic advising. Requirements can change, so degree-planning information should be confirmed with official college sources.
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+The course library will expand beyond CISC 1115 as the project develops.
 
-## Workspace Auth Headers
+## Author
 
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Built by Daniel Lezhanskiy.
