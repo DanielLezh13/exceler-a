@@ -496,6 +496,7 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .lesson-section-heading { margin-bottom: 23px; }
 .lesson-section-heading h2, .practice-header h2 { margin: 8px 0 0; font-size: clamp(25px,3vw,34px); letter-spacing: -.045em; }
 .lesson-section .lesson-lead { font-size: 15px; line-height: 1.8; }
+.lesson-subheading { margin: 34px 0 12px; font-size: 20px; letter-spacing: -.025em; }
 .lesson-section .teaching-code { overflow: hidden; margin: 22px 0; border: 1px solid #2f3533; border-radius: 16px; background: #090c0c; }
 .lesson-section .teaching-code > div { height: 43px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; background: #151918; border-bottom: 1px solid #282e2c; }
 .lesson-section .teaching-code > div span { color: var(--lime); font: 9px var(--font-geist-mono); text-transform: uppercase; }
