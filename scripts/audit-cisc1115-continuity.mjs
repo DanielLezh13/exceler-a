@@ -100,7 +100,7 @@ const allCode = courseIds.map(learnerSyntax).join("\n");
 
 const compactAuditText = (value) => value.replace(/\s+/g, "").replaceAll("String[]args", "");
 const firstUseRules = [
-  { chapterId: "variables-data-types", label: "final constant syntax", pattern: /\bfinal\s+(?:int|double|boolean|char|String|long)\b/ },
+  { chapterId: "returns-scope", label: "final constant syntax", pattern: /\bfinal\s+(?:int|double|boolean|char|String|long)\b/ },
   { chapterId: "comparisons-booleans", label: "comparison or logical operator syntax", pattern: /==|!=|>=|<=|&&|\|\||(?<![+\-*/%=])[<>](?!=)/ },
   { chapterId: "comparisons-booleans", label: "conditional operator syntax", pattern: /\?\s*[^?\n:]+\s*:\s*[^?\n;]+/ },
   { chapterId: "if-else", label: "if statement syntax", pattern: /\bif\(/, compact: true },
@@ -151,7 +151,7 @@ for (const [label, pattern] of [
 assert.doesNotMatch(before("arrays-loops"), /\bswap(?:ping|ped|s)?\b/i, "swapping appears before the array-transformation lesson");
 
 assert.match(learnerText("input-basic-programs"), /nextBoolean/, "Chapter 3 must teach nextBoolean before Chapter 6 uses it");
-assert.match(openingLearnerText["variables-data-types"], /final int MAX_ATTEMPTS/, "Chapter 1 must teach final constants");
+assert.match(learnerText("returns-scope"), /final int MAX_ATTEMPTS/, "Chapter 11 must teach final constants alongside local scope");
 assert.match(openingLearnerText["operators-expressions"], /POSTFIX: USE, THEN CHANGE/, "Chapter 2 must teach postfix expression timing");
 assert.match(learnerText("comparisons-booleans"), /conditional operator/i, "Chapter 4 must teach the conditional operator");
 assert.match(learnerText("while-loops"), /do-while/i, "Chapter 7 must teach do-while loops");
