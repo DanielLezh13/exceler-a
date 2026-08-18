@@ -625,6 +625,7 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
   const firstUnpassed = questions.findIndex((question) => !record.passed.includes(question.id));
   const [activeIndex, setActiveIndex] = useState(firstUnpassed < 0 ? 0 : firstUnpassed);
   const [feedback, setFeedback] = useState<Record<string, "correct" | "incorrect">>({});
+  const [reviewingCompleted, setReviewingCompleted] = useState(false);
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
   const allPassed = validPassed.length === questions.length;
@@ -677,7 +678,19 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
 
   const practiceSectionId = chapterId === "variables-data-types" ? "variables-practice" : chapterId === "operators-expressions" ? "operators-practice" : `${chapterId}-practice`;
 
-  return <section className="practice-session" id={practiceSectionId} data-learning-section>
+  if (allPassed && !reviewingCompleted) return <section className="practice-session practice-complete-state" id={practiceSectionId} data-learning-section>
+    <div className={`practice-complete-card ${readingDone || !requiresReading ? "chapter-complete" : "practice-complete"}`}>
+      <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>
+      <span className="practice-complete-check"><Check size={42} strokeWidth={3.2} /></span>
+      <p className="eyebrow">Demonstrated Progress</p>
+      <h2>{readingDone || !requiresReading ? "Chapter Complete" : "Practice Complete"}</h2>
+      <p>{readingDone || !requiresReading ? "Every required exercise passed. This chapter is cleared and your progress is saved." : "Every exercise passed. Your work is saved; complete the reading checkpoint to clear the chapter."}</p>
+      <div className="practice-complete-stats"><span><b>{questions.length}/{questions.length}</b> exercises passed</span><span><b>{record.hints.length}</b> clues used</span></div>
+      <button className="soft-button practice-review-button" onClick={() => setReviewingCompleted(true)}>Review Answers<ChevronDown size={15} /></button>
+    </div>
+  </section>;
+
+  return <section className={`practice-session ${allPassed ? "reviewing-complete" : ""}`} id={practiceSectionId} data-learning-section>
     <div className="practice-header"><div><p className="eyebrow">Demonstrated Progress</p><h2>Practice Session</h2><p>Complete every exercise to clear this chapter. Attempts are tracked; clues help without marking the answer correct.</p></div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>
     <div className="practice-workspace" key={question.id}><header><div><span className={`difficulty ${question.level.toLowerCase()}`}>{question.level}</span><span>{question.kind}</span></div><small>{record.attempts[question.id] ?? 0} attempts</small></header><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key === "Enter") passed ? goToNextQuestion() : check(); }} autoComplete="off" />}
@@ -693,7 +706,7 @@ function ChapterPractice({ chapterId, record: savedRecord, readingDone, requires
       </div>
     </div>
     <div className="practice-pagination"><button onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><span>Question {activeIndex + 1} of {questions.length}</span><button onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div>
-    {allPassed && <div className={`chapter-cleared-banner ${readingDone || !requiresReading ? "complete" : "waiting"}`}><span>{readingDone || !requiresReading ? <Check size={24} strokeWidth={3} /> : <BookOpen size={22} />}</span><div><b>{readingDone || !requiresReading ? "Chapter cleared" : "Practice cleared—reading checkpoint remains"}</b><small>{readingDone || !requiresReading ? "Every required exercise passed. This chapter now counts as complete." : "Return to Key takeaways and mark the lesson read to finish the chapter."}</small></div></div>}
+    {allPassed && <div className={`chapter-cleared-banner ${readingDone || !requiresReading ? "complete" : "waiting"}`}><span>{readingDone || !requiresReading ? <Check size={24} strokeWidth={3} /> : <BookOpen size={22} />}</span><div><b>{readingDone || !requiresReading ? "Chapter cleared" : "Practice cleared—reading checkpoint remains"}</b><small>{readingDone || !requiresReading ? "Every required exercise passed. This chapter now counts as complete." : "Return to Key takeaways and mark the lesson read to finish the chapter."}</small></div><button className="soft-button practice-collapse-button" onClick={() => setReviewingCompleted(false)}>Close Review<ChevronDown size={14} /></button></div>}
   </section>;
 }
 

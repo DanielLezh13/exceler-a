@@ -55,6 +55,8 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(commandCenter, /activePractice: section\.id\.endsWith\("practice"\)/);
   assert.match(commandCenter, /studentAnswer: currentAnswer\.slice\(0, 8_000\)/);
   assert.match(commandCenter, /status: passed \? "passed" : currentFeedback === "incorrect" \? "incorrect" : "not_checked"/);
+  assert.match(commandCenter, /practice-complete-card/);
+  assert.match(commandCenter, /Review Answers/);
 
   assert.match(tutorRoute, /if \(!localRequest\) return errorResponse/);
   assert.match(tutorRoute, /available only in the private Exceler A desktop workspace/);
@@ -62,6 +64,7 @@ test("keeps public progress and AI access separate from the private workspace", 
   assert.match(tutorStyles, /\.tutor-messages \{[^}]*overflow-x: hidden/);
   assert.match(tutorStyles, /\.tutor-message pre \{[^}]*white-space: pre-wrap/);
   assert.match(tutorStyles, /\.tutor-markdown table \{[^}]*table-layout: fixed/);
+  assert.match(tutorStyles, /@keyframes practice-check-pop/);
   assert.match(packageJson, /"react-markdown"/);
   assert.match(packageJson, /"remark-gfm"/);
 });
