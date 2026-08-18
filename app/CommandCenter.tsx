@@ -7,6 +7,7 @@ import {
   ChevronDown,
   CircleHelp,
   Code2,
+  Download,
   FileInput,
   GitBranch,
   GraduationCap,
@@ -331,7 +332,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
   return <span className={`mission-status ${done ? "done" : active ? "active" : ""}`}>{done ? <Check size={17} strokeWidth={3} /> : active ? <Play size={13} fill="currentColor" /> : <span />}</span>;
 }
 
-function Sidebar({ view, setView, completed, practice, onOpenInfo }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords; onOpenInfo: () => void }) {
+function Sidebar({ view, setView, completed, practice, onOpenInfo, onOpenBackup }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords; onOpenInfo: () => void; onOpenBackup: () => void }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
     <button className="brand exceler-brand" onClick={() => setView("home")} aria-label="Exceler A home"><img className="sidebar-brand-logo" src="/exceler-a-mark-512.png" alt="" /></button>
@@ -343,7 +344,7 @@ function Sidebar({ view, setView, completed, practice, onOpenInfo }: { view: Vie
       <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />Courses</button>
     </nav>
     {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button></div>}
-    <div className="sidebar-footer"><button className="about-sidebar-button" onClick={onOpenInfo}><CircleHelp size={16} />About Exceler A</button><div className="sync-state"><span />Progress saved on this device</div></div>
+    <div className="sidebar-footer"><div className="sidebar-footer-actions"><button className="about-sidebar-button" onClick={onOpenBackup}><Download size={15} />Progress Backup</button><button className="about-sidebar-button" onClick={onOpenInfo}><CircleHelp size={16} />About Exceler A</button></div><div className="sync-state"><span />Progress saved on this device</div></div>
   </aside>;
 }
 
@@ -760,7 +761,112 @@ function DegreeWorksImport({ open, records, onClose, onApply }: { open: boolean;
   return <div className="dialog-backdrop" onMouseDown={onClose}><div className="audit-dialog pdf-audit-dialog" onMouseDown={(event) => event.stopPropagation()}><header><span><FileInput size={20} /></span><div><p className="eyebrow">DegreeWorks import</p><h2>Upload the audit. Review the map update.</h2></div><button onClick={onClose}><X size={20} /></button></header><div className="audit-guidance"><p><b>PDF stays in this browser.</b> Exceler A extracts its text locally and does not upload the file to a server.</p><p><b>Nothing applies automatically.</b> You review every detected course state before saving it to the map.</p></div><label className={`file-import pdf-drop ${loading ? "loading" : ""}`}><Upload size={20} /><span><b>{loading ? "Reading DegreeWorks…" : fileName || "Choose DegreeWorks PDF"}</b><small>PDF preferred · text and HTML also supported</small></span><input type="file" accept=".pdf,.txt,.html,.htm,.csv,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadFile(file); }} /></label>{error && <p className="import-error">{error}</p>}{text && <div className="audit-detected-summary"><div><small>Audit date</small><b>{snapshot.auditDate}</b></div><div><small>Overall progress</small><b>{snapshot.degreeProgress}%</b></div><div><small>Credits</small><b>{snapshot.appliedCredits} applied · {snapshot.remainingCredits} remaining</b></div><div><small>Major</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div></div>}<details className="paste-fallback"><summary>Paste audit text instead</summary><label className="audit-text-label">DegreeWorks text<textarea value={text} onChange={(event) => { setText(event.target.value); setProposal({}); setFileName(""); }} placeholder={'CISC 1115 — In Progress\nCISC 2210 — Still Needed'} /></label><button className="secondary-button analyze-button" disabled={!text.trim()} onClick={() => analyze()}>Analyze pasted audit</button></details>{detected.length > 0 && <div className="detected-courses"><div><p className="eyebrow">Review before applying</p><span>{detected.length} courses detected</span></div>{detected.map((course) => <div className="detected-row" key={course.code}><span><b>{course.code}</b><small>{course.title}</small></span><div>{(["complete", "in_progress", "not_started", "unknown"] as DegreeStatus[]).map((status) => <button key={status} className={proposal[course.code] === status ? "active" : ""} onClick={() => setProposal({ ...proposal, [course.code]: status })}>{status === "complete" ? "Complete" : status === "in_progress" ? "In progress" : status === "not_started" ? "Remaining" : "Ignore"}</button>)}</div></div>)}</div>}<footer><span>Choice groups count once. In-progress is shown separately from earned credit.</span><button className="primary-button" disabled={!detected.length} onClick={() => { const applied = { ...records }; Object.entries(proposal).forEach(([code, status]) => { if (status !== "unknown") applied[code] = status; }); onApply(applied, snapshot); onClose(); }}>Update degree map <ArrowRight size={14} /></button></footer></div></div>;
 }
 
-function ProjectInfoDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+type PortableProgress = {
+  completed: string[];
+  practice: PracticeRecords;
+  degreeRecords: DegreeRecords;
+  auditSnapshot: AuditSnapshot;
+};
+
+const objectValue = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+const finiteNumber = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+function readProgressBackup(value: unknown): PortableProgress | null {
+  const root = objectValue(value);
+  const data = objectValue(root?.data);
+  if (root?.app !== "Exceler A" || root.version !== 1 || !data) return null;
+
+  const validCheckpoints = new Set(learningChapters.map((chapter) => readingCheckpointId(chapter.id)));
+  const completed = Array.isArray(data.completed) ? data.completed.filter((item): item is string => typeof item === "string" && validCheckpoints.has(item)) : [];
+  const practice: PracticeRecords = {};
+  const rawPractice = objectValue(data.practice) ?? {};
+  Object.entries(rawPractice).forEach(([chapterId, value]) => {
+    const questions = practiceQuestions[chapterId];
+    const rawRecord = objectValue(value);
+    if (!questions || !rawRecord) return;
+    const validIds = new Set(questions.map((question) => question.id));
+    const rawAnswers = objectValue(rawRecord.answers) ?? {};
+    const rawAttempts = objectValue(rawRecord.attempts) ?? {};
+    const answers = Object.fromEntries(Object.entries(rawAnswers).filter(([id, answer]) => validIds.has(id) && typeof answer === "string").map(([id, answer]) => [id, (answer as string).slice(0, 20_000)]));
+    const attempts = Object.fromEntries(Object.entries(rawAttempts).filter(([id, attempt]) => validIds.has(id) && typeof attempt === "number" && Number.isFinite(attempt)).map(([id, attempt]) => [id, Math.max(0, Math.floor(attempt as number))]));
+    const hints = Array.isArray(rawRecord.hints) ? rawRecord.hints.filter((id): id is string => typeof id === "string" && validIds.has(id)) : [];
+    const passed = Array.isArray(rawRecord.passed) ? rawRecord.passed.filter((id): id is string => typeof id === "string" && validIds.has(id)) : [];
+    practice[chapterId] = { answers, attempts, hints: [...new Set(hints)], passed: [...new Set(passed)] };
+  });
+
+  const rawRecords = objectValue(data.degreeRecords) ?? {};
+  const degreeRecords = { ...initialDegreeRecords };
+  const validStatuses = new Set<DegreeStatus>(["unknown", "complete", "in_progress", "not_started"]);
+  degreeCourses.forEach((course) => {
+    const status = rawRecords[course.code];
+    if (typeof status === "string" && validStatuses.has(status as DegreeStatus)) degreeRecords[course.code] = status as DegreeStatus;
+  });
+
+  const rawSnapshot = objectValue(data.auditSnapshot) ?? {};
+  const auditSnapshot: AuditSnapshot = {
+    auditDate: typeof rawSnapshot.auditDate === "string" ? rawSnapshot.auditDate.slice(0, 80) : degreeWorksSnapshot.auditDate,
+    degreeProgress: finiteNumber(rawSnapshot.degreeProgress, degreeWorksSnapshot.degreeProgress),
+    appliedCredits: finiteNumber(rawSnapshot.appliedCredits, degreeWorksSnapshot.appliedCredits),
+    remainingCredits: finiteNumber(rawSnapshot.remainingCredits, degreeWorksSnapshot.remainingCredits),
+    gpa: finiteNumber(rawSnapshot.gpa, degreeWorksSnapshot.gpa),
+    majorApplied: finiteNumber(rawSnapshot.majorApplied, degreeWorksSnapshot.majorApplied),
+    majorRemaining: finiteNumber(rawSnapshot.majorRemaining, degreeWorksSnapshot.majorRemaining),
+    collegeOptionRemaining: finiteNumber(rawSnapshot.collegeOptionRemaining, degreeWorksSnapshot.collegeOptionRemaining),
+    residencyRemaining: finiteNumber(rawSnapshot.residencyRemaining, degreeWorksSnapshot.residencyRemaining),
+    advancedCiscRemaining: finiteNumber(rawSnapshot.advancedCiscRemaining, degreeWorksSnapshot.advancedCiscRemaining),
+    bsCreditsRemaining: finiteNumber(rawSnapshot.bsCreditsRemaining, degreeWorksSnapshot.bsCreditsRemaining),
+    sourceName: typeof rawSnapshot.sourceName === "string" ? rawSnapshot.sourceName.slice(0, 160) : degreeWorksSnapshot.sourceName,
+  };
+  return { completed, practice, degreeRecords, auditSnapshot };
+}
+
+function ProgressBackupDialog({ open, progress, onClose, onRestore }: { open: boolean; progress: PortableProgress; onClose: () => void; onRestore: (progress: PortableProgress) => void }) {
+  const [preview, setPreview] = useState<{ name: string; progress: PortableProgress } | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) { setPreview(null); setError(""); }
+  }, [open]);
+
+  if (!open) return null;
+  const exportedProgress = learningProgress(progress.completed, progress.practice);
+  const exportBackup = () => {
+    const payload = { app: "Exceler A", version: 1, exportedAt: new Date().toISOString(), data: progress };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `exceler-a-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const chooseBackup = async (file: File) => {
+    setError(""); setPreview(null);
+    try {
+      if (file.size > 2_000_000) throw new Error("That backup is too large to be an Exceler A progress file.");
+      const parsed = readProgressBackup(JSON.parse(await file.text()));
+      if (!parsed) throw new Error("This is not a valid Exceler A progress backup.");
+      setPreview({ name: file.name, progress: parsed });
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Exceler A could not read this backup.");
+    }
+  };
+  const previewProgress = preview ? learningProgress(preview.progress.completed, preview.progress.practice) : null;
+  const previewPassed = preview ? Object.values(preview.progress.practice).reduce((sum, record) => sum + record.passed.length, 0) : 0;
+
+  return <div className="project-info-backdrop" role="presentation" onMouseDown={onClose}>
+    <section className="progress-backup-dialog" role="dialog" aria-modal="true" aria-labelledby="progress-backup-title" onMouseDown={(event) => event.stopPropagation()}>
+      <header><div className="project-info-brand"><span><Download size={21} /></span><div><p className="eyebrow">No Account Required</p><h2 id="progress-backup-title">Progress Backup</h2></div></div><button onClick={onClose} aria-label="Close progress backup"><X size={19} /></button></header>
+      <div className="progress-backup-intro"><h3>Your progress already saves automatically.</h3><p>Download a portable copy when you want a backup or need to move your work to another browser or device.</p></div>
+      <div className="progress-backup-grid">
+        <article><span className="backup-card-icon"><Download size={18} /></span><div><p className="eyebrow">Export</p><h3>Download Your Progress</h3><p>Saves lesson checkpoints, practice answers, course completion, and your current degree-map state.</p><div className="backup-current-summary"><b>{exportedProgress.completedChapters} / {learningChapters.length}</b><span>chapters cleared</span></div><button className="primary-button" onClick={exportBackup}><Download size={15} />Download Backup</button></div></article>
+        <article><span className="backup-card-icon"><Upload size={18} /></span><div><p className="eyebrow">Restore</p><h3>Import a Backup</h3><p>Choose a previous Exceler A backup. Nothing changes until you confirm the restore.</p><label className="backup-file-button"><FileInput size={15} /><span>Choose Backup File</span><input type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void chooseBackup(file); event.currentTarget.value = ""; }} /></label>{error && <p className="backup-error">{error}</p>}{preview && previewProgress && <div className="backup-preview"><small>{preview.name}</small><b>{previewProgress.completedChapters} chapters · {previewPassed} exercises passed</b><button className="primary-button" onClick={() => { onRestore(preview.progress); onClose(); }}>Restore This Backup<ArrowRight size={14} /></button></div>}</div></article>
+      </div>
+      <footer><LockKeyhole size={14} /><p><b>Keep the file private.</b> A backup may contain practice answers and DegreeWorks-derived academic information.</p></footer>
+    </section>
+  </div>;
+}
+
+function ProjectInfoDialog({ open, onClose, onOpenBackup }: { open: boolean; onClose: () => void; onOpenBackup: () => void }) {
   useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -778,7 +884,7 @@ function ProjectInfoDialog({ open, onClose }: { open: boolean; onClose: () => vo
         <article><span><GraduationCap size={18} /></span><div><b>Degree-Path Context</b><p>The map organizes required courses, either-or choices, elective groups, and graduation gates. It is a planning aid—not an official Brooklyn College service or a replacement for DegreeWorks and academic advisement.</p></div></article>
         <article><span><LockKeyhole size={17} /></span><div><b>Privacy and AI</b><p>The public experience starts without Daniel’s grades, GPA, audit, or college progress. Visitor progress and optional DegreeWorks data stay in that visitor’s browser. The AI tutor is disabled on the hosted public build so strangers cannot use Daniel’s API credits.</p></div></article>
       </div>
-      <footer><span>Self-directed education, built course by course.</span><button className="primary-button" onClick={onClose}>Explore Exceler A<ArrowRight size={14} /></button></footer>
+      <footer><span>Self-directed education, built course by course.</span><div className="project-info-footer-actions"><button className="secondary-button" onClick={onOpenBackup}><Download size={14} />Progress Backup</button><button className="primary-button" onClick={onClose}>Explore Exceler A<ArrowRight size={14} /></button></div></footer>
     </section>
   </div>;
 }
@@ -953,6 +1059,7 @@ export default function CommandCenter() {
   const [auditSnapshot, setAuditSnapshot] = useState<AuditSnapshot>(degreeWorksSnapshot);
   const [importOpen, setImportOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [courseTutorContext, setCourseTutorContext] = useState<TutorCourseContext | null>(null);
   const [localWorkspace, setLocalWorkspace] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -979,5 +1086,7 @@ export default function CommandCenter() {
   }, [completed, practice, degreeRecords, auditSnapshot, hydrated, localWorkspace]);
 
   const complete = (id: string) => setCompleted((current) => current.includes(id) ? current : [...current, id]);
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} onOpenInfo={() => setInfoOpen(true)} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} />{localWorkspace && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} />}<DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} /></div>;
+  const openBackup = () => { setInfoOpen(false); setBackupOpen(true); };
+  const restoreProgress = (next: PortableProgress) => { setCompleted(next.completed); setPractice(next.practice); setDegreeRecords(next.degreeRecords); setAuditSnapshot(next.auditSnapshot); };
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} onOpenInfo={() => setInfoOpen(true)} onOpenBackup={openBackup} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onComplete={complete} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} />{localWorkspace && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} />}<DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
 }
