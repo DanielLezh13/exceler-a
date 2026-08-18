@@ -537,6 +537,14 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .section-practice .practice-complete-check svg { width: 31px; height: 31px; }
 .section-practice .practice-complete-card > .eyebrow { margin-top: 19px; }
 .section-practice .practice-complete-card h2 { font-size: clamp(27px,3vw,36px); }
+.section-practice .practice-complete-card.section-complete { min-height: 0; display: grid; grid-template-columns: 48px minmax(0,1fr) auto; grid-template-rows: auto auto auto; column-gap: 15px; border-radius: 16px; padding: 17px 19px; text-align: left; }
+.section-practice .section-complete .practice-complete-check { grid-column: 1; grid-row: 1 / 4; width: 48px; height: 48px; align-self: center; box-shadow: 0 0 0 6px rgba(191,245,90,.04),0 10px 28px rgba(191,245,90,.1); }
+.section-practice .section-complete .practice-complete-check svg { width: 24px; height: 24px; }
+.section-practice .section-complete > .eyebrow { grid-column: 2; grid-row: 1; margin: 0; }
+.section-practice .section-complete h2 { grid-column: 2; grid-row: 2; margin: 3px 0 0; font-size: 21px; }
+.section-practice .section-complete .practice-complete-stats { grid-column: 2; grid-row: 3; justify-content: flex-start; margin-top: 8px; }
+.section-practice .section-complete .practice-complete-stats span { padding: 5px 8px; }
+.section-practice .section-complete .practice-review-button { grid-column: 3; grid-row: 1 / 4; align-self: center; margin: 0; }
 .section-practice.practice-complete-state { padding: 0; }
 .practice-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 25px; }
 .practice-header > div:first-child > p:not(.eyebrow) { max-width: 600px; margin: 10px 0 0; color: #838c87; font-size: 11px; line-height: 1.65; }
@@ -803,6 +811,9 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
   .practice-complete-card { min-height: 330px; border-radius: 19px; padding: 38px 18px 30px; }
   .practice-complete-check { width: 72px; height: 72px; }
   .practice-complete-stats { align-items: stretch; flex-direction: column; }
+  .section-practice .practice-complete-card.section-complete { grid-template-columns: 44px 1fr; padding: 16px; }
+  .section-practice .section-complete .practice-complete-check { width: 44px; height: 44px; }
+  .section-practice .section-complete .practice-review-button { grid-column: 1 / -1; grid-row: 4; width: 100%; margin-top: 12px; }
   .chapter-cleared-banner { align-items: flex-start; flex-wrap: wrap; }
   .practice-collapse-button { width: 100%; margin-left: 0; }
 }
