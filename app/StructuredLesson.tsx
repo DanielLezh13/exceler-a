@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Sparkles, TriangleAlert } from "lucide-react";
+import CopyCodeButton from "./CopyCodeButton";
 import type { StructuredLessonSection } from "./data/cisc1115Course";
 
 type StructuredLessonProps = {
@@ -9,7 +10,7 @@ type StructuredLessonProps = {
 };
 
 function CodeExample({ label, code }: { label: string; code: string }) {
-  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small></div><pre><code>{code}</code></pre></div>;
+  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small><CopyCodeButton code={code} /></div><pre><code>{code}</code></pre></div>;
 }
 
 export default function StructuredLesson({ sections, renderAfterSection }: StructuredLessonProps) {

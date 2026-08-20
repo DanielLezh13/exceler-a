@@ -29,12 +29,13 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { createContext, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { degreeCourses, type DegreeCourse } from "./data/curriculum";
 import StructuredLesson from "./StructuredLesson";
+import CopyCodeButton from "./CopyCodeButton";
 import {
   additionalLearningChapters,
   additionalPracticeQuestions,
@@ -729,7 +730,7 @@ function LearningSectionBlock({ id, eyebrow, title, children }: { id: string; ey
 }
 
 function CodeExample({ label, code }: { label: string; code: string }) {
-  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small></div><pre><code>{code}</code></pre></div>;
+  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small><CopyCodeButton code={code} /></div><pre><code>{code}</code></pre></div>;
 }
 
 function DataTypeLesson({ type, category, meaning, description, declaration, explanation, values, rule }: { type: string; category: string; meaning: string; description: string; declaration: string; explanation: string; values: string[]; rule: React.ReactNode }) {
@@ -742,6 +743,7 @@ function DataTypeLesson({ type, category, meaning, description, declaration, exp
     </div>
     <div className="data-type-example">
       <small>Example declaration</small>
+      <CopyCodeButton code={declaration} />
       <pre><code>{declaration}</code></pre>
       <p><b>Read it:</b> {explanation}</p>
       <p className="data-type-rule">{rule}</p>
@@ -878,7 +880,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const practiceBody = <>
     <div className="practice-header"><div><p className="eyebrow">{variant === "checkpoint" ? `Check Your Understanding · ${String(checkpointNumber).padStart(2, "0")}` : "Cumulative Review"}</p><h2>{variant === "checkpoint" ? "Section Check" : "Chapter Review"}</h2>{variant === "review" && <p>Combine what you learned across the chapter. Every earlier section check also counts toward completion.</p>}</div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>}
-    <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <pre className="practice-code"><code>{question.code}</code></pre>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.options?.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{question.options.map((option, index) => <button type="button" role="radio" aria-checked={currentAnswer === option} className={`${currentAnswer === option ? "selected" : ""} ${answerShown && question.validate(option) ? "revealed-answer" : ""}`} key={option} onClick={() => updateAnswer(option)}><span>{String.fromCharCode(65 + index)}</span><b>{option}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"}`}>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" />}{answerShown && <div className="practice-answer-overlay" aria-live="polite"><span>Answer</span>{shownAnswer}</div>}</div>}
+    <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <div className="practice-code-wrap"><CopyCodeButton code={question.code} /><pre className="practice-code"><code>{question.code}</code></pre></div>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.options?.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{question.options.map((option, index) => <button type="button" role="radio" aria-checked={currentAnswer === option} className={`${currentAnswer === option ? "selected" : ""} ${answerShown && question.validate(option) ? "revealed-answer" : ""}`} key={option} onClick={() => updateAnswer(option)}><span>{String.fromCharCode(65 + index)}</span><b>{option}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"}`}>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" />}{answerShown && <div className="practice-answer-overlay" aria-live="polite"><span>Answer</span>{shownAnswer}</div>}</div>}
       <div className="practice-response-row">
         <div className="practice-feedback-slot">{(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, show the answer if needed, and try again."}</small></p></div>}</div>
         <div className={`practice-actions ${passed ? "passed" : ""}`}>
@@ -1147,6 +1149,13 @@ const tutorWelcomeMessage = (): TutorMessage => ({
 
 const tutorMessageId = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
+function textFromReactNode(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textFromReactNode).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return textFromReactNode(node.props.children);
+  return "";
+}
+
 function TutorMessageContent({ content }: { content: string }) {
   return <div className="tutor-markdown"><ReactMarkdown
     remarkPlugins={[remarkGfm]}
@@ -1154,6 +1163,11 @@ function TutorMessageContent({ content }: { content: string }) {
       a: ({ node, children, ...props }) => {
         void node;
         return <a {...props} target="_blank" rel="noreferrer">{children}</a>;
+      },
+      pre: ({ node, children, ...props }) => {
+        void node;
+        const code = textFromReactNode(children).replace(/\n$/, "");
+        return <pre {...props}><CopyCodeButton code={code} />{children}</pre>;
       },
     }}
   >{content}</ReactMarkdown></div>;
