@@ -18,7 +18,9 @@ import {
   GripHorizontal,
   House,
   LockKeyhole,
+  Maximize2,
   MessageCircle,
+  Minimize2,
   Play,
   RotateCcw,
   Send,
@@ -106,6 +108,8 @@ type TutorMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+type TutorResponseLength = "short" | "medium" | "long";
 
 type PracticeQuestion = {
   id: string;
@@ -1158,6 +1162,9 @@ function TutorMessageContent({ content }: { content: string }) {
 function TutorAssistant({ view, completed, practice, courseContext, snapshot }: { view: View; completed: string[]; practice: PracticeRecords; courseContext: TutorCourseContext | null; snapshot: AuditSnapshot }) {
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [responseLength, setResponseLength] = useState<TutorResponseLength>("medium");
+  const [settingsReady, setSettingsReady] = useState(false);
   const [drawerPosition, setDrawerPosition] = useState({ x: 0, y: 0 });
   const [messages, setMessages] = useState<TutorMessage[]>([tutorWelcomeMessage()]);
   const [draft, setDraft] = useState("");
@@ -1169,6 +1176,20 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   const progress = learningProgress(completed, practice);
   const activeLesson = view === "course" ? courseContext : null;
   const contextLabel = activeLesson ? activeLesson.sectionTitle : view === "degree" ? "Degree Map" : view === "courses" ? "Courses" : view === "dashboard" ? "Overview" : "Home";
+
+  useEffect(() => {
+    const savedLength = window.localStorage.getItem("exceler-tutor-response-length");
+    const savedSize = window.localStorage.getItem("exceler-tutor-size");
+    if (savedLength === "short" || savedLength === "medium" || savedLength === "long") setResponseLength(savedLength);
+    if (savedSize === "expanded") setExpanded(true);
+    setSettingsReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!settingsReady) return;
+    window.localStorage.setItem("exceler-tutor-response-length", responseLength);
+    window.localStorage.setItem("exceler-tutor-size", expanded ? "expanded" : "standard");
+  }, [expanded, responseLength, settingsReady]);
 
   useEffect(() => {
     if (!open) return;
@@ -1218,6 +1239,11 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
     setOpen((current) => !current);
   };
 
+  const toggleTutorSize = () => {
+    setDrawerPosition({ x: 0, y: 0 });
+    setExpanded((current) => !current);
+  };
+
   const clearConversation = () => {
     requestRef.current?.abort();
     requestRef.current = null;
@@ -1244,6 +1270,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
         signal: controller.signal,
         body: JSON.stringify({
           messages: history.map(({ role, content }) => ({ role, content })),
+          responseLength,
           context: {
             currentView: view,
             course: {
@@ -1317,13 +1344,13 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   };
 
   return <div className={`tutor-shell ${open ? "open" : ""}`}>
-    {open && <section ref={drawerRef} className={`tutor-drawer ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} aria-label="Exceler tutor" aria-live="polite">
+    {open && <section ref={drawerRef} className={`tutor-drawer ${expanded ? "expanded" : ""} ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} aria-label="Exceler tutor" aria-live="polite">
       <header className="tutor-header" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="tutor-identity"><span><img src="/exceler-a-mark-512.png" alt="" /></span><p><b>Exceler Tutor</b><small>Using your current page</small></p></div>
         <span className="tutor-drag-handle" aria-hidden="true"><GripHorizontal size={18} /></span>
-        <div className="tutor-header-actions"><button onClick={clearConversation} aria-label="Clear tutor conversation" title="Clear conversation"><Trash2 size={16} /></button><button onClick={() => setOpen(false)} aria-label="Close tutor"><X size={18} /></button></div>
+        <div className="tutor-header-actions"><button className="tutor-action-size" onClick={toggleTutorSize} aria-label={expanded ? "Restore tutor size" : "Expand tutor"} title={expanded ? "Restore size" : "Expand chat"}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button className="tutor-action-clear" onClick={clearConversation} aria-label="Clear tutor conversation" title="Clear conversation"><Trash2 size={16} /></button><button className="tutor-action-close" onClick={() => setOpen(false)} aria-label="Close tutor" title="Close tutor"><X size={18} /></button></div>
       </header>
-      <div className="tutor-context"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div>
+      <div className="tutor-context"><div className="tutor-context-page"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div><div className="tutor-response-length" role="group" aria-label="Tutor response length">{(["short", "medium", "long"] as TutorResponseLength[]).map((length) => <button key={length} type="button" className={responseLength === length ? "selected" : ""} aria-pressed={responseLength === length} onClick={() => setResponseLength(length)} title={`${length[0].toUpperCase()}${length.slice(1)} tutor responses`}>{length}</button>)}</div></div>
       <div ref={messagesRef} className="tutor-messages">
         {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
         <div className="tutor-scroll-anchor" />

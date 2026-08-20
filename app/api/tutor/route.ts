@@ -6,6 +6,7 @@ type TutorMessage = {
 type TutorRequest = {
   messages?: TutorMessage[];
   context?: unknown;
+  responseLength?: "short" | "medium" | "long";
 };
 
 const MODEL = process.env.OPENAI_TUTOR_MODEL ?? "gpt-5.6-terra";
@@ -83,6 +84,13 @@ export async function POST(request: Request) {
     return errorResponse("Ask the tutor a question first.", 400);
   }
 
+  const responseLength = body.responseLength === "short" || body.responseLength === "long" ? body.responseLength : "medium";
+  const responseStyle = {
+    short: { verbosity: "low" as const, maxOutputTokens: 500, instruction: "The student selected SHORT. Answer directly and compactly. Usually use one explanation and one small example; do not add extra sections unless essential." },
+    medium: { verbosity: "medium" as const, maxOutputTokens: 1_100, instruction: "The student selected MEDIUM. Give enough explanation to teach the point, with focused steps or examples, but avoid unnecessary background." },
+    long: { verbosity: "high" as const, maxOutputTokens: 1_800, instruction: "The student selected LONG. Give a thorough teaching response with clear reasoning, multiple examples when useful, and relevant edge cases without adding filler." },
+  }[responseLength];
+
   const upstream = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -91,11 +99,11 @@ export async function POST(request: Request) {
     },
     body: JSON.stringify({
       model: MODEL,
-      instructions: `${TUTOR_INSTRUCTIONS}\n\n<CONTEXT>\n${contextText(body.context)}\n</CONTEXT>`,
+      instructions: `${TUTOR_INSTRUCTIONS}\n\nResponse preference: ${responseStyle.instruction}\n\n<CONTEXT>\n${contextText(body.context)}\n</CONTEXT>`,
       input: messages,
       reasoning: { effort: "low" },
-      text: { verbosity: "medium" },
-      max_output_tokens: 1_400,
+      text: { verbosity: responseStyle.verbosity },
+      max_output_tokens: responseStyle.maxOutputTokens,
       store: false,
       stream: true,
       safety_identifier: "exceler-owner",
