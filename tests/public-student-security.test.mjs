@@ -103,7 +103,8 @@ test("public account UI keeps anonymous, signed-in, and local workspaces distinc
   const page = await readFile(new URL("../app/AuthenticatedCommandCenter.tsx", import.meta.url), "utf8");
   assert.match(page, /getChatGPTUser/);
   assert.match(command, /Sign in with ChatGPT/);
-  assert.match(command, /Nothing will be merged unless you choose it/);
+  assert.match(command, /Continue with progress from this browser/);
+  assert.match(command, /Your localhost progress is separate and will not change/);
   assert.match(command, /localWorkspace \? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY/);
   assert.match(command, /student-account/);
   assert.match(command, /Sign in to load DegreeWorks/);

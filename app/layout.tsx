@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
   const title = "Exceler A — Self-Directed Academic Learning";
-  const description = "A student-built, self-directed learning system for the Brooklyn College Computer Science B.S. path.";
+  const description = "A self-directed Brooklyn College computer science and mathematics curriculum with lessons, code-first practice, mastery testing, persistent progress, DegreeWorks mapping, and an AI tutor.";
 
   return {
     metadataBase,
@@ -28,11 +28,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
+      images: [{ url: "/og.png", width: 1280, height: 720, alt: "Exceler A self-directed academic learning" }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: ["/og.png"],
     },
   };
 }

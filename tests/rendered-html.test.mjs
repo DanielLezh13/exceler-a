@@ -58,7 +58,8 @@ test("keeps public progress, mastery practice, and AI access separate from the p
   assert.match(commandCenter, /\["localhost", "127\.0\.0\.1", "::1"\]/);
   assert.match(commandCenter, /privateFeatures && <TutorAssistant/);
   assert.match(commandCenter, /Sign in with ChatGPT/);
-  assert.match(commandCenter, /Nothing will be merged unless you choose it/);
+  assert.match(commandCenter, /Continue with progress from this browser/);
+  assert.match(commandCenter, /Your localhost progress is separate and will not change/);
   assert.match(commandCenter, /className=\{`sidebar-tutor-button/);
   assert.match(commandCenter, /Ask Exceler Tutor/);
   assert.doesNotMatch(commandCenter, /onClick=\{onOpenBackup\}><Download size=\{15\} \/>Progress Backup/);
