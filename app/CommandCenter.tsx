@@ -769,9 +769,9 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
         <div className="home-intro">
           <p className="eyebrow">Self-Directed Academic Learning</p>
           <h1>Your Education,<br /><span>Under Your Direction.</span></h1>
-          <p className="home-declaration">A self-directed Brooklyn College computer science and mathematics curriculum with complete lessons, code-first practice, mastery testing, persistent progress, DegreeWorks mapping, and an AI tutor.</p>
+          <p className="home-declaration">A self-directed learning system for the Brooklyn College Computer Science B.S. path—including its required supporting mathematics—with complete lessons, code-first practice, mastery testing, DegreeWorks mapping, and an AI tutor.</p>
           <p className="home-maker-line"><span>Built by</span><b>Daniel Lezhanskiy</b><i />Brooklyn College Computer Science</p>
-          <p className="home-release-note"><span />More Brooklyn College courses are coming as they are built and reviewed.</p>
+          <p className="home-release-note"><span />More courses from the Brooklyn College Computer Science B.S. path are coming as they are built and reviewed.</p>
         </div>
         <button className="pinned-course-card" onClick={() => setView("course")}>
           <span className="pinned-course-glyph">J</span>
@@ -1673,7 +1673,7 @@ function ProjectInfoDialog({ open, onClose, onOpenBackup }: { open: boolean; onC
       <header><div className="project-info-brand"><span><img src="/exceler-a-mark-512.png" alt="" /></span><div><p className="eyebrow">Independent Learning Project</p><h2 id="project-info-title">About Exceler A</h2></div></div><button onClick={onClose} aria-label="Close project information"><X size={19} /></button></header>
       <div className="project-info-intro"><p>Exceler A is a student-built learning system that turns the Brooklyn College Computer Science B.S. path into sequenced teaching, demonstrated practice, and a visual degree map.</p><span>Built by <b>Daniel Lezhanskiy</b></span></div>
       <div className="project-info-grid">
-        <article><span><Code2 size={17} /></span><div><b>What Is Available</b><p>Available now: CISC 1115, MATH 1006, MATH 1011, MATH 1201, and CISC 2210. Courses include connected lessons, written practice, and mastery tests. More Brooklyn College courses are coming as they are built and reviewed.</p></div></article>
+        <article><span><Code2 size={17} /></span><div><b>What Is Available</b><p>Available now: CISC 1115 and CISC 2210, plus the supporting CS-degree math sequence through MATH 1201. Courses include connected lessons, written practice, and mastery tests. More courses from the Brooklyn College Computer Science B.S. path are coming as they are built and reviewed.</p></div></article>
         <article><span><GraduationCap size={18} /></span><div><b>Degree-Path Context</b><p>The map organizes required courses, either-or choices, elective groups, and graduation gates. It is a planning aid—not an official Brooklyn College service or a replacement for DegreeWorks and academic advisement.</p></div></article>
         <article><span><LockKeyhole size={17} /></span><div><b>Private Student Workspaces</b><p>Anyone can learn anonymously with progress saved on that device. Students may sign in for isolated cloud progress, a private DegreeWorks map, and the protected tutor. The original PDF is read in the browser; only the reviewed academic summary is saved.</p></div></article>
       </div>
