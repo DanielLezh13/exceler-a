@@ -1,5 +1,5 @@
-import CommandCenter from "./CommandCenter";
+import AuthenticatedCommandCenter from "./AuthenticatedCommandCenter";
 
 export default function Home() {
-  return <CommandCenter />;
+  return <AuthenticatedCommandCenter />;
 }

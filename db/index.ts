@@ -11,3 +11,8 @@ export function getDb() {
 
   return drizzle(env.DB, { schema });
 }
+
+export function getD1() {
+  if (!env.DB) throw new Error("Cloud student storage is unavailable.");
+  return env.DB;
+}

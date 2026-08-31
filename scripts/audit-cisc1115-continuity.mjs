@@ -7,7 +7,25 @@ import {
   additionalSectionPracticeQuestionIds,
   courseContinuityModel,
   structuredLessonContent,
+  unitMasteryTests,
 } from "../app/data/cisc1115Course.ts";
+import { javaValidationCode, validateArcadePrizePurchase } from "../app/practiceValidation.ts";
+import { loadCourseModel } from "./lib/course-model.mjs";
+
+const submittedArcadeSolution = `int tickets = 137;
+int orangePrice = 12;
+int applePrice = 7;
+int orangeTotal = 4;
+tickets -= (orangeTotal * orangePrice);
+int appleTotal = tickets / applePrice;
+tickets %= applePrice;
+System.out.println ("Apples: " + appleTotal);
+System.out.println ("Tickets left: "+ tickets);`;
+
+assert.ok(validateArcadePrizePurchase(submittedArcadeSolution), "the arcade validator must accept an equivalent in-place solution");
+assert.match(javaValidationCode("total = total + price;"), /total\+=price;/, "expanded updates must satisfy compound-update requirements");
+assert.match(javaValidationCode("tickets %= applePrice;"), /int\$equivalent\d+=tickets%applePrice;/, "in-place updates must satisfy equivalent intermediate-expression requirements");
+assert.ok(!validateArcadePrizePurchase("System.out.println(\"Apples: 12\");\nSystem.out.println(\"Tickets left: 5\");"), "printed constants alone must not pass the arcade build");
 
 const openingIds = ["variables-data-types", "operators-expressions"];
 const courseIds = [...openingIds, ...additionalLearningChapters.map((chapter) => chapter.id)];
@@ -68,7 +86,9 @@ const findOpeningNodes = (node) => {
 };
 findOpeningNodes(commandCenterAst);
 assert.ok(practiceQuestionsNode && lessonFunctionNode?.body, "opening chapters must remain auditable");
+const renderedCourseModel = await loadCourseModel();
 
+const openingLearnerSyntax = {};
 const openingLearnerText = Object.fromEntries(openingIds.map((chapterId) => {
   const practiceProperty = practiceQuestionsNode.properties.find((property) => propertyName(property) === chapterId);
   const lessonBranch = lessonFunctionNode.body.statements.find((statement) => {
@@ -77,23 +97,30 @@ const openingLearnerText = Object.fromEntries(openingIds.map((chapterId) => {
     return (ts.isStringLiteral(left) && left.text === chapterId) || (ts.isStringLiteral(right) && right.text === chapterId);
   });
   assert.ok(practiceProperty && lessonBranch, `${chapterId} learner content must be discoverable`);
-  return [chapterId, `${collectLearnerStrings(practiceProperty)}\n${collectLearnerStrings(lessonBranch)}`];
+  const questions = renderedCourseModel.practiceQuestions[chapterId];
+  const questionText = questions.flatMap((question) => Object.values(question).flat().filter((value) => typeof value === "string")).join("\n");
+  // Question prose may use ordinary words such as "return the change" without
+  // introducing a Java return statement. Check actual code/answers separately.
+  openingLearnerSyntax[chapterId] = [collectLearnerStrings(lessonBranch), ...questions.flatMap((question) => [question.code, question.answer])].filter(Boolean).join("\n");
+  return [chapterId, `${questionText}\n${collectLearnerStrings(lessonBranch)}`];
 }));
 
+const masteryQuestionsAfter = (chapterId) => unitMasteryTests.filter((test) => test.afterChapterId === chapterId).flatMap((test) => test.questions);
 const learnerText = (chapterId) => openingLearnerText[chapterId] ?? JSON.stringify({
   lesson: structuredLessonContent[chapterId],
-  practice: additionalPracticeQuestions[chapterId] ?? [],
+  practice: [...(additionalPracticeQuestions[chapterId] ?? []), ...masteryQuestionsAfter(chapterId)],
 });
 const learnerCode = (chapterId) => [
   ...(structuredLessonContent[chapterId] ?? []).flatMap((section) => [
     ...(section.concepts ?? []).map((concept) => concept.code),
     ...(section.examples ?? []).map((example) => example.code),
   ]),
-  ...(additionalPracticeQuestions[chapterId] ?? []).map((question) => question.code),
+  ...(additionalPracticeQuestions[chapterId] ?? []).flatMap((question) => [question.code, ...(question.multiline ? [question.answer] : [])]),
+  ...masteryQuestionsAfter(chapterId).map((question) => question.code),
 ].filter(Boolean).join("\n");
-const learnerSyntax = (chapterId) => openingLearnerText[chapterId] ?? [
+const learnerSyntax = (chapterId) => openingLearnerSyntax[chapterId] ?? [
   learnerCode(chapterId),
-  ...(additionalPracticeQuestions[chapterId] ?? []).flatMap((question) => question.auditRequirements ?? []),
+  ...[...(additionalPracticeQuestions[chapterId] ?? []), ...masteryQuestionsAfter(chapterId)].flatMap((question) => question.auditRequirements ?? []),
 ].filter(Boolean).join("\n");
 const before = (chapterId) => courseIds.slice(0, courseIds.indexOf(chapterId)).map(learnerText).join("\n");
 const allCode = courseIds.map(learnerSyntax).join("\n");
@@ -172,9 +199,59 @@ assert.match(commandCenter, /is a <b>comment<\/b>/, "Chapter 2 must explain line
 const foundationalQuestionCount = openingIds.reduce((sum, chapterId) => {
   const practiceProperty = practiceQuestionsNode.properties.find((property) => propertyName(property) === chapterId);
   assert.ok(practiceProperty && ts.isPropertyAssignment(practiceProperty) && ts.isArrayLiteralExpression(practiceProperty.initializer), `${chapterId} practice must remain a directly auditable question list`);
-  return sum + practiceProperty.initializer.elements.length;
+  return sum + renderedCourseModel.practiceQuestions[chapterId].length;
 }, 0);
 const totals = Object.values(additionalPracticeQuestions).reduce((sum, questions) => sum + questions.length, foundationalQuestionCount);
 assert.ok(totals >= 477, "the complete course should retain dense section checks and cumulative practice");
 
-console.log(`Continuity audit passed: ${courseIds.length} chapters, ${totals} practice items, every instructional section checked, 24 dependency contracts.`);
+const programmingChapterIds = courseIds.slice(0, courseIds.indexOf("cs-context-applications") + 1);
+const recipePromptSmell = /choose .*values yourself|store a mission count|use scanner input to read|add the earned|keep the remainder after|calculate their subtotal/i;
+for (const chapterId of programmingChapterIds.filter((id) => !openingIds.includes(id))) {
+  const productionQuestions = (additionalPracticeQuestions[chapterId] ?? []).filter((question) => question.kind === "Write from requirements" || question.kind === "Independent build");
+  const builds = (additionalPracticeQuestions[chapterId] ?? []).filter((question) => question.productionStage === 4 && question.kind === "Independent build");
+  assert.ok(builds.length >= 1, `${chapterId} needs a behavior-first independent chapter build`);
+  assert.ok(productionQuestions.length >= 3, `${chapterId} needs repeated requirements-to-code practice, not only one final build`);
+  const sectionQuestionIds = additionalSectionPracticeQuestionIds[chapterId] ?? {};
+  const productionSections = Object.values(sectionQuestionIds).filter((ids) => ids.some((id) => productionQuestions.some((question) => question.id === id)));
+  assert.ok(productionSections.length >= 3, `${chapterId} must distribute code production across at least three subsection checks`);
+  for (const question of productionQuestions) {
+    assert.ok(question.answer, `${chapterId}/${question.id} needs a canonical shown answer`);
+    assert.ok(question.validate(question.answer), `${chapterId}/${question.id} validator must accept its canonical answer`);
+    assert.ok(Object.values(sectionQuestionIds).flat().includes(question.id), `${chapterId}/${question.id} must be fitted into a subsection check, not appended only to chapter review`);
+    if (question.productionStage >= 4) assert.doesNotMatch(question.prompt, recipePromptSmell, `${chapterId}/${question.id} must describe a problem instead of a disguised Java recipe`);
+  }
+}
+for (const questionId of ["variables-write-declarations", "variables-write-label", "variables-independent-build", "operators-write-time-conversion", "operators-write-balance-updates", "operators-independent-build"]) {
+  assert.match(commandCenter, new RegExp(questionId), `${questionId} must remain in the foundational chapter progression`);
+}
+assert.match(commandCenter, /"variables-declaration": \[[^\]]*"variables-write-declarations"/, "Chapter 1 must introduce requirements-to-code work before its independent build");
+assert.match(commandCenter, /"variables-concatenation": \[[^\]]*"variables-write-label"/, "Chapter 1 must repeat code production in a later subsection");
+assert.ok(renderedCourseModel.chapterPracticePlan("operators-expressions").checkpoints["operators-modulus"].includes("operators-write-time-conversion"), "the time-conversion build must follow the remainder lesson");
+assert.ok(!renderedCourseModel.chapterPracticePlan("operators-expressions").checkpoints["operators-division"].includes("operators-write-time-conversion"), "remainder must not be required before it is taught");
+assert.match(commandCenter, /"operators-assignment": \[[^\]]*"operators-write-balance-updates"/, "Chapter 2 must include production in state-update practice");
+assert.match(commandCenter, /"variables-program": \[[^\]]*"variables-independent-build"/, "Chapter 1 independent build must finish its program subsection check");
+assert.match(commandCenter, /"operators-evaluation": \[[^\]]*"operators-independent-build"/, "Chapter 2 independent build must finish its evaluation subsection check");
+assert.match(commandCenter, /You have 137 arcade tickets/, "Chapter 2 independent work must require learner decomposition from fixed facts");
+assert.doesNotMatch(commandCenter, /Store a mission count and a reward per mission/, "Chapter 2 independent work must not retain the decomposed recipe prompt");
+assert.doesNotMatch(commandCenter, /review: \[[^\]]*independent-build/, "independent builds must not be appended only to foundational chapter reviews");
+
+const expectedUnitEnds = ["input-basic-programs", "decision-programs", "nested-loops", "returns-scope", "arraylists", "algorithmic-problem-solving", "debugging-testing", "cs-context-applications"];
+assert.equal(unitMasteryTests.length, expectedUnitEnds.length, "every numbered unit must have one distinct mastery test");
+assert.deepEqual(unitMasteryTests.map((test) => test.afterChapterId), expectedUnitEnds, "each mastery test must follow the final chapter of its unit");
+for (const test of unitMasteryTests) {
+  assert.ok(test.questions.length >= 4, `${test.id} needs several blank-editor programs`);
+  assert.ok(test.questions.every((question) => question.productionStage === 5 && question.multiline && !question.code), `${test.id} must use blank-editor retrieval without starter code`);
+  assert.ok(test.questions.every((question) => question.answer && question.validate(question.answer)), `every ${test.id} validator must accept its canonical answer`);
+  assert.ok(test.questions.every((question) => !recipePromptSmell.test(question.prompt)), `${test.id} must use scenario-first mastery prompts rather than operation recipes`);
+}
+assert.ok(unitMasteryTests[0].questions.length >= 6, "Unit I mastery must retain its full six-program test");
+const allMasteryQuestions = unitMasteryTests.flatMap((test) => test.questions);
+const everyQuestionId = [...allQuestionIds, ...allMasteryQuestions.map((question) => question.id)];
+assert.equal(new Set(everyQuestionId).size, everyQuestionId.length, "unit mastery and chapter practice question ids must remain globally unique");
+
+const missingReferencePattern = /\b(?:this|the following)\s+(?:declaration|line|code|program|snippet|expression|loop|method(?: call)?|output)\b|\b(?:shown here|shown (?:above|below)|example (?:above|below)|as shown|in the example)\b/i;
+for (const question of [...Object.values(additionalPracticeQuestions).flat(), ...allMasteryQuestions]) {
+  assert.ok(question.code || !missingReferencePattern.test(question.prompt), `${question.id} refers to an example that is not displayed inside the question`);
+}
+
+console.log(`Continuity audit passed: ${courseIds.length} chapters, ${totals} chapter practice items, ${unitMasteryTests.length} unit mastery tests with ${allMasteryQuestions.length} strict builds, and every instructional section checked.`);

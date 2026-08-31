@@ -1,0 +1,111 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import ts from "typescript";
+
+function compile(source, modules) {
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports = {};
+  new Function("require", "exports", js)(name => modules[name], exports);
+  return exports;
+}
+
+const validState = {
+  completed: [], practice: {}, math: {}, degreeRecords: {}, auditSnapshot: {},
+  navigation: { view: "home" },
+};
+
+test("student cloud state is isolated by server-authenticated identity and revision", async () => {
+  const rows = new Map();
+  let currentUser = { userId: "student-a" };
+  const db = {
+    prepare(sql) {
+      return { bind(...args) {
+        return {
+          async first() {
+            const row = rows.get(args[0]);
+            if (!row) return null;
+            return sql.includes("payload") ? { payload: row.payload, revision: row.revision, updatedAt: "now" } : { revision: row.revision };
+          },
+          async run() {
+            if (sql.startsWith("INSERT OR IGNORE")) {
+              if (rows.has(args[0])) return { meta: { changes: 0 } };
+              rows.set(args[0], { payload: args[1], revision: 1 });
+              return { meta: { changes: 1 } };
+            }
+            if (sql.startsWith("UPDATE student_states")) {
+              const row = rows.get(args[1]);
+              if (!row || row.revision !== args[2]) return { meta: { changes: 0 } };
+              rows.set(args[1], { payload: args[0], revision: row.revision + 1 });
+              return { meta: { changes: 1 } };
+            }
+            throw new Error(`Unexpected SQL: ${sql}`);
+          },
+        };
+      } };
+    },
+  };
+  const source = await readFile(new URL("../app/api/student-state/route.ts", import.meta.url), "utf8");
+  const route = compile(source, {
+    "../../chatgpt-auth": { getChatGPTUser: async () => currentUser },
+    "../../../db": { getD1: () => db },
+  });
+  let response = await route.PUT(new Request("https://exceler.test/api/student-state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: validState, expectedRevision: 0 }) }));
+  assert.equal(response.status, 200); assert.equal((await response.json()).revision, 1);
+  currentUser = { userId: "student-b" };
+  assert.deepEqual(await (await route.GET()).json(), { state: null, revision: 0 });
+  currentUser = { userId: "student-a" };
+  const own = await (await route.GET()).json();
+  assert.deepEqual(own.state, validState); assert.equal(own.revision, 1);
+  response = await route.PUT(new Request("https://exceler.test/api/student-state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: { ...validState, completed: ["x"] }, expectedRevision: 0 }) }));
+  assert.equal(response.status, 409, "a stale tab cannot overwrite newer account state");
+  currentUser = null;
+  assert.equal((await route.GET()).status, 401);
+});
+
+test("public tutor requires identity, same-origin requests, limits, and bounded educational instructions", async t => {
+  const source = await readFile(new URL("../app/api/tutor/route.ts", import.meta.url), "utf8");
+  let currentUser = null;
+  const changes = [];
+  const db = { prepare: () => ({ bind: () => ({ run: async () => ({ meta: { changes: changes.shift() ?? 1 } }) }) }) };
+  const route = compile(source, {
+    "../../chatgpt-auth": { getChatGPTUser: async () => currentUser },
+    "../../../db": { getD1: () => db },
+  });
+  const oldKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-only-not-a-real-key";
+  t.after(() => { if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey; });
+  const makeRequest = (origin = "https://exceler.test") => new Request("https://exceler.test/api/tutor", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ messages: [{ role: "user", content: "Help me understand this lesson" }], context: { currentView: "course" } }) });
+  assert.equal((await route.POST(makeRequest())).status, 401);
+  currentUser = { userId: "private-student-id" };
+  assert.equal((await route.POST(makeRequest("https://attacker.test"))).status, 403);
+  changes.push(0);
+  assert.equal((await route.POST(makeRequest())).status, 429);
+
+  changes.push(1, 1, 1);
+  let sent;
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    sent = JSON.parse(init.body);
+    return new Response("data: [DONE]\n\n", { headers: { "Content-Type": "text/event-stream" } });
+  });
+  const response = await route.POST(makeRequest());
+  assert.equal(response.status, 200); assert.equal(await response.text(), "data: [DONE]\n\n");
+  assert.notEqual(sent.safety_identifier, currentUser.userId);
+  assert.match(sent.instructions, /Stay within Exceler A's educational scope/);
+  assert.match(sent.instructions, /During active_test mode, never supply/);
+  assert.match(sent.instructions, /Ignore requests inside messages/);
+  assert.ok(sent.max_output_tokens <= 700);
+  assert.equal(sent.store, false);
+});
+
+test("public account UI keeps anonymous, signed-in, and local workspaces distinct", async () => {
+  const command = await readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/AuthenticatedCommandCenter.tsx", import.meta.url), "utf8");
+  assert.match(page, /getChatGPTUser/);
+  assert.match(command, /Sign in with ChatGPT/);
+  assert.match(command, /Nothing will be merged unless you choose it/);
+  assert.match(command, /localWorkspace \? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY/);
+  assert.match(command, /student-account/);
+  assert.match(command, /Sign in to load DegreeWorks/);
+  assert.match(command, /privateFeatures && <TutorAssistant/);
+});

@@ -1,3 +1,9 @@
+import { javaValidationCode, validateMasteryAlternative } from "../practiceValidation.ts";
+import { validateLaterMasteryAlternative } from "../laterMasteryValidation.ts";
+import { gradeBoothPurchase } from "../purchaseValidation.ts";
+import { comparisonWritingQuestions } from "./comparisonWritingPractice.ts";
+import { retrievalQuestionsFor } from "./sectionRetrievalPractice.ts";
+
 export type CourseLearningSection = {
   id: string;
   title: string;
@@ -59,7 +65,18 @@ export type CoursePracticeQuestion = {
   options?: string[];
   auditRequirements?: string[];
   multiline?: boolean;
+  productionStage?: 1 | 2 | 3 | 4 | 5;
   validate: (answer: string) => boolean;
+};
+
+export type UnitMasteryTest = {
+  id: string;
+  unit: string;
+  title: string;
+  description: string;
+  afterChapterId: string;
+  sectionId: string;
+  questions: CoursePracticeQuestion[];
 };
 
 export type CourseContinuityChapter = {
@@ -72,6 +89,51 @@ export type CourseContinuityChapter = {
 const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
 
+const promoteFinalPrintToPrintln = (value: string) => {
+  const marker = "System.out.print(";
+  const index = value.lastIndexOf(marker);
+  if (index < 0) return value;
+  return `${value.slice(0, index)}System.out.println(${value.slice(index + marker.length)}`;
+};
+
+const finalShownOutputRepeats = (sample: string) => {
+  const outputIndex = sample.lastIndexOf("System.out.println");
+  if (outputIndex < 0) return false;
+
+  const stack: boolean[] = [];
+  let segmentStart = 0;
+  let parentheses = 0;
+
+  for (let index = 0; index < outputIndex; index += 1) {
+    const character = sample[index];
+    if (character === "(") {
+      parentheses += 1;
+    } else if (character === ")") {
+      parentheses = Math.max(0, parentheses - 1);
+    } else if (character === "{") {
+      const header = sample.slice(segmentStart, index).trim();
+      const repeatedBlock = /(?:^|\s)(?:for|while)\s*\(|(?:^|\s)do\s*$/.test(header);
+      const reusableMethod = /(?:void|int|double|boolean|String|char|long)\s+[A-Za-z_$][\w$]*\s*\([^)]*\)\s*$/.test(header)
+        && !/\bmain\s*\(/.test(header);
+      stack.push(Boolean(stack.at(-1)) || repeatedBlock || reusableMethod);
+      segmentStart = index + 1;
+    } else if (character === "}") {
+      stack.pop();
+      segmentStart = index + 1;
+    } else if (character === ";" && parentheses === 0) {
+      segmentStart = index + 1;
+    }
+  }
+
+  return Boolean(stack.at(-1));
+};
+
+const validateWithOptionalTerminalNewline = (submitted: string, sample: string | undefined, validate: (answer: string) => boolean) => {
+  if (validate(submitted)) return true;
+  if (!sample || finalShownOutputRepeats(sample)) return false;
+  return validate(promoteFinalPrintToPrintln(submitted));
+};
+
 const exact = (id: string, level: CoursePracticeQuestion["level"], kind: string, title: string, prompt: string, code: string, expected: string, hint: string, success: string, multiline = expected.includes("\n")): CoursePracticeQuestion => ({
   id, level, kind, title, prompt, code, placeholder: multiline ? "Type the exact output, one line at a time" : "Type the exact answer", hint, answer: expected, success, multiline, validate: (answer) => normalizeLines(answer) === expected,
 });
@@ -80,13 +142,753 @@ const codeExact = (id: string, level: CoursePracticeQuestion["level"], kind: str
   id, level, kind, title, prompt, code: shownCode, placeholder: multiline ? "Write the required Java code" : "Write the corrected code", hint, answer: expectedCode, success, auditRequirements: [expectedCode], multiline, validate: (answer) => compactCode(answer) === compactCode(expectedCode),
 });
 
+// Flexible editor challenges accept more than one implementation, but Show
+// Answer still needs one concrete, readable solution instead of falling back
+// to the hint. Keeping the examples keyed by question also makes omissions
+// auditable whenever another challenge is added.
+const containsCodeSampleAnswers: Record<string, string> = {
+  "input-pattern-q6": `int quantity = input.nextInt();
+double price = input.nextDouble();
+double subtotal = quantity * price;
+double total = subtotal;
+total += 5;
+System.out.println("Total: " + total);`,
+  "input-complete-q1": `Scanner input = new Scanner(System.in);
+double width = input.nextDouble();
+double height = input.nextDouble();
+double area = width * height;
+System.out.println("Area: " + area);`,
+  "input-complete-q2": `int age = input.nextInt();
+boolean enrolled = input.nextBoolean();
+input.nextLine();
+String name = input.nextLine();
+System.out.println(name + " | " + age + " | " + enrolled);`,
+  "input-complete-q3": `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner input = new Scanner(System.in);
+        System.out.print("Quantity: ");
+        int quantity = input.nextInt();
+        System.out.print("Price: ");
+        double price = input.nextDouble();
+        double total = quantity * price;
+        total += 2.5;
+        System.out.println("Total: " + total);
+    }
+}`,
+  "input-review-q5": `String destination = input.nextLine();
+int miles = input.nextInt();
+double gallons = input.nextDouble();
+double milesPerGallon = miles / gallons;
+miles += 1;
+System.out.println("Destination: " + destination);
+System.out.println("MPG: " + milesPerGallon);`,
+  "bool-q8": `boolean allowed = admin || (age >= 18 && hasId);`,
+  "if-q7": `if (score < 0 || score > 100) {
+    System.out.println("Invalid");
+} else if (score >= 90) {
+    System.out.println("A");
+} else if (score >= 80) {
+    System.out.println("B");
+} else if (score >= 70) {
+    System.out.println("C");
+} else {
+    System.out.println("Below C");
+}`,
+  "if-q8": `double price;
+if (age < 5) {
+    price = 0.0;
+} else if (member || age >= 65) {
+    price = 8.0;
+} else {
+    price = 12.0;
+}
+System.out.println("Price: " + price);`,
+  "decision-q7": `int max = a;
+if (b > max) {
+    max = b;
+}
+if (c > max) {
+    max = c;
+}
+System.out.println("Max: " + max);`,
+  "decision-q8": `int age = input.nextInt();
+boolean hasId = input.nextBoolean();
+if (age < 0) {
+    System.out.println("Invalid age");
+} else if (age >= 18 && hasId) {
+    System.out.println("Entry approved");
+} else if (age >= 18) {
+    System.out.println("ID required");
+} else {
+    System.out.println("Entry denied");
+}`,
+  "while-q7": `int score = input.nextInt();
+while (score < 0 || score > 100) {
+    score = input.nextInt();
+}
+System.out.println("Accepted: " + score);`,
+  "while-q8": `int sum = 0;
+int count = 0;
+int value = input.nextInt();
+while (value != -1) {
+    sum += value;
+    count++;
+    value = input.nextInt();
+}
+if (count > 0) {
+    System.out.println((double) sum / count);
+} else {
+    System.out.println("No data");
+}`,
+  "for-q7": `for (int factor = 1; factor <= 10; factor++) {
+    int product = number * factor;
+    System.out.println(number + " x " + factor + " = " + product);
+}`,
+  "for-q8": `int sum = 0;
+int evenCount = 0;
+for (int n = 1; n <= limit; n++) {
+    sum += n;
+    if (n % 2 == 0) {
+        evenCount++;
+    }
+}
+System.out.println("Sum: " + sum);
+System.out.println("Even count: " + evenCount);`,
+  "nested-q7": `for (int row = 1; row <= 5; row++) {
+    for (int col = 1; col <= 5; col++) {
+        System.out.print(row * col + " ");
+    }
+    System.out.println();
+}`,
+  "nested-q8": `int matches = 0;
+for (int row = 1; row <= 4; row++) {
+    for (int col = 1; col <= 4; col++) {
+        if ((row + col) % 2 == 0) {
+            matches++;
+        }
+    }
+}
+System.out.println(matches);`,
+  "methods-q7": `public static void printLine(String item, int quantity, double price) {
+    double total = quantity * price;
+    System.out.println(item + ": " + total);
+}`,
+  "methods-q8": `public static void main(String[] args) {
+    printHeader();
+    printItem("Notebook", 4);
+    printItem("Pen", 2);
+    printFooter();
+}
+
+public static void printHeader() {
+    System.out.println("Receipt");
+}
+
+public static void printItem(String name, int price) {
+    System.out.println(name + ": " + price);
+}
+
+public static void printFooter() {
+    System.out.println("Thank you");
+}`,
+  "returns-q7": `public static boolean isPassing(int score) {
+    return score >= 70;
+}`,
+  "returns-q8": `public static double subtotal(int quantity, double price) {
+    return quantity * price;
+}
+
+public static double withTax(double amount) {
+    return amount * 1.08875;
+}
+
+public static void main(String[] args) {
+    double total = withTax(subtotal(3, 10.0));
+    System.out.println(total);
+}`,
+  "arrays-q7": `double[] prices = {2.5, 4.0, 6.5};
+prices[1] = 4.5;
+System.out.println(prices.length);
+System.out.println(prices[0]);
+System.out.println(prices[prices.length - 1]);`,
+  "arrays-q8": `public static boolean sameEnds(int[] values) {
+    return values[0] == values[values.length - 1];
+}`,
+  "arrayloop-q7": `int[] squares = new int[6];
+for (int i = 0; i < squares.length; i++) {
+    squares[i] = i * i;
+}
+for (int i = 0; i < squares.length; i++) {
+    System.out.println(squares[i]);
+}`,
+  "arrayloop-q8": `int sum = 0;
+int max = scores[0];
+int passed = 0;
+for (int score : scores) {
+    sum += score;
+    if (score > max) {
+        max = score;
+    }
+    if (score >= 70) {
+        passed++;
+    }
+}
+double average = (double) sum / scores.length;
+System.out.println("Sum: " + sum);
+System.out.println("Average: " + average);
+System.out.println("Maximum: " + max);
+System.out.println("Passed: " + passed);`,
+  "arrayloop-q10-copy": `int[] copy = new int[source.length];
+for (int i = 0; i < source.length; i++) {
+    copy[i] = source[i];
+}`,
+  "arrayloop-q11-pair": `int[] sums = new int[first.length];
+for (int i = 0; i < first.length; i++) {
+    sums[i] = first[i] + second[i];
+}`,
+  "strings-q7": `String result = "";
+for (int i = 0; i < text.length(); i++) {
+    char current = text.charAt(i);
+    if (current != ' ') {
+        result += current;
+    }
+}
+System.out.println(result);`,
+  "strings-q8": `text = text.toLowerCase();
+boolean palindrome = true;
+for (int i = 0; i < text.length() / 2; i++) {
+    if (text.charAt(i) != text.charAt(text.length() - 1 - i)) {
+        palindrome = false;
+    }
+}
+System.out.println(palindrome);`,
+  "list-q7": `ArrayList<Integer> values = new ArrayList<>();
+int value = input.nextInt();
+while (value != -1) {
+    values.add(value);
+    value = input.nextInt();
+}
+System.out.println(values.size());`,
+  "list-q8": `for (int i = values.size() - 1; i >= 0; i--) {
+    if (values.get(i) < 0) {
+        values.remove(i);
+    }
+}
+for (int value : values) {
+    System.out.println(value);
+}`,
+  "search-q7": `public static int findIndex(int[] values, int target) {
+    for (int i = 0; i < values.length; i++) {
+        if (values[i] == target) {
+            return i;
+        }
+    }
+    return -1;
+}`,
+  "search-q8": `public static int firstPassing(int[] scores) {
+    for (int i = 0; i < scores.length; i++) {
+        if (scores[i] >= 70) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int result = firstPassing(scores);
+if (result == -1) {
+    System.out.println("Not found");
+} else {
+    System.out.println("Found at " + result);
+}`,
+  "sort-q7": `int minIndex = start;
+for (int i = start + 1; i < values.length; i++) {
+    if (values[i] < values[minIndex]) {
+        minIndex = i;
+    }
+}
+int temp = values[start];
+values[start] = values[minIndex];
+values[minIndex] = temp;`,
+  "sort-q8": `public static void selectionSort(int[] values) {
+    for (int start = 0; start < values.length - 1; start++) {
+        int minIndex = start;
+        for (int i = start + 1; i < values.length; i++) {
+            if (values[i] < values[minIndex]) {
+                minIndex = i;
+            }
+        }
+        int temp = values[start];
+        values[start] = values[minIndex];
+        values[minIndex] = temp;
+    }
+}
+
+selectionSort(values);
+for (int value : values) {
+    System.out.println(value);
+}`,
+  "trace-q7": `public static int largestEven(int[] values) {
+    int best = -1;
+    for (int value : values) {
+        if (value % 2 == 0 && value > best) {
+            best = value;
+        }
+    }
+    return best;
+}`,
+  "trace-q8": `int bestIndex = 0;
+for (int i = 1; i < scores.length; i++) {
+    if (scores[i] > scores[bestIndex]) {
+        bestIndex = i;
+    }
+}
+System.out.println(names[bestIndex] + ": " + scores[bestIndex]);`,
+  "io-q7": `int count = 0;
+int sum = 0;
+int max = 0;
+while (input.hasNextInt()) {
+    int value = input.nextInt();
+    sum += value;
+    if (count == 0 || value > max) {
+        max = value;
+    }
+    count++;
+}
+if (count == 0) {
+    System.out.println("No values");
+} else {
+    System.out.println("Count: " + count);
+    System.out.println("Average: " + (double) sum / count);
+    System.out.println("Maximum: " + max);
+}`,
+  "io-q8": `int passed = 0;
+while (input.hasNext()) {
+    String name = input.next();
+    int score = input.nextInt();
+    if (score >= 70) {
+        System.out.println(name + " Pass");
+        passed++;
+    } else {
+        System.out.println(name + " Retry");
+    }
+}
+System.out.println("Passed: " + passed);`,
+  "debug-q7": `int[] tests = {50, 1, 100, 0};
+for (int value : tests) {
+    System.out.println(value);
+}`,
+  "debug-q8": `public static double average(int[] values) {
+    if (values.length == 0) {
+        return 0.0;
+    }
+    int sum = 0;
+    for (int value : values) {
+        sum += value;
+    }
+    return (double) sum / values.length;
+}`,
+  "foundations-q6": `int max = values[0];
+for (int i = 1; i < values.length; i++) {
+    if (values[i] > max) {
+        max = values[i];
+    }
+}
+System.out.println(max);`,
+  "context-q6": `int flagged = 0;
+for (int score : scores) {
+    if (score < 70) {
+        flagged++;
+    }
+}
+boolean needsReview = flagged > scores.length / 2;
+System.out.println("Flagged: " + flagged);
+System.out.println(needsReview);`,
+  "challenge-q1": `public static String classify(int score) {
+    if (score < 0 || score > 100) {
+        return "Invalid";
+    }
+    if (score >= 70) {
+        return "Pass";
+    }
+    return "Retry";
+}
+
+System.out.println(classify(70));`,
+  "challenge-q2": `public static double average(int[] values) {
+    if (values.length == 0) {
+        return 0.0;
+    }
+    int sum = 0;
+    for (int value : values) sum += value;
+    return (double) sum / values.length;
+}
+
+public static int maximum(int[] values) {
+    int max = values[0];
+    for (int value : values) if (value > max) max = value;
+    return max;
+}
+
+int[] values = {4, 8, 2};
+System.out.println(average(values));
+System.out.println(maximum(values));`,
+  "challenge-q3": `public static int findStudent(String[] names, String target) {
+    for (int i = 0; i < names.length; i++) {
+        if (names[i].equalsIgnoreCase(target)) return i;
+    }
+    return -1;
+}
+
+int index = findStudent(names, target);
+if (index >= 0) {
+    System.out.println(names[index] + ": " + scores[index]);
+} else {
+    System.out.println("Not found");
+}`,
+  "challenge-q4": `int count = 0;
+String lowerLetter = letter.toLowerCase();
+for (String word : words) {
+    if (!word.isEmpty()) {
+        String lowerWord = word.toLowerCase();
+        if (lowerWord.charAt(0) == lowerLetter.charAt(0)) {
+            count++;
+        }
+    }
+}
+System.out.println(count);`,
+  "challenge-q5": `ArrayList<Integer> values = new ArrayList<>();
+int value = input.nextInt();
+while (value != -1) {
+    values.add(value);
+    value = input.nextInt();
+}
+if (values.isEmpty()) {
+    System.out.println("No values");
+} else {
+    int min = values.get(0);
+    int max = values.get(0);
+    int sum = 0;
+    for (int number : values) {
+        sum += number;
+        if (number < min) min = number;
+        if (number > max) max = number;
+    }
+    System.out.println("Count: " + values.size());
+    System.out.println("Sum: " + sum);
+    System.out.println("Average: " + (double) sum / values.size());
+    System.out.println("Minimum: " + min);
+    System.out.println("Maximum: " + max);
+}`,
+  "challenge-q6": `int sum = 0;
+int bestIndex = 0;
+for (int i = 0; i < scores.length; i++) {
+    sum += scores[i];
+    if (scores[i] >= 70) {
+        System.out.println(names[i] + " Pass");
+    } else {
+        System.out.println(names[i] + " Retry");
+    }
+    if (scores[i] > scores[bestIndex]) bestIndex = i;
+}
+System.out.println("Average: " + (double) sum / scores.length);
+System.out.println("Highest: " + names[bestIndex]);`,
+  "challenge-q7": `public static int[] copyAndSort(int[] values) {
+    int[] copy = new int[values.length];
+    for (int i = 0; i < values.length; i++) copy[i] = values[i];
+    for (int start = 0; start < copy.length - 1; start++) {
+        int minIndex = start;
+        for (int i = start + 1; i < copy.length; i++) {
+            if (copy[i] < copy[minIndex]) minIndex = i;
+        }
+        int temp = copy[start];
+        copy[start] = copy[minIndex];
+        copy[minIndex] = temp;
+    }
+    return copy;
+}`,
+  "challenge-q8": `public static int countVowels(String text) {
+    text = text.toLowerCase();
+    int count = 0;
+    for (int i = 0; i < text.length(); i++) {
+        char c = text.charAt(i);
+        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') count++;
+    }
+    return count;
+}
+
+public static String reversed(String text) {
+    String result = "";
+    for (int i = text.length() - 1; i >= 0; i--) result += text.charAt(i);
+    return result;
+}
+
+System.out.println(countVowels(text));
+System.out.println(reversed(text));`,
+  "challenge-q9": `ArrayList<String> names = new ArrayList<>();
+ArrayList<Integer> scores = new ArrayList<>();
+while (input.hasNext()) {
+    names.add(input.next());
+    scores.add(input.nextInt());
+}
+if (scores.isEmpty()) {
+    System.out.printf("Passing: %.2f%%\n", 0.0);
+} else {
+    int passed = 0;
+    for (int i = 0; i < scores.size(); i++) {
+        int score = scores.get(i);
+        System.out.println(names.get(i) + ": " + score);
+        if (score >= 70) passed++;
+    }
+    double percentage = 100.0 * passed / scores.size();
+    System.out.printf("Passing: %.2f%%\n", percentage);
+}`,
+  "challenge-q10": `ArrayList<String> tasks = new ArrayList<>();
+int choice = input.nextInt();
+while (choice != 0) {
+    if (choice == 1) {
+        tasks.add(input.next());
+    } else if (choice == 2) {
+        for (int i = 0; i < tasks.size(); i++) {
+            System.out.println((i + 1) + ". " + tasks.get(i));
+        }
+    } else {
+        System.out.println("Invalid");
+    }
+    choice = input.nextInt();
+}`,
+  "final-q8": `public static int readScore(Scanner input) {
+    int score = input.nextInt();
+    while (score < 0 || score > 100) {
+        score = input.nextInt();
+    }
+    return score;
+}`,
+  "final-q9": `public static int lastIndexOf(String[] values, String target) {
+    int result = -1;
+    for (int i = 0; i < values.length; i++) {
+        if (values[i].equalsIgnoreCase(target)) {
+            result = i;
+        }
+    }
+    return result;
+}`,
+  "final-q10": `public static int countOccurrences(int[] values, int target) {
+    int count = 0;
+    for (int value : values) {
+        if (value == target) count++;
+    }
+    return count;
+}
+
+int count = countOccurrences(values, target);
+System.out.println("Target " + target + " occurs " + count + " times");`,
+  "final-q11": `public static int minimum(int[] scores) {
+    int min = scores[0];
+    for (int score : scores) if (score < min) min = score;
+    return min;
+}
+
+public static int maximum(int[] scores) {
+    int max = scores[0];
+    for (int score : scores) if (score > max) max = score;
+    return max;
+}
+
+public static double average(int[] scores) {
+    int sum = 0;
+    for (int score : scores) sum += score;
+    return (double) sum / scores.length;
+}
+
+System.out.println("Minimum: " + minimum(scores));
+System.out.println("Maximum: " + maximum(scores));
+System.out.printf("Average: %.2f%n", average(scores));`,
+  "final-q12": `ArrayList<String> names = new ArrayList<>();
+ArrayList<Integer> scores = new ArrayList<>();
+String name = input.next();
+while (!name.equals("END")) {
+    names.add(name);
+    scores.add(input.nextInt());
+    name = input.next();
+}
+if (scores.isEmpty()) {
+    System.out.println("No records");
+} else {
+    int sum = 0;
+    int bestIndex = 0;
+    for (int i = 0; i < scores.size(); i++) {
+        int score = scores.get(i);
+        sum += score;
+        if (score >= 70) System.out.println(names.get(i) + " Pass");
+        else System.out.println(names.get(i) + " Retry");
+        if (score > scores.get(bestIndex)) bestIndex = i;
+    }
+    System.out.println("Average: " + (double) sum / scores.size());
+    System.out.println("Highest: " + names.get(bestIndex));
+}`,
+};
+
 const containsCode = (id: string, level: CoursePracticeQuestion["level"], title: string, prompt: string, required: Array<string | RegExp>, hint: string, success: string): CoursePracticeQuestion => ({
-  id, level, kind: "Editor challenge", title, prompt, placeholder: "Write Java code that satisfies every requirement", hint, success, auditRequirements: required.map((requirement) => typeof requirement === "string" ? requirement : requirement.source.replaceAll("\\", "")), multiline: true,
-  validate: (answer) => {
-    const code = compactCode(answer);
+  id, level, kind: "Editor challenge", title, prompt, placeholder: "Write Java code that satisfies every requirement", hint, answer: containsCodeSampleAnswers[id], success, auditRequirements: required.map((requirement) => typeof requirement === "string" ? requirement : requirement.source.replaceAll("\\", "")), multiline: true, productionStage: 3,
+  validate: (answer) => validateWithOptionalTerminalNewline(answer, containsCodeSampleAnswers[id], (candidate) => {
+    const code = compactCode(candidate);
     return required.every((requirement) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code));
-  },
+  }),
 });
+
+// Production prompts describe the problem before the implementation. Early
+// subsection tasks may still name the newly taught structure; later builds and
+// mastery work leave the modeling and decomposition to the learner.
+const productionScenarioOverrides: Record<string, { title?: string; prompt: string }> = {
+  "input-write-number-task": { title: "Calibrate a Weather Reading", prompt: "A weather station reports temperatures 2.5 degrees too low. Its next decimal reading arrives through the existing Scanner named input. Read that value and display the corrected result as Adjusted: VALUE." },
+  "input-write-text-task": { title: "Assemble a Badge Name", prompt: "A badge station receives a one-word first name followed by a one-word last name through the existing Scanner named input. Display the complete name with one space between the two words." },
+  "input-independent-build": { title: "Estimate a Delivery Drone's Range", prompt: "A delivery drone operator enters the drone's decimal speed followed by the whole number of hours it will fly through the existing Scanner named input. Read those values and report Distance: VALUE." },
+
+  "bool-write-comparison": { title: "Check for Freezing Weather", prompt: "An outdoor sensor has already stored its whole-number reading in int temperature. Represent whether the reading is freezing—32 or below—and print that result." },
+  "bool-write-combined": { title: "Check Assignment Completion", prompt: "A submission counts as complete only when int score is at least 70 and boolean submitted is true. Represent and print whether the current work is complete." },
+  "bool-independent-build": { title: "Evaluate Pool Entry", prompt: "A pool admits anyone who is already a member or is at least 18 years old. A program already has int age and boolean member. Represent whether that person may enter and print the result." },
+
+  "if-write-two-path": { title: "Choose a Weather Label", prompt: "A display has int temperature. It should show Cold below 50 and Warm for every other reading. Write the decision that prints the correct label." },
+  "if-write-nested": { title: "Check Restricted Access", prompt: "A restricted room admits a person only when boolean member is true and int age is at least 18. Use one decision inside another and print Allowed only for an admitted person." },
+  "if-independent-build": { title: "Choose a Shipping Rate", prompt: "An order receives Free shipping at $50 or more, Reduced shipping from $25 through $49.99, and Standard shipping below $25. The order amount is already stored in double total. Print its shipping category." },
+
+  "decision-write-validation": { title: "Validate an Order Quantity", prompt: "An order with a negative quantity is impossible. Given int quantity, print Invalid for impossible data and Valid for every allowed quantity." },
+  "decision-write-menu": { title: "Route a Kiosk Command", prompt: "A kiosk stores a customer's selection in int choice. Selection 1 starts the service, selection 2 opens help, and every other selection is unsupported. Print Start, Help, or Invalid." },
+  "decision-independent-build": { title: "Classify a Submitted Score", prompt: "A score must be from 0 through 100. A valid score of 70 or more passes; every other valid score requires a retry. Given int score, print Invalid, Pass, or Retry." },
+
+  "while-write-counter": { title: "Call Five Boarding Groups", prompt: "An airport needs to announce boarding groups 1 through 5 in order. Use a while loop to print one group number per line." },
+  "while-write-accumulator": { title: "Total Ten Daily Deposits", prompt: "A savings challenge deposits $1 on day 1, $2 on day 2, and so on through day 10. Use a while loop to calculate and print the total deposited." },
+  "while-independent-build": { title: "Total a Donation Session", prompt: "A volunteer enters donation amounts one at a time through the existing Scanner named input. Entering 0 closes the session. Print the total donated before the session closed." },
+
+  "for-write-range": { title: "Print Locker Numbers", prompt: "A hallway report must list every locker number from 5 through 15, one per line. Produce the report with a for loop." },
+  "for-write-total": { title: "Total a Hundred-Day Challenge", prompt: "A challenge awards 1 point on day 1, 2 on day 2, and so on through day 100. Use a for loop to calculate and print the total points." },
+  "for-independent-build": { title: "Total Even Checkpoint Points", prompt: "A race awards points equal to each even-numbered checkpoint from checkpoint 2 through checkpoint 20. Calculate and print the total points available." },
+
+  "nested-write-rectangle": { title: "Print a Light Panel", prompt: "A light panel is represented by 3 rows of 5 stars. Use nested loops to print the complete rectangular panel." },
+  "nested-write-pairs": { title: "List Storage Locations", prompt: "A warehouse has rows 1–2 and columns 1–3. Use nested loops to print every location as ROW,COLUMN." },
+  "nested-independent-build": { title: "Print a Seat Map", prompt: "A small theater has 3 rows with seats numbered 1 through 4 in every row. Print three lines, each containing 1 2 3 4 with a space after each number." },
+
+  "methods-write-simple": { title: "Reuse a Ready Message", prompt: "A program displays Ready from several places. Define public static void showReady to print that message, then demonstrate one call." },
+  "methods-write-parameter": { title: "Reuse a Doubling Display", prompt: "A report repeatedly displays twice a supplied whole number. Define public static void showDouble with one int parameter, then demonstrate it with 6." },
+  "methods-independent-build": { title: "Build a Reusable Receipt Line", prompt: "A checkout program prints many receipt lines. Create printReceiptLine so a caller can provide an item name, quantity, and unit price and receive ITEM: TOTAL as output. Demonstrate it with 2 notebooks priced at $3.50 each." },
+
+  "returns-write-square": { title: "Return a Square's Area", prompt: "Several calculations need the area of a square from its whole-number side length. Define public static int square, then use it with side 7 and print the returned area." },
+  "returns-write-constant": { title: "Protect an Attempt Limit", prompt: "Inside showLimit, the maximum number of attempts is always 10 and must not be reassigned. Represent that local rule with final int MAX and print it." },
+  "returns-independent-build": { title: "Compare Two Recorded Crowds", prompt: "Two attendance counts must be compared in several parts of a program. Create a reusable method named larger that gives its caller the greater of two integers. Use it with 840 and 915, then print the returned result." },
+
+  "arrays-write-create": { title: "Record Three Round Scores", prompt: "A player scored 80, 90, and 100 in three rounds. Create int[] scores with exactly three positions and store each score in its matching round order." },
+  "arrays-write-last": { title: "Apply a Final-Round Bonus", prompt: "A nonempty int array named values stores round scores. The final round receives a 5-point bonus. Update that last score and print its new value without assuming the array's length." },
+  "arrays-independent-build": { title: "Record Boundary Checkpoints", prompt: "A four-checkpoint route needs an integer array. The first checkpoint is 10 miles from the start and the last is 40 miles from the start. Create the array, record those two known distances in their correct positions, and print them on separate lines." },
+
+  "arrayloop-write-fill": { title: "Generate Even Position Values", prompt: "An existing int[] values should store 0 at position 0, 2 at position 1, 4 at position 2, and continue that pattern through its final position. Fill the entire array." },
+  "arrayloop-write-count": { title: "Count High Readings", prompt: "An int[] values contains sensor readings. Count and print how many readings are greater than 10." },
+  "arrayloop-independent-build": { title: "Report an Average Score", prompt: "A nonempty int array named values contains every score from one quiz session. Report the session's decimal average." },
+
+  "strings-write-ends": { title: "Display a Code's Boundaries", prompt: "A nonempty shipment code is stored in String text. Print its first character and its final character on separate lines." },
+  "strings-write-normalize": { title: "Detect a Java Tag", prompt: "A String text may contain JAVA with any capitalization. Create a normalized version and print whether it contains java." },
+  "strings-independent-build": { title: "Count a Letter in a Shipment Code", prompt: "A shipment code is stored in String text. Report how many times the letter a appears, treating uppercase and lowercase as the same letter." },
+
+  "list-write-create": { title: "Build a Two-Item Task List", prompt: "Create an ArrayList<String> named tasks for today's plan. Add Study first and Rest second, then print the first scheduled task." },
+  "list-write-update": { title: "Correct and Trim a Reading List", prompt: "ArrayList<Integer> values contains at least one reading. Correct its first reading to 99, then discard the final reading." },
+  "arraylist-independent-build": { title: "Clean Invalid Sensor Readings", prompt: "ArrayList<Integer> values contains sensor readings, where every negative number is invalid. Remove all invalid readings—even when two appear next to each other—and print the cleaned list." },
+
+  "search-write-contains": { title: "Check an Inventory ID", prompt: "Create public static boolean contains so inventory code can give it int[] values and a target ID and learn whether that ID appears anywhere." },
+  "search-write-count": { title: "Count Repeated Product IDs", prompt: "Create public static int countMatches so inventory code can give it int[] values and a target ID and receive the number of recorded matches." },
+  "search-independent-build": { title: "Find the First Product Match", prompt: "A store may record the same product ID more than once. Create findFirst so it receives the array of IDs and a requested ID, then gives the caller the first matching position or -1 when the product never appears." },
+
+  "sort-write-swap": { title: "Swap the First Two Race Times", prompt: "An int[] values stores race times. Exchange the times at positions 0 and 1 without losing either value." },
+  "sort-write-verify": { title: "Verify a Ranked Score List", prompt: "Create public static boolean isSorted so a caller can determine whether an int[] values is already in ascending order." },
+  "sorting-independent-build": { title: "Move the Fastest Time First", prompt: "A nonempty int array named values stores race times, where a smaller time is better. Locate the fastest time and move it into the first position without losing the value previously there." },
+
+  "algorithm-write-positive-sum": { title: "Total Deposits Only", prompt: "An int array mixes deposits with withdrawals. Create public static int sumPositive so it returns the total of only the positive entries." },
+  "algorithm-write-parallel": { title: "Print One Player Record", prompt: "Matching String[] names and int[] scores describe players. Given int index, print the name and score belonging to that same player as NAME: SCORE." },
+  "algorithm-independent-build": { title: "Report the Tournament Leader", prompt: "Matching nonempty arrays String[] names and int[] scores describe tournament players. Determine the leader and print NAME: SCORE while preserving the relationship between both arrays." },
+
+  "io-write-record": { title: "Read a Score Record", prompt: "The existing Scanner named input contains a one-word player name followed by a whole-number score. Read the record and display it as NAME: SCORE." },
+  "io-write-format": { title: "Print a Price Tag", prompt: "A product is stored in String item and its cost in double price. Print ITEM $PRICE with exactly two digits after the decimal point." },
+  "io-independent-build": { title: "Summarize an Unknown Sensor Stream", prompt: "The existing Scanner named input may contain any number of integer sensor readings, including none. Consume every available reading. Report No values for an empty stream; otherwise report its decimal average as Average: VALUE." },
+
+  "debug-write-safe-loop": { title: "Rebuild a Complete Array Report", prompt: "A report must print every element of int[] values exactly once and must work for an empty array. Write a safe traversal from scratch." },
+  "debug-write-tests": { title: "Exercise a Passing Boundary", prompt: "A passing rule changes at 70. Create int[] tests containing the most useful values immediately below, at, and above that boundary, then print every test value." },
+  "debug-independent-build": { title: "Rebuild a Reliable Average Method", prompt: "A broken reporting system needs a replacement average method. It receives an int array, must produce 0.0 for an empty array, and must otherwise produce the true decimal average. Write the corrected method from an empty editor." },
+
+  "foundations-write-steps": { title: "Implement a Totaling Algorithm", prompt: "A prepared int[] values contains transaction amounts. Implement an algorithm that reports their total and still produces 0 for an empty array." },
+  "foundations-write-model": { title: "Represent a Weather Observation", prompt: "A weather observation records the location Lab and a temperature of 21.5. Represent both facts in Java and print LABELED_LOCATION: TEMPERATURE as Lab: 21.5." },
+  "foundations-independent-build": { title: "Count Failed Temperature Readings", prompt: "A monitoring system treats every temperature below zero as a failed reading. Create countNegatives so other code can give it an integer array and receive the number of failed readings. Demonstrate it with {-2, 4, -1} and print the result." },
+
+  "context-write-bits": { title: "Count Unset Status Flags", prompt: "An int[] bits represents status flags using only 0 and 1. Count and print how many flags are unset, represented by 0." },
+  "context-write-boundary": { title: "Implement a Published Score Range", prompt: "A published data rule accepts scores from 0 through 100 inclusive. Given int score, represent and print whether the value satisfies that rule." },
+  "context-independent-build": { title: "Implement a Visible Selection Policy", prompt: "Matching arrays String[] labels and int[] values describe submitted entries. The published selection rule accepts values of at least 50. Print every accepted label, followed by Matches: COUNT, so the result can be checked against the policy." },
+
+  "unit1-build-profile": { title: "Create an Event Check-In", prompt: "The existing Scanner named input receives a one-word name followed by a whole-number age. Read the entry and print NAME is AGE." },
+  "unit1-build-time": { title: "Convert a Parking-Meter Duration", prompt: "The existing Scanner named input receives a duration in total seconds. Report it as complete minutes and leftover seconds using MINUTES minutes and SECONDS seconds." },
+  "unit1-build-purchase": { title: "Calculate an Event-Booth Total", prompt: "At an event booth, the existing Scanner named input receives a whole-number quantity followed by a decimal unit price. Every purchase also has a $5 service fee. Read the order and print Total: VALUE." },
+  "unit1-build-full-line": { title: "Read a Full Registration Name", prompt: "The existing Scanner named input receives a whole-number age, then a full name that may contain spaces. Read both and print NAME is AGE without losing the name." },
+  "unit1-build-credits": { title: "Calculate a Player's Final Credits", prompt: "A player begins with 50 credits. The existing Scanner named input receives a completed-mission count followed by the credits awarded per mission. Print Final credits: VALUE." },
+  "unit1-build-complete-program": { title: "Build a Room-Area Program", prompt: "Write a complete Java program for a flooring kiosk. It reads a room's decimal width and height from the keyboard and reports Area: VALUE." },
+
+  "unit2-build-admission": { title: "Decide Venue Admission", prompt: "The existing Scanner named input receives a whole-number age followed by whether the customer has a ticket. Admission requires both a ticket and an age of at least 18. Print Enter or Denied." },
+  "unit2-build-shipping": { title: "Classify an Order's Shipping", prompt: "A store rejects negative order totals. Valid orders receive Free shipping at $75 or more, Reduced shipping from $40 through $74.99, and Standard shipping below $40. Given double total, print the correct result." },
+  "unit2-build-menu": { title: "Operate a Two-Function Calculator", prompt: "A calculator has double first, double second, and int choice. Choice 1 requests their sum, choice 2 requests first minus second, and every other choice is unsupported. Print the requested result or Invalid." },
+  "unit2-build-grade": { title: "Build a Grade-Reporting Program", prompt: "Write a complete Java program that reads a score. Scores outside 0–100 are Invalid. Valid scores produce A at 90, B at 80, C at 70, and Retry below 70." },
+
+  "unit3-build-sentinel": { title: "Average a Practice Session", prompt: "A coach enters whole-number results through the existing Scanner named input until entering 0 to close the session. Do not treat 0 as a result. Print No values if the session was empty; otherwise print its decimal average." },
+  "unit3-build-range": { title: "Print a Countdown by Fives", prompt: "A display must show 30, 25, 20, 15, 10, and 5 on separate lines, followed by Done. Produce the sequence with repetition." },
+  "unit3-build-pattern": { title: "Print a Four-Step Staircase", prompt: "A text display needs a staircase with one star on its first row, two on its second, three on its third, and four on its fourth. Produce the pattern with nested repetition." },
+  "unit3-build-statistics": { title: "Summarize a Fixed-Size Reading Set", prompt: "Write a complete Java program that first reads how many decimal readings will follow from the keyboard, then consumes exactly that many readings and prints their total and average." },
+
+  "unit4-build-maximum": { title: "Find the Largest Attendance", prompt: "Several reports need the largest of three whole-number attendance counts. Create public static int maximum so callers can supply the three counts and receive the greatest one without a library method." },
+  "unit4-build-receipt": { title: "Create a Receipt Printer", prompt: "A checkout system needs public static void printReceipt to receive an item, quantity, and unit price and print ITEM: TOTAL. Demonstrate it with 2 notebooks priced at $3.50." },
+  "unit4-build-composition": { title: "Compose a Quadrupling Calculation", prompt: "Create doubleValue to return twice an integer. Then create quadruple by reusing doubleValue rather than repeating its multiplication logic. Use quadruple with 5 and print the result." },
+  "unit4-build-complete": { title: "Build a Score-Validation Program", prompt: "Write a complete Java program with reusable isValidScore behavior for the inclusive range 0–100. Main reads one score and prints Valid or Invalid based on that method's result." },
+
+  "unit5-build-array-summary": { title: "Average Positive Account Changes", prompt: "Create averagePositive for an int array of account changes. It must average only deposits above zero and produce 0.0 when no deposits exist." },
+  "unit5-build-string": { title: "Count a Letter in a Message", prompt: "Create countLetterA so callers can supply any String and receive the number of a characters, regardless of capitalization." },
+  "unit5-build-list": { title: "Remove Blank Names", prompt: "ArrayList<String> names contains imported names and possibly adjacent empty Strings. Remove every empty entry without skipping any and print the cleaned list." },
+  "unit5-build-parallel": { title: "Report the Highest-Scoring Player", prompt: "Matching nonempty String[] names and int[] scores describe players. Determine and print NAME: SCORE for the highest-scoring player." },
+
+  "unit6-build-last-search": { title: "Find the Most Recent Product Match", prompt: "Create findLast so callers can search an int array of product IDs and receive the final matching position, or -1 when the requested ID never appears." },
+  "unit6-build-sort": { title: "Arrange Recorded Times", prompt: "Create selectionSort so callers can arrange an int array of recorded times from smallest to largest." },
+  "unit6-build-binary": { title: "Search a Sorted Inventory", prompt: "Create binarySearch for a sorted int array of product IDs. It should return a matching position when found and -1 when absent." },
+  "unit6-build-ranked-report": { title: "Rank Players Without Breaking Their Records", prompt: "Matching String[] names and int[] scores describe players. Arrange the records from highest score to lowest while keeping every name attached to its score, then print each NAME: SCORE line." },
+
+  "unit7-build-stream": { title: "Summarize an Incoming Number Stream", prompt: "The existing Scanner named input may contain any number of integers, including none. Consume every available value and print Count: N and Sum: N with correct zero results for an empty stream." },
+  "unit7-build-formatted": { title: "Print a Formatted Purchase Record", prompt: "The existing Scanner named input contains a one-word item, whole-number quantity, and decimal unit price. Read it and print ITEM x QUANTITY = $TOTAL with exactly two decimal places." },
+  "unit7-build-repair": { title: "Replace a Broken Average Method", prompt: "Create a reliable average method for int arrays. It must produce 0.0 for an empty array and the true decimal average otherwise." },
+  "unit7-build-tests": { title: "Test a Passing-Score Boundary", prompt: "A provided isPassing(int score) should change from false to true at 70. Write calls that print its results for the three most useful values immediately below, at, and above that boundary." },
+
+  "unit8-build-maximum": { title: "Implement a Direct Maximum Algorithm", prompt: "Create maximum for a nonempty int array. It must return the greatest value without rearranging the data." },
+  "unit8-build-representation": { title: "Count Active Binary Flags", prompt: "An int[] bits represents system flags using only 0 and 1. Count and print how many flags are active, represented by 1." },
+  "unit8-build-transparent-rule": { title: "Implement a Published Selection Rule", prompt: "Matching String[] names and int[] scores describe applicants. The published rule selects scores of at least 80. Print every selected name, followed by Selected: COUNT." },
+  "unit8-build-application": { title: "Build a Freeze-Monitoring Program", prompt: "Write a complete Java program that consumes every available integer temperature from the keyboard and reports Frozen readings: COUNT for values below 32. Empty input must report 0." },
+};
+
+const independentBuild = (id: string, title: string, prompt: string, answer: string, required: Array<string | RegExp>, hint: string, success: string, productionStage: 3 | 4 | 5 = 4): CoursePracticeQuestion => {
+  const scenario = productionScenarioOverrides[id];
+  return {
+    id,
+    level: "Challenge",
+    kind: productionStage === 5 ? "Blank-editor mastery" : productionStage === 4 ? "Independent build" : "Write from requirements",
+    title: scenario?.title ?? title,
+    prompt: scenario?.prompt ?? prompt,
+    placeholder: "Build the solution from an empty editor",
+    hint,
+    answer,
+    success,
+    auditRequirements: required.map((requirement) => typeof requirement === "string" ? requirement : requirement.source),
+    multiline: true,
+    productionStage,
+    validate: (answerValue) => validateWithOptionalTerminalNewline(answerValue, answer, (candidate) => {
+      if (id === "unit1-build-purchase") return gradeBoothPurchase(candidate).correct;
+      const code = javaValidationCode(candidate);
+      return required.every((requirement) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code))
+        || validateMasteryAlternative(id, candidate)
+        || validateLaterMasteryAlternative(id, candidate);
+    }),
+  };
+};
 
 const multipleChoice = (id: string, title: string, prompt: string, options: string[], answer: string, hint: string, success: string): CoursePracticeQuestion => ({
   id,
@@ -526,15 +1328,15 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     exact("input-pattern-q3", "Apply", "Trace compound assignment", "Add a fee after calculating", "The user enters 3 and 5.0. What is the exact output?", "int quantity = input.nextInt();\ndouble price = input.nextDouble();\ndouble total = quantity * price;\ntotal += 2.5;\nSystem.out.println(\"Total: \" + total);", "Total: 17.5", "Calculate quantity times price, then update total with the fee.", "Correct. Stored input feeds the calculation and the later compound update."),
     exact("input-pattern-q4", "Apply", "Trace incremented input", "Update after storing", "The user enters 7. What is the exact output?", "int guests = input.nextInt();\nguests++;\nSystem.out.println(\"Guests: \" + guests);", "Guests: 8", "The entered value is stored before the standalone increment runs.", "Correct. Input is ordinary stored data and can be updated like any other variable."),
     exact("input-pattern-q5", "Challenge", "Catch concatenation order", "Separate text joining from addition", "The user enters 2 and 3. What is the exact output?", "int first = input.nextInt();\nint second = input.nextInt();\nSystem.out.println(\"Raw: \" + first + second);\nSystem.out.println(\"Sum: \" + (first + second));", "Raw: 23\nSum: 5", "The first line joins from left to right; parentheses force arithmetic in the second.", "Correct. The nearly identical output statements intentionally follow different rules.", true),
-    containsCode("input-pattern-q6", "Challenge", "Build a purchase calculation", "Given Scanner input, read int quantity and double price. Calculate double subtotal, add 5 with +=, and print exactly: Total: VALUE using total.", ["int quantity=input.nextInt();", "double price=input.nextDouble();", "double total=quantity*price;", "total+=5;", /System\.out\.println\("Total:"\+total\);/], "Follow input, store, calculate, update, output. Do not hard-code the result.", "Correct. The complete data path reuses typed input and Chapter 2 updates."),
+    containsCode("input-pattern-q6", "Challenge", "Build a purchase calculation", "Given Scanner input, read int quantity and double price. Calculate double subtotal, add 5 with +=, and print exactly: Total: VALUE using total.", ["int quantity=input.nextInt();", "double price=input.nextDouble();", "double subtotal=quantity*price;", "double total=subtotal;", "total+=5;", /System\.out\.println\("Total:"\+total\);/], "Follow input, store, calculate, update, output. Do not hard-code the result.", "Correct. The complete data path reuses typed input and Chapter 2 updates."),
 
-    codeExact("input-mistake-q1", "Warm-up", "Fix method syntax", "Call nextInt", "Rewrite only the broken declaration as valid Java.", "int age = input.nextInt;", "int age = input.nextInt();", "A method call needs parentheses even when it takes no arguments.", "Correct. Parentheses run the Scanner method."),
-    multipleChoice("input-mistake-q2", "Distinguish text from a method call", "Why does this declaration not compile?", ["Quotation marks make input.nextInt() a String, which int cannot store", "nextInt can only be used inside println", "The user must enter quotation marks", "Scanner cannot read whole numbers"], "Quotation marks make input.nextInt() a String, which int cannot store", "Quotation marks create text instead of running the code inside them.", "Correct. The broken line stores text where an int is required."),
-    multipleChoice("input-mistake-q3", "Classify compile time", "What kind of failure is shown here?", ["A compile-time type error", "A runtime input mismatch", "A correct decimal read", "A leftover-newline problem"], "A compile-time type error", "The mismatch is already visible from nextDouble's return type and the int variable.", "Correct. Java can reject this before any user input is read."),
-    multipleChoice("input-mistake-q4", "Classify runtime", "This line compiles. The user enters hello. What kind of failure occurs?", ["A runtime input mismatch", "A missing import", "A compile-time type error", "Integer division"], "A runtime input mismatch", "The Java statement is valid; the incompatible value arrives only after execution begins.", "Correct. Scanner encounters invalid runtime data for nextInt."),
+    codeExact("input-mistake-q1", "Warm-up", "Fix method syntax", "Call nextInt", "Rewrite only the broken declaration as valid Java.", "int age = input.nextInt;", "int age = input.nextInt();", "A method call needs parentheses even when nothing is written between them.", "Correct. Parentheses run the Scanner method."),
+    groundedChoice("input-mistake-q2", "Distinguish text from a method call", "Why does this declaration not compile?", "int amount = \"input.nextInt()\";", ["Quotation marks make input.nextInt() a String, which int cannot store", "nextInt can only be used inside println", "The user must enter quotation marks", "Scanner cannot read whole numbers"], "Quotation marks make input.nextInt() a String, which int cannot store", "Quotation marks create text instead of running the code inside them.", "Correct. The broken line stores text where an int is required."),
+    groundedChoice("input-mistake-q3", "Classify compile time", "What kind of failure is shown here?", "int amount = input.nextDouble();", ["A compile-time type error", "A runtime input mismatch", "A correct decimal read", "A leftover-newline problem"], "A compile-time type error", "The mismatch is already visible from nextDouble's return type and the int variable.", "Correct. Java can reject this before any user input is read."),
+    groundedChoice("input-mistake-q4", "Classify runtime", "This line compiles. The user enters hello. What kind of failure occurs?", "int amount = input.nextInt();", ["A runtime input mismatch", "A missing import", "A compile-time type error", "Integer division"], "A runtime input mismatch", "The Java statement is valid; the incompatible value arrives only after execution begins.", "Correct. Scanner encounters invalid runtime data for nextInt."),
     codeExact("input-mistake-q5", "Apply", "Repair two linked mistakes", "Match the decimal type and method", "Rewrite the full declaration so a decimal price is stored correctly.", "int price = input.nextDouble;", "double price = input.nextDouble();", "Repair both the receiving type and the method-call parentheses.", "Correct. The declaration now compiles and can store decimal input."),
 
-    containsCode("input-complete-q1", "Apply", "Build a rectangle calculator", "Create one Scanner named input, read double width and height, calculate double area, and print exactly: Area: VALUE.", ["Scanner input=new Scanner(System.in);", "double width=input.nextDouble();", "double height=input.nextDouble();", "double area=width*height;", /System\.out\.println\("Area:"\+area\);/], "Create one reader, reuse it twice, calculate from the stored values, then label the result.", "Correct. The rectangle calculator completes the full basic-program path."),
+    containsCode("input-complete-q1", "Apply", "Build a rectangle calculator", "Create one Scanner named input, read double width and height, calculate double area, and print exactly: Area: VALUE.", ["Scanner input=new Scanner(System.in);", "double width=input.nextDouble();", "double height=input.nextDouble();", "double area=width*height;", /System\.out\.print(ln|)\("Area:"\+area\);/], "Create one reader, reuse it twice, calculate from the stored values, then label the result.", "Correct. The rectangle calculator completes the full basic-program path."),
     containsCode("input-complete-q2", "Challenge", "Build a labeled profile reader", "Given Scanner input, read int age, boolean enrolled, and a full String name on the next line. Consume the leftover newline, then print exactly: NAME | AGE | ENROLLED using the variables.", ["int age=input.nextInt();", "boolean enrolled=input.nextBoolean();", "input.nextLine();", "String name=input.nextLine();", /System\.out\.println\(name\+"\|"\+age\+"\|"\+enrolled\);/], "Read the two token values, consume the remaining newline once, then read the full line.", "Correct. The program coordinates three types and safely crosses from token input to line input."),
     containsCode("input-complete-q3", "Challenge", "Build a complete receipt program", "Write a complete Java program with the Scanner import and existing class/main wrapper. Create one Scanner, prompt for int quantity and double price with print, calculate total, add a 2.5 fee, and print exactly: Total: VALUE.", ["importjava.util.Scanner;", "publicclassMain", "publicstaticvoidmain(String[]args)", "Scanner input=new Scanner(System.in);", /System\.out\.print\("Quantity:"\);/, "int quantity=input.nextInt();", /System\.out\.print\("Price:"\);/, "double price=input.nextDouble();", "double total=quantity*price;", "total+=2.5;", /System\.out\.println\("Total:"\+total\);/], "Use the chapter's wrapper, one Scanner, two prompts and reads, then calculate before output.", "Chapter program constructed. Every required setup, input, calculation, update, and output piece is present."),
 
@@ -584,7 +1386,7 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     exact("while-q5", "Apply", "Trace a step size", "Count by threes", "Write the exact output.", "int n = 2;\nwhile (n < 10) {\n    System.out.println(n);\n    n += 3;\n}", "2\n5\n8", "Add three after every printed value.", "Correct. The next value 11 fails n < 10."),
     codeExact("while-q6", "Apply", "Protect a sentinel", "Exclude the stop value", "Complete the loop header so -1 stops the loop and is not added.", "int value = input.nextInt();\nint sum = 0;\nwhile (___) {\n    sum += value;\n    value = input.nextInt();\n}", "value != -1", "Continue only while the current value is ordinary data.", "Correct. The sentinel is checked before the body."),
     containsCode("while-q7", "Challenge", "Build an input-validation loop", "Given Scanner input, read int score. While score is outside 0-100, read another score. After the loop print Accepted: followed by score.", ["int score=input.nextInt();", /while\(score<0\|\|score>100\)/, "score=input.nextInt();", /System\.out\.println\("Accepted:"\+score\);/], "The same invalid condition belongs in the while header, and score must be reread inside.", "The loop rejects every invalid score and preserves the first valid one."),
-    containsCode("while-q8", "Challenge", "Build a sentinel average", "Read ints until -1. Track sum and count without including -1. If at least one value was read, print the decimal average; otherwise print No data.", ["int sum=0;", "int count=0;", /while\(value!=-1\)/, "sum+=value;", "count++;", /if\(count>0\)/, /(double)sum\/count/, /else\{System\.out\.println\("Nodata"\);/], "Use both an accumulator and counter, then guard the division.", "The program handles ordinary values, the sentinel, and empty input safely."),
+    containsCode("while-q8", "Challenge", "Build a sentinel average", "Read ints until -1. Track sum and count without including -1. If at least one value was read, print the decimal average; otherwise print No data.", ["int sum=0;", "int count=0;", /while\(value!=-1\)/, "sum+=value;", "count++;", /if\(count>0\)/, /\(double\)sum\/count/, /else\{System\.out\.println\("Nodata"\);/], "Use both an accumulator and counter, then guard the division.", "The program handles ordinary values, the sentinel, and empty input safely."),
     exact("while-q9-do", "Apply", "Trace a do-while loop", "Run before checking", "What is the exact output?", "int n = 0;\ndo {\n    System.out.println(n);\n    n--;\n} while (n > 0);", "0", "The body runs once before Java checks n > 0.", "Correct. do-while guarantees the first body execution."),
     codeExact("while-q10-do", "Apply", "Fix do-while syntax", "End the condition correctly", "Rewrite only the final line as valid Java.", "do {\n    choice = input.nextInt();\n} while (choice != 0)", "} while (choice != 0);", "A do-while statement needs punctuation after the closing condition.", "Correct. The semicolon ends the do-while statement."),
   ],
@@ -652,7 +1454,7 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     codeExact("arrayloop-q5", "Apply", "Fix maximum initialization", "Handle negative data", "Rewrite only the max initialization so the algorithm works for an array containing only negative values.", "int[] values = {-8, -3, -10};\nint max = 0;", "int max = values[0];", "Initialize from real data rather than an assumed neutral value.", "Correct. -3 can now replace the initial -8 candidate."),
     exact("arrayloop-q6", "Apply", "Count matches", "Test each element", "What prints?", "int[] scores = {70, 55, 82, 69, 100};\nint passed = 0;\nfor (int score : scores) {\n    if (score >= 70) passed++;\n}\nSystem.out.println(passed);", "3", "Count 70, 82, and 100.", "Correct. Three elements satisfy the condition."),
     containsCode("arrayloop-q7", "Challenge", "Fill an array with squares", "Create int[] squares with length 6. Use an index loop to store index * index at every position, then print every element with a second loop.", ["int[] squares=new int[6];", /for\(inti=0;i<squares\.length;i\+\+\)/, "squares[i]=i*i;", /System\.out\.println\(squares\[i\]\);/], "The first loop writes every position; the second reads every position.", "The array is completely filled and traversed with safe bounds."),
-    containsCode("arrayloop-q8", "Challenge", "Build a score summary", "Given nonempty int[] scores, calculate sum, decimal average, maximum, and count of scores at least 70. Print all four values with labels.", ["int sum=0;", "int max=scores[0];", "int passed=0;", /for\([^)]*:scores\)/, "sum+=", /if\([^)]*>max\)/, /if\([^)]*>=70\)/, /(double)sum\/scores\.length/, /System\.out\.println\("Average:"/], "One traversal can update the sum, max, and passing counter; average is calculated afterward.", "The program produces four meaningful summaries from the full array."),
+    containsCode("arrayloop-q8", "Challenge", "Build a score summary", "Given nonempty int[] scores, calculate sum, decimal average, maximum, and count of scores at least 70. Print all four values with labels.", ["int sum=0;", "int max=scores[0];", "int passed=0;", /for\([^)]*:scores\)/, "sum+=", /if\([^)]*>max\)/, /if\([^)]*>=70\)/, /\(double\)sum\/scores\.length/, /System\.out\.println\("Average:"/], "One traversal can update the sum, max, and passing counter; average is calculated afterward.", "The program produces four meaningful summaries from the full array."),
     exact("arrayloop-q9-reverse", "Apply", "Trace an array reversal", "Follow two swaps", "Write the final array exactly.", "int[] values = {1, 2, 3, 4};\nfor (int left = 0; left < values.length / 2; left++) {\n    int right = values.length - 1 - left;\n    int temp = values[left];\n    values[left] = values[right];\n    values[right] = temp;\n}", "{4, 3, 2, 1}", "Swap indexes 0 and 3, then indexes 1 and 2.", "Correct. Every mirrored pair trades positions."),
     containsCode("arrayloop-q10-copy", "Apply", "Copy an array", "Given int[] source, create a separate int[] copy of the same length and use an index loop to copy every element into the matching position.", ["int[] copy=new int[source.length];", /for\(inti=0;i<source\.length;i\+\+\)/, "copy[i]=source[i];"], "The same index identifies the source position and its destination.", "The new array independently stores every source value in the matching position."),
     containsCode("arrayloop-q11-pair", "Challenge", "Add corresponding elements", "Given equal-length int[] first and second, create int[] sums and fill each position with first[i] + second[i].", ["int[] sums=new int[first.length];", /for\(inti=0;i<first\.length;i\+\+\)/, "sums[i]=first[i]+second[i];"], "Use one shared index for all three arrays.", "The element-by-element operation preserves each positional relationship."),
@@ -664,7 +1466,7 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     exact("strings-q4", "Apply", "Trace substring", "Understand the exclusive endpoint", "What prints?", "String course = \"CISC1115\";\nSystem.out.println(course.substring(0, 4));", "CISC", "substring includes index 0 through index 3, but not 4.", "Correct. The ending index is exclusive."),
     codeExact("strings-q5", "Apply", "Fix content comparison", "Compare text correctly", "Rewrite only the condition so it checks String answer content ignoring case.", "if (answer == \"yes\") {", "if (answer.equalsIgnoreCase(\"yes\")) {", "Use a String comparison method rather than ==.", "Correct. The condition compares the characters and accepts case variations."),
     exact("strings-q6", "Apply", "Trace a character loop", "Count exact matches", "What prints?", "String text = \"banana\";\nint count = 0;\nfor (int i = 0; i < text.length(); i++) {\n    if (text.charAt(i) == 'a') count++;\n}\nSystem.out.println(count);", "3", "Inspect each character in banana.", "Correct. The letter a occurs three times."),
-    containsCode("strings-q7", "Challenge", "Build a space remover", "Given String text, build String result containing every non-space character in order. Use charAt in a loop and print result.", ["String result=\"\";", /for\(inti=0;i<text\.length\(\);i\+\+\)/, "char current=text.charAt(i);", /if\(current!=' '\)/, "result+=current;", "System.out.println(result);"], "Accumulate only characters that do not equal a space.", "The algorithm builds new text while preserving character order."),
+    containsCode("strings-q7", "Challenge", "Build a space remover", "Given String text, build String result containing every non-space character in order. Use charAt in a loop and print result.", ["String result=\"\";", /for\(inti=0;i<text\.length\(\);i\+\+\)/, "char current=text.charAt(i);", /if\(current!=''\)/, "result+=current;", "System.out.println(result);"], "Accumulate only characters that do not equal a space.", "The algorithm builds new text while preserving character order."),
     containsCode("strings-q8", "Challenge", "Build a palindrome check", "Given String text, ignore letter case and determine whether it reads the same forward and backward. Use a loop comparing mirrored charAt positions, store the result in boolean palindrome, and print it.", [/text=text\.toLowerCase\(\);/, "boolean palindrome=true;", /for\(inti=0;i<text\.length\(\)\/2;i\+\+\)/, /text\.charAt\(i\)!=text\.charAt\(text\.length\(\)-1-i\)/, "palindrome=false;", "System.out.println(palindrome);"], "Compare index i with length - 1 - i and stop needing comparisons at the midpoint.", "The program checks mirrored characters without reversing the String for free."),
     exact("strings-q9-trim-substring", "Apply", "Trace String transformations", "Trim and extract", "What is the exact output?", "String text = \"  Brooklyn College  \".trim();\nSystem.out.println(text.substring(9));", "College", "trim removes the outside spaces; substring(9) continues from index 9 through the end.", "Correct. The one-argument substring returns College."),
     exact("strings-q10-last-index", "Apply", "Search repeated text", "Find the final occurrence", "What is the exact output?", "String text = \"banana\";\nSystem.out.println(text.lastIndexOf(\"an\"));", "3", "The pair an begins at indexes 1 and 3; keep the later start.", "Correct. lastIndexOf returns the final matching starting index."),
@@ -773,7 +1575,7 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     containsCode("final-q8", "Challenge", "Write a bounded input method", "Define readScore(Scanner input) that reads an int and keeps reading while it is below 0 or above 100, then returns the first valid score.", [/publicstaticintreadScore\(Scannerinput\)/, "int score=input.nextInt();", /while\(score<0\|\|score>100\)/, "score=input.nextInt();", "return score;"], "Use a validation loop because the number of invalid entries is unknown.", "The method guarantees its returned score satisfies the range contract."),
     containsCode("final-q9", "Challenge", "Write a reusable search", "Define lastIndexOf(String[] values, String target) returning the last case-insensitive matching index or -1. Do not return on the first match.", [/publicstaticintlastIndexOf\(String\[\]values,Stringtarget\)/, "int result=-1;", /for\(inti=0;i<values\.length;i\+\+\)/, /values\[i\]\.equalsIgnoreCase\(target\)/, "result=i;", "return result;"], "Keep replacing a remembered result as later matches appear.", "The complete traversal returns the final matching position or -1."),
     containsCode("final-q10", "Challenge", "Build a frequency method", "Define countOccurrences(int[] values, int target) returning the number of matching elements. In main, call it and print Target TARGET occurs COUNT times using variables.", [/publicstaticintcountOccurrences\(int\[\]values,inttarget\)/, "int count=0;", /for\(intvalue:values\)/, /if\(value==target\)/, "count++;", "return count;", /System\.out\.println\("Target"\+target\+"occurs"\+count\+"times"\)/], "Traversal counts every match; the caller formats the result.", "The method separates reusable counting from reporting."),
-    containsCode("final-q11", "Challenge", "Build a complete grade summary", "Given a nonempty int[] scores, define minimum, maximum, and average methods. Print all three with labels and average to two decimal places. Each method must traverse the array rather than use a library shortcut.", [/publicstaticintminimum\(int\[\]scores\)/, /publicstaticintmaximum\(int\[\]scores\)/, /publicstaticdoubleaverage\(int\[\]scores\)/, /intscores\[0\]/, /for\(intscore:scores\)/, /\(double\)sum\/scores\.length/, /System\.out\.printf\(/], "Implement and verify each summary method independently before composing the report.", "The solution demonstrates decomposition, safe initialization, traversal, and formatted output."),
+    containsCode("final-q11", "Challenge", "Build a complete grade summary", "Given a nonempty int[] scores, define minimum, maximum, and average methods. Print all three with labels and average to two decimal places. Each method must traverse the array rather than use a library shortcut.", [/publicstaticintminimum\(int\[\]scores\)/, /publicstaticintmaximum\(int\[\]scores\)/, /publicstaticdoubleaverage\(int\[\]scores\)/, /int(?:min|max)=scores\[0\]/, /for\(intscore:scores\)/, /\(double\)sum\/scores\.length/, /System\.out\.printf\(/], "Implement and verify each summary method independently before composing the report.", "The solution demonstrates decomposition, safe initialization, traversal, and formatted output."),
     exact("final-q12-prefix", "Apply", "Trace prefix and postfix", "Separate produced and stored values", "What is the exact output?", "int x = 5;\nint a = x++;\nint b = ++x;\nSystem.out.println(x + \" \" + a + \" \" + b);", "7 5 7", "Postfix gives a the old 5 before x becomes 6; prefix makes x 7 before giving b its value.", "Correct. The produced values and final stored value were traced separately."),
     exact("final-q13-do-ternary", "Apply", "Combine do-while and a conditional value", "Run once, then classify", "What is the exact output?", "int n = 0;\ndo {\n    n++;\n} while (n < 3);\nString label = n == 3 ? \"done\" : \"retry\";\nSystem.out.println(label);", "done", "The body runs for n values 0, 1, and 2; then the conditional expression classifies the final 3.", "Correct. The loop stops at 3 and the true branch produces done."),
     exact("final-q14-library-overload", "Apply", "Use documented return types", "Compose a library call with an overload", "What is the exact output?", "public static int scale(int value) { return value * 2; }\npublic static double scale(double value) { return value / 2; }\nSystem.out.println(scale(Math.sqrt(16)));", "2.0", "Math.sqrt returns double 4.0, so Java selects scale(double).", "Correct. The argument type selects the double overload, which returns 2.0."),
@@ -868,6 +1670,327 @@ const masteryExtensionQuestions: Record<string, CoursePracticeQuestion[]> = {
   ],
 };
 
+// One retrieval-first build closes every substantive programming chapter.
+// These prompts state behavior and leave the implementation choices to the learner.
+const independentProductionQuestions: Record<string, CoursePracticeQuestion[]> = {
+  "input-basic-programs": [
+    independentBuild("input-independent-build", "Build a Distance Calculator", "Given Scanner input, read a decimal speed and a whole-number number of hours. Calculate the distance and print Distance: VALUE.", "double speed = input.nextDouble();\nint hours = input.nextInt();\ndouble distance = speed * hours;\nSystem.out.println(\"Distance: \" + distance);", [/double\w+=input\.nextDouble\(\);/, /int\w+=input\.nextInt\(\);/, /double\w+=\w+\*\w+;/, /System\.out\.println\("Distance:"\+\w+\);/], "Choose a matching read and type for each input, then calculate and label the result.", "You independently assembled typed input, calculation, storage, and output."),
+  ],
+  "comparisons-booleans": [
+    independentBuild("bool-independent-build", "Build an Eligibility Check", "Given int age and boolean member, store whether someone is either a member or is at least 18, then print the result.", "boolean eligible = member || age >= 18;\nSystem.out.println(eligible);", [/boolean\w+=/, /member\|\|age>=18|age>=18\|\|member/, /System\.out\.println\(\w+\);/], "Build one boolean expression from the two allowed paths, store it, and print that stored result.", "You retrieved and combined the comparison, logical operator, assignment, and output without starter code."),
+  ],
+  "if-else": [
+    independentBuild("if-independent-build", "Build a Shipping Classifier", "Given double total, print Free when it is at least 50, Reduced when it is at least 25, and Standard otherwise.", "if (total >= 50) {\n    System.out.println(\"Free\");\n} else if (total >= 25) {\n    System.out.println(\"Reduced\");\n} else {\n    System.out.println(\"Standard\");\n}", [/if\(total>=50\)/, /elseif\(total>=25\)/, /else\{/, /System\.out\.println\("Free"\)/, /System\.out\.println\("Reduced"\)/, /System\.out\.println\("Standard"\)/], "Order the narrower high range before the lower boundary so only one label prints.", "You independently built a complete, correctly ordered three-path decision."),
+  ],
+  "decision-programs": [
+    independentBuild("decision-independent-build", "Build a Validated Score Report", "Given int score, print Invalid outside 0 through 100, Pass for a valid score of at least 70, and Retry for every other valid score.", "if (score < 0 || score > 100) {\n    System.out.println(\"Invalid\");\n} else if (score >= 70) {\n    System.out.println(\"Pass\");\n} else {\n    System.out.println(\"Retry\");\n}", [/score<0\|\|score>100/, /score>=70/, /System\.out\.println\("Invalid"\)/, /System\.out\.println\("Pass"\)/, /System\.out\.println\("Retry"\)/], "Reject impossible values before classifying the valid range.", "You translated a behavior contract into ordered validation and classification paths."),
+  ],
+  "while-loops": [
+    independentBuild("while-independent-build", "Build a Sentinel Total", "Use Scanner input to read integers until 0 is entered. Do not add 0. Print the sum of the earlier values.", "int value = input.nextInt();\nint sum = 0;\nwhile (value != 0) {\n    sum += value;\n    value = input.nextInt();\n}\nSystem.out.println(sum);", [/int\w+=input\.nextInt\(\);/, /int\w+=0;/, /while\(\w+!=0\)/, /\w+\+=\w+;/, /\w+=input\.nextInt\(\);/, /System\.out\.println\(\w+\);/], "Read once before the loop, update the total inside it, and read the next value before testing again.", "You retrieved the complete sentinel-loop pattern from behavior alone."),
+  ],
+  "for-loops": [
+    independentBuild("for-independent-build", "Build an Even-Number Total", "Calculate and print the sum of every even whole number from 2 through 20.", "int sum = 0;\nfor (int value = 2; value <= 20; value += 2) {\n    sum += value;\n}\nSystem.out.println(sum);", [/int\w+=0;/, /for\(int\w+=2;\w+<=20;\w+\+=2\)/, /\w+\+=\w+;/, /System\.out\.println\(\w+\);/], "Choose a start, inclusive endpoint, and update that visits only the needed values.", "You independently selected the loop range, step, accumulator, and output."),
+  ],
+  "nested-loops": [
+    independentBuild("nested-independent-build", "Build a Number Grid", "Print three rows. Each row must contain the numbers 1 through 4 with a space after each number.", "for (int row = 1; row <= 3; row++) {\n    for (int number = 1; number <= 4; number++) {\n        System.out.print(number + \" \" );\n    }\n    System.out.println();\n}", [/for\(int\w+=1;\w+<=3;\w+\+\+\)/, /for\(int\w+=1;\w+<=4;\w+\+\+\)/, /System\.out\.print\(\w+\+""\);/, /System\.out\.println\(\);/], "One loop controls rows; the other prints the four values before the line break.", "You built a two-dimensional repetition pattern without a starter structure."),
+  ],
+  methods: [
+    independentBuild("methods-independent-build", "Build a Reusable Receipt Line", "Create a void method named printReceiptLine that receives an item name, quantity, and price. It must print the item followed by its calculated total. Call it once with any valid values.", "public static void printReceiptLine(String item, int quantity, double price) {\n    double total = quantity * price;\n    System.out.println(item + \": \" + total);\n}\n\nprintReceiptLine(\"Notebook\", 2, 3.5);", [/publicstaticvoidprintReceiptLine\(String\w+,int\w+,double\w+\)/, /double\w+=\w+\*\w+;/, /System\.out\.println\(/, /printReceiptLine\([^;]+\);/], "Decide what belongs in the parameter list, what calculation belongs inside, and how a caller supplies values.", "You independently defined and called a reusable method from its behavior contract."),
+  ],
+  "returns-scope": [
+    independentBuild("returns-independent-build", "Build and Use a Larger-Value Method", "Create a method named larger that receives two integers and returns the greater value. Call it, store its result, and print the stored result.", "public static int larger(int first, int second) {\n    if (first > second) {\n        return first;\n    }\n    return second;\n}\n\nint result = larger(840, 915);\nSystem.out.println(result);", [/publicstaticintlarger\(int\w+,int\w+\)/, /if\(\w+>\w+\)/, /return\w+;/, /int\w+=larger\(/, /System\.out\.println\(\w+\);/], "The method must produce a value for its caller; the caller then stores and prints it.", "You retrieved return type, parameters, branching, return statements, a call, and stored output."),
+  ],
+  arrays: [
+    independentBuild("arrays-independent-build", "Build and Update an Array", "Create an integer array with room for four values. Store 10 in its first element and 40 in its last element, then print those two values on separate lines.", "int[] values = new int[4];\nvalues[0] = 10;\nvalues[3] = 40;\nSystem.out.println(values[0]);\nSystem.out.println(values[3]);", [/int\[\]\w+=newint\[4\];/, /\w+\[0\]=10;/, /\w+\[3\]=40;/, /System\.out\.println\(\w+\[0\]\);/, /System\.out\.println\(\w+\[3\]\);/], "Translate first and last into their zero-based positions in a four-element array.", "You independently created, indexed, updated, and read an array."),
+  ],
+  "arrays-loops": [
+    independentBuild("arrayloop-independent-build", "Build an Array Average", "Given a nonempty int array named values, calculate its decimal average and print it.", "int sum = 0;\nfor (int value : values) {\n    sum += value;\n}\ndouble average = (double) sum / values.length;\nSystem.out.println(average);", [/int\w+=0;/, /for\(int\w+:values\)/, /\w+\+=\w+;/, /double\w+=\(double\)\w+\/values\.length;/, /System\.out\.println\(\w+\);/], "Finish the traversal and total before performing one decimal division.", "You independently selected traversal, accumulation, casting, division, and output."),
+  ],
+  strings: [
+    independentBuild("strings-independent-build", "Build a Case-Insensitive Match Counter", "Given String text, count how many characters are the letter a regardless of case, then print the count.", "text = text.toLowerCase();\nint count = 0;\nfor (int i = 0; i < text.length(); i++) {\n    if (text.charAt(i) == 'a') {\n        count++;\n    }\n}\nSystem.out.println(count);", [/toLowerCase\(\)/, /int\w+=0;/, /for\(int\w+=0;\w+<text\.length\(\);\w+\+\+\)/, /text\.charAt\(\w+\)=='a'/, /\w+\+\+;/, /System\.out\.println\(\w+\);/], "Normalize the text once, then inspect one character at a time.", "You independently combined String normalization, character traversal, a condition, and counting."),
+  ],
+  arraylists: [
+    independentBuild("arraylist-independent-build", "Build a Safe Removal Pass", "Given ArrayList<Integer> values, remove every negative value without skipping adjacent negatives, then print the remaining list.", "for (int i = values.size() - 1; i >= 0; i--) {\n    if (values.get(i) < 0) {\n        values.remove(i);\n    }\n}\nSystem.out.println(values);", [/for\(int\w+=values\.size\(\)-1;\w+>=0;\w+--\)/, /values\.get\(\w+\)<0/, /values\.remove\(\w+\)/, /System\.out\.println\(values\);/], "Removing shifts later indexes, so choose the traversal direction that keeps unvisited positions stable.", "You independently selected safe backward traversal and mutation."),
+  ],
+  searching: [
+    independentBuild("search-independent-build", "Build a First-Match Search", "Create a method named findFirst that receives an int array and a target. Return the first matching index, or -1 if the target is absent.", "public static int findFirst(int[] values, int target) {\n    for (int i = 0; i < values.length; i++) {\n        if (values[i] == target) {\n            return i;\n        }\n    }\n    return -1;\n}", [/publicstaticintfindFirst\(int\[\]\w+,int\w+\)/, /for\(int\w+=0;\w+<\w+\.length;\w+\+\+\)/, /if\(\w+\[\w+\]==\w+\)/, /return\w+;/, /return-1;/], "A match can return during traversal; failure is known only after traversal ends.", "You independently built the complete search contract and failure behavior."),
+  ],
+  sorting: [
+    independentBuild("sorting-independent-build", "Build One Selection Pass", "Given a nonempty int array named values, find the smallest value and swap it into index 0.", "int minIndex = 0;\nfor (int i = 1; i < values.length; i++) {\n    if (values[i] < values[minIndex]) {\n        minIndex = i;\n    }\n}\nint temp = values[0];\nvalues[0] = values[minIndex];\nvalues[minIndex] = temp;", [/int\w+=0;/, /for\(int\w+=1;\w+<values\.length;\w+\+\+\)/, /values\[\w+\]<values\[\w+\]/, /\w+=\w+;/, /int\w+=values\[0\];/, /values\[0\]=values\[\w+\];/, /values\[\w+\]=\w+;/], "Remember the position of the smallest value, then perform one three-statement swap after the search.", "You independently composed search state and a swap into one sorting pass."),
+  ],
+  "algorithmic-problem-solving": [
+    independentBuild("algorithm-independent-build", "Build a Parallel-Array Report", "Given nonempty matching String[] names and int[] scores, print the name and score belonging to the highest score.", "int bestIndex = 0;\nfor (int i = 1; i < scores.length; i++) {\n    if (scores[i] > scores[bestIndex]) {\n        bestIndex = i;\n    }\n}\nSystem.out.println(names[bestIndex] + \": \" + scores[bestIndex]);", [/int\w+=0;/, /for\(int\w+=1;\w+<scores\.length;\w+\+\+\)/, /scores\[\w+\]>scores\[\w+\]/, /\w+=\w+;/, /System\.out\.println\(names\[\w+\]\+":"\+scores\[\w+\]\);/], "Keep the best index rather than copying only the score so both arrays stay connected.", "You independently translated a multi-step data requirement into a working algorithm."),
+  ],
+  "input-output": [
+    independentBuild("io-independent-build", "Build an Unknown-Length Average", "Read every available integer from Scanner input. Print No values when none exist; otherwise print the decimal average labeled Average:.", "int count = 0;\nint sum = 0;\nwhile (input.hasNextInt()) {\n    sum += input.nextInt();\n    count++;\n}\nif (count == 0) {\n    System.out.println(\"No values\");\n} else {\n    double average = (double) sum / count;\n    System.out.println(\"Average: \" + average);\n}", [/while\(input\.hasNextInt\(\)\)/, /\w+\+=input\.nextInt\(\);/, /\w+\+\+;/, /if\(\w+==0\)/, /System\.out\.println\("Novalues"\)/, /\(double\)\w+\/\w+/, /System\.out\.println\("Average:"\+\w+\)/], "Accumulate first, protect the empty case, and divide only when at least one value was read.", "You independently built a safe unknown-length stream calculation."),
+  ],
+  "debugging-testing": [
+    independentBuild("debug-independent-build", "Repair an Average Method", "Write a corrected method named average that receives an int array, returns 0.0 for an empty array, and otherwise returns the decimal average. Build it from scratch instead of editing supplied code.", "public static double average(int[] values) {\n    if (values.length == 0) {\n        return 0.0;\n    }\n    int sum = 0;\n    for (int value : values) {\n        sum += value;\n    }\n    return (double) sum / values.length;\n}", [/publicstaticdoubleaverage\(int\[\]\w+\)/, /if\(\w+\.length==0\)/, /return0\.0;/, /int\w+=0;/, /for\(int\w+:\w+\)/, /\w+\+=\w+;/, /return\(double\)\w+\/\w+\.length;/], "Protect the structural edge case, complete the accumulation, then divide once with decimal arithmetic.", "You independently reconstructed the repaired method and its edge-case behavior."),
+  ],
+  "computers-programs-algorithms": [
+    independentBuild("foundations-independent-build", "Build an Algorithm from a Contract", "Define public static int countNegatives that receives int[] values and returns how many elements are below zero. Then call it with an example array and print the result.", "public static int countNegatives(int[] values) {\n    int count = 0;\n    for (int value : values) {\n        if (value < 0) {\n            count++;\n        }\n    }\n    return count;\n}\n\nint[] data = {-2, 4, -1};\nSystem.out.println(countNegatives(data));", [/publicstaticintcountNegatives\(int\[\]\w+\)/, /int\w+=0;/, /for\(int\w+:\w+\)/, /if\(\w+<0\)/, /\w+\+\+;/, /return\w+;/, /int\[\]\w+=\{[^}]+\};/, /System\.out\.println\(countNegatives\(\w+\)\)/], "Translate the algorithm into state, traversal, selection, update, return, and one concrete test call.", "You independently turned an algorithm description into working Java."),
+  ],
+  "cs-context-applications": [
+    independentBuild("context-independent-build", "Build a Transparent Data Rule", "Given matching String[] labels and int[] values, print every label whose value is at least 50, then print Matches: COUNT.", "int matches = 0;\nfor (int i = 0; i < values.length; i++) {\n    if (values[i] >= 50) {\n        System.out.println(labels[i]);\n        matches++;\n    }\n}\nSystem.out.println(\"Matches: \" + matches);", [/int\w+=0;/, /for\(int\w+=0;\w+<values\.length;\w+\+\+\)/, /if\(values\[\w+\]>=50\)/, /System\.out\.println\(labels\[\w+\]\)/, /\w+\+\+;/, /System\.out\.println\("Matches:"\+\w+\)/], "Keep the threshold visible in the condition and the parallel data connected by one index.", "You independently implemented a clear, inspectable application rule."),
+  ],
+};
+
+// Distributed requirements-to-code practice. These sit inside subsection checks,
+// between tracing/repair work and the chapter's independent build.
+const distributedProductionQuestions: Record<string, CoursePracticeQuestion[]> = {
+  "input-basic-programs": [
+    independentBuild("input-write-number-task", "Write a Numeric Input Fragment", "Given Scanner input, read a decimal temperature, add 2.5, and print Adjusted: VALUE. Choose your own variable names.", "double temperature = input.nextDouble();\ndouble adjusted = temperature + 2.5;\nSystem.out.println(\"Adjusted: \" + adjusted);", [/double\w+=input\.nextDouble\(\);/, /double\w+=\w+\+2\.5;/, /System\.out\.println\("Adjusted:"\+\w+\);/], "Turn the three behaviors into read, calculate, and output statements.", "You wrote a typed input calculation from requirements.", 3),
+    independentBuild("input-write-text-task", "Write a Two-Word Input Fragment", "Given Scanner input, read two separate words and print them with one space between them. Choose your own variable names.", "String first = input.next();\nString second = input.next();\nSystem.out.println(first + \" \" + second);", [/String\w+=input\.next\(\);String\w+=input\.next\(\);/, /System\.out\.println\(\w+\+""\+\w+\);/], "Each word needs its own String read before the output joins them.", "You translated a text-input behavior into Java without starter code.", 3),
+  ],
+  "comparisons-booleans": [
+    independentBuild("bool-write-comparison", "Write a Boundary Check", "Given int temperature, store whether it is at or below 32 in a boolean, then print that boolean.", "boolean freezing = temperature <= 32;\nSystem.out.println(freezing);", [/boolean\w+=temperature<=32;/, /System\.out\.println\(\w+\);/], "The requirement at or below includes the boundary.", "You produced a comparison and stored its boolean result.", 3),
+    independentBuild("bool-write-combined", "Write a Two-Requirement Check", "Given int score and boolean submitted, store whether the score is at least 70 and the work was submitted, then print the result.", "boolean passed = score >= 70 && submitted;\nSystem.out.println(passed);", [/boolean\w+=score>=70&&submitted;/, /System\.out\.println\(\w+\);/], "Both requirements must be true at the same time.", "You built a compound boolean expression from behavior.", 3),
+  ],
+  "if-else": [
+    independentBuild("if-write-two-path", "Write a Two-Path Decision", "Given int temperature, print Cold when it is below 50 and Warm otherwise.", "if (temperature < 50) {\n    System.out.println(\"Cold\");\n} else {\n    System.out.println(\"Warm\");\n}", [/if\(temperature<50\)/, /System\.out\.println\("Cold"\)/, /else\{/, /System\.out\.println\("Warm"\)/], "Translate the boundary into one condition and one fallback path.", "You wrote a complete two-path branch from requirements.", 3),
+    independentBuild("if-write-nested", "Write a Nested Access Check", "Given boolean member and int age, print Allowed only when member is true and age is at least 18. Use one if inside another.", "if (member) {\n    if (age >= 18) {\n        System.out.println(\"Allowed\");\n    }\n}", [/if\(member\)\{if\(age>=18\)/, /System\.out\.println\("Allowed"\)/], "The outer decision checks membership; the inner decision checks age.", "You constructed nested control flow from a two-stage rule.", 3),
+  ],
+  "decision-programs": [
+    independentBuild("decision-write-validation", "Write an Input Guard", "Given int quantity, print Invalid when it is negative and Valid otherwise.", "if (quantity < 0) {\n    System.out.println(\"Invalid\");\n} else {\n    System.out.println(\"Valid\");\n}", [/if\(quantity<0\)/, /System\.out\.println\("Invalid"\)/, /System\.out\.println\("Valid"\)/], "Separate impossible input from the ordinary path.", "You turned a validation requirement into executable branches.", 3),
+    independentBuild("decision-write-menu", "Write a Small Menu", "Given int choice, print Start for 1, Help for 2, and Invalid for every other value.", "if (choice == 1) {\n    System.out.println(\"Start\");\n} else if (choice == 2) {\n    System.out.println(\"Help\");\n} else {\n    System.out.println(\"Invalid\");\n}", [/choice==1/, /choice==2/, /System\.out\.println\("Start"\)/, /System\.out\.println\("Help"\)/, /System\.out\.println\("Invalid"\)/], "Each command needs one mutually exclusive path.", "You produced a menu decision from its behavior contract.", 3),
+  ],
+  "while-loops": [
+    independentBuild("while-write-counter", "Write a Counting Loop", "Print the whole numbers 1 through 5 with a while loop.", "int number = 1;\nwhile (number <= 5) {\n    System.out.println(number);\n    number++;\n}", [/int\w+=1;/, /while\(\w+<=5\)/, /System\.out\.println\(\w+\)/, /\w+\+\+;/], "Initialize before the loop and move toward the inclusive endpoint inside it.", "You retrieved the counter-loop structure from a task.", 3),
+    independentBuild("while-write-accumulator", "Write a Running Total", "Use a while loop to add the whole numbers 1 through 10 and print the final sum.", "int number = 1;\nint sum = 0;\nwhile (number <= 10) {\n    sum += number;\n    number++;\n}\nSystem.out.println(sum);", [/int\w+=1;/, /int\w+=0;/, /while\(\w+<=10\)/, /\w+\+=\w+;/, /\w+\+\+;/, /System\.out\.println\(\w+\)/], "Keep the loop-control value separate from the accumulated result.", "You assembled control state and accumulated state from requirements.", 3),
+  ],
+  "for-loops": [
+    independentBuild("for-write-range", "Write an Inclusive Range", "Print every whole number from 5 through 15 with a for loop.", "for (int number = 5; number <= 15; number++) {\n    System.out.println(number);\n}", [/for\(int\w+=5;\w+<=15;\w+\+\+\)/, /System\.out\.println\(\w+\)/], "Put the start, inclusive condition, and update in the loop header.", "You produced a for-loop range from behavior.", 3),
+    independentBuild("for-write-total", "Write a For-Loop Total", "Calculate and print the sum of the whole numbers 1 through 100 using a for loop.", "int sum = 0;\nfor (int number = 1; number <= 100; number++) {\n    sum += number;\n}\nSystem.out.println(sum);", [/int\w+=0;/, /for\(int\w+=1;\w+<=100;\w+\+\+\)/, /\w+\+=\w+;/, /System\.out\.println\(\w+\)/], "Create the accumulator outside the loop and update it once per value.", "You independently connected a known-count loop to accumulation.", 3),
+  ],
+  "nested-loops": [
+    independentBuild("nested-write-rectangle", "Write a Rectangle Pattern", "Use nested loops to print 3 rows of 5 stars.", "for (int row = 1; row <= 3; row++) {\n    for (int col = 1; col <= 5; col++) {\n        System.out.print(\"*\");\n    }\n    System.out.println();\n}", [/for\(int\w+=1;\w+<=3;\w+\+\+\)/, /for\(int\w+=1;\w+<=5;\w+\+\+\)/, /System\.out\.print\("\*"\)/, /System\.out\.println\(\)/], "The inner loop prints one row; the outer loop repeats the row.", "You built a rectangular output pattern from dimensions alone.", 3),
+    independentBuild("nested-write-pairs", "Write Coordinate Pairs", "Print every row,column pair for rows 1–2 and columns 1–3 using nested loops.", "for (int row = 1; row <= 2; row++) {\n    for (int col = 1; col <= 3; col++) {\n        System.out.println(row + \",\" + col);\n    }\n}", [/for\(int\w+=1;\w+<=2;\w+\+\+\)/, /for\(int\w+=1;\w+<=3;\w+\+\+\)/, /System\.out\.println\(\w+\+","\+\w+\)/], "Print one pair during every inner-loop iteration.", "You translated a two-dimensional range into nested loops.", 3),
+  ],
+  methods: [
+    independentBuild("methods-write-simple", "Write and Call a Void Method", "Define a public static void method named showReady that prints Ready, then call it once.", "public static void showReady() {\n    System.out.println(\"Ready\");\n}\n\nshowReady();", [/publicstaticvoidshowReady\(\)/, /System\.out\.println\("Ready"\)/, /showReady\(\);/], "Write the definition and a separate call statement.", "You produced both sides of the definition-and-call relationship.", 3),
+    independentBuild("methods-write-parameter", "Write a Parameterized Method", "Define a public static void method named showDouble that receives one int and prints twice that value. Call it with 6.", "public static void showDouble(int value) {\n    System.out.println(value * 2);\n}\n\nshowDouble(6);", [/publicstaticvoidshowDouble\(int\w+\)/, /System\.out\.println\(\w+\*2\)/, /showDouble\(6\);/], "The received value needs a typed name inside the method.", "You wrote a reusable parameterized behavior from a task.", 3),
+  ],
+  "returns-scope": [
+    independentBuild("returns-write-square", "Write a Returning Method", "Define public static int square that receives an int and returns its square. Call it with 7, store the result, and print it.", "public static int square(int value) {\n    return value * value;\n}\n\nint result = square(7);\nSystem.out.println(result);", [/publicstaticintsquare\(int\w+\)/, /return\w+\*\w+;/, /int\w+=square\(7\);/, /System\.out\.println\(\w+\)/], "The method produces a value; the caller decides what to do with it.", "You assembled a return contract and caller use from requirements.", 3),
+    independentBuild("returns-write-constant", "Write a Local Constant", "Inside a method named showLimit, declare a local constant int MAX with value 10 and print it.", "public static void showLimit() {\n    final int MAX = 10;\n    System.out.println(MAX);\n}", [/publicstaticvoidshowLimit\(\)/, /finalintMAX=10;/, /System\.out\.println\(MAX\)/], "The non-reassignable local value needs final in its declaration.", "You placed a constant inside the scope where it is used.", 3),
+  ],
+  arrays: [
+    independentBuild("arrays-write-create", "Write Array Creation and Storage", "Create an int array named scores with three elements. Store 80, 90, and 100 in order.", "int[] scores = new int[3];\nscores[0] = 80;\nscores[1] = 90;\nscores[2] = 100;", [/int\[\]scores=newint\[3\];/, /scores\[0\]=80;/, /scores\[1\]=90;/, /scores\[2\]=100;/], "Create the fixed-size container, then use its three valid indexes.", "You constructed and populated an array from a storage requirement.", 3),
+    independentBuild("arrays-write-last", "Write a Last-Element Update", "Given a nonempty int array named values, increase its last element by 5 and print the updated value.", "values[values.length - 1] += 5;\nSystem.out.println(values[values.length - 1]);", [/values\[values\.length-1\]\+=5;/, /System\.out\.println\(values\[values\.length-1\]\)/], "The last valid index is one less than the length.", "You wrote a length-based update without a supplied index.", 3),
+  ],
+  "arrays-loops": [
+    independentBuild("arrayloop-write-fill", "Write an Indexed Fill", "Given int[] values, store twice each index in its matching element.", "for (int i = 0; i < values.length; i++) {\n    values[i] = i * 2;\n}", [/for\(inti=0;i<values\.length;i\+\+\)/, /values\[i\]=i\*2;/], "The index is both the position and the source of each calculated value.", "You built a complete indexed fill from its rule.", 3),
+    independentBuild("arrayloop-write-count", "Write an Array Count", "Given int[] values, count how many elements are greater than 10 and print the count.", "int count = 0;\nfor (int value : values) {\n    if (value > 10) {\n        count++;\n    }\n}\nSystem.out.println(count);", [/int\w+=0;/, /for\(int\w+:values\)/, /if\(\w+>10\)/, /\w+\+\+;/, /System\.out\.println\(\w+\)/], "Traverse every element and update one counter only for matches.", "You produced a filter-and-count traversal from requirements.", 3),
+  ],
+  strings: [
+    independentBuild("strings-write-ends", "Write First and Last Character Output", "Given a nonempty String text, print its first character and then its last character on separate lines.", "System.out.println(text.charAt(0));\nSystem.out.println(text.charAt(text.length() - 1));", [/System\.out\.println\(text\.charAt\(0\)\)/, /System\.out\.println\(text\.charAt\(text\.length\(\)-1\)\)/], "Use index 0 for the first character and length minus one for the last.", "You translated String boundaries into character access code.", 3),
+    independentBuild("strings-write-normalize", "Write a Normalized Search", "Given String text, store a lowercase version and print whether it contains java.", "String lower = text.toLowerCase();\nSystem.out.println(lower.contains(\"java\"));", [/String\w+=text\.toLowerCase\(\);/, /System\.out\.println\(\w+\.contains\("java"\)\)/], "Create the normalized value before performing the search.", "You composed two String operations from a behavior requirement.", 3),
+  ],
+  arraylists: [
+    independentBuild("list-write-create", "Write List Creation and Access", "Create an ArrayList<String> named tasks, add Study and Rest, then print the first task.", "ArrayList<String> tasks = new ArrayList<>();\ntasks.add(\"Study\");\ntasks.add(\"Rest\");\nSystem.out.println(tasks.get(0));", [/ArrayList<String>tasks=newArrayList<>\(\);/, /tasks\.add\("Study"\);/, /tasks\.add\("Rest"\);/, /System\.out\.println\(tasks\.get\(0\)\)/], "Create the list before adding, then retrieve by zero-based position.", "You built a small resizable collection from requirements.", 3),
+    independentBuild("list-write-update", "Write List Updates", "Given ArrayList<Integer> values, replace the first element with 99 and remove the last element.", "values.set(0, 99);\nvalues.remove(values.size() - 1);", [/values\.set\(0,99\);/, /values\.remove\(values\.size\(\)-1\);/], "Use one operation to replace and another to remove by index.", "You selected and wrote two different list mutations.", 3),
+  ],
+  searching: [
+    independentBuild("search-write-contains", "Write a Contains Search", "Define public static boolean contains that receives int[] values and int target, returning true for any match and false when no match exists.", "public static boolean contains(int[] values, int target) {\n    for (int value : values) {\n        if (value == target) {\n            return true;\n        }\n    }\n    return false;\n}", [/publicstaticbooleancontains\(int\[\]values,inttarget\)/, /for\(int\w+:values\)/, /if\(\w+==target\)/, /returntrue;/, /returnfalse;/], "Success can return during traversal; failure comes after it.", "You produced a reusable search from its result contract.", 3),
+    independentBuild("search-write-count", "Write a Match Count", "Define public static int countMatches that receives int[] values and int target and returns the number of matches.", "public static int countMatches(int[] values, int target) {\n    int count = 0;\n    for (int value : values) {\n        if (value == target) {\n            count++;\n        }\n    }\n    return count;\n}", [/publicstaticintcountMatches\(int\[\]values,inttarget\)/, /int\w+=0;/, /for\(int\w+:values\)/, /if\(\w+==target\)/, /\w+\+\+;/, /return\w+;/], "Unlike first-match search, this method must finish the traversal.", "You adapted search traversal into counting from requirements.", 3),
+  ],
+  sorting: [
+    independentBuild("sort-write-swap", "Write a Two-Element Swap", "Given int[] values, swap the elements at indexes 0 and 1.", "int temp = values[0];\nvalues[0] = values[1];\nvalues[1] = temp;", [/int\w+=values\[0\];/, /values\[0\]=values\[1\];/, /values\[1\]=\w+;/], "Preserve one value before the first assignment overwrites it.", "You retrieved the three-statement swap from a task.", 3),
+    independentBuild("sort-write-verify", "Write a Sorted-Order Check", "Define public static boolean isSorted that returns true when int[] values is in ascending order and false otherwise.", "public static boolean isSorted(int[] values) {\n    for (int i = 1; i < values.length; i++) {\n        if (values[i] < values[i - 1]) {\n            return false;\n        }\n    }\n    return true;\n}", [/publicstaticbooleanisSorted\(int\[\]values\)/, /for\(inti=1;i<values\.length;i\+\+\)/, /if\(values\[i\]<values\[i-1\]\)/, /returnfalse;/, /returntrue;/], "Compare each element with the one immediately before it.", "You constructed an order-verification algorithm from behavior.", 3),
+  ],
+  "algorithmic-problem-solving": [
+    independentBuild("algorithm-write-positive-sum", "Write a Filtered Sum Method", "Define public static int sumPositive that returns the sum of only the positive values in an int array.", "public static int sumPositive(int[] values) {\n    int sum = 0;\n    for (int value : values) {\n        if (value > 0) {\n            sum += value;\n        }\n    }\n    return sum;\n}", [/publicstaticintsumPositive\(int\[\]values\)/, /int\w+=0;/, /for\(int\w+:values\)/, /if\(\w+>0\)/, /\w+\+=\w+;/, /return\w+;/], "Separate the traversal, qualification rule, and accumulated result.", "You translated a multi-step algorithm into a method.", 3),
+    independentBuild("algorithm-write-parallel", "Write a Parallel-Array Lookup", "Given matching String[] names and int[] scores plus int index, print NAME: SCORE using that same index in both arrays.", "System.out.println(names[index] + \": \" + scores[index]);", [/System\.out\.println\(names\[index\]\+":"\+scores\[index\]\)/], "The shared index preserves the relationship between the arrays.", "You wrote the essential parallel-array operation from a data relationship.", 3),
+  ],
+  "input-output": [
+    independentBuild("io-write-record", "Write a Fixed Record Read", "Given Scanner input, read a one-word name followed by an int score and print NAME: SCORE.", "String name = input.next();\nint score = input.nextInt();\nSystem.out.println(name + \": \" + score);", [/String\w+=input\.next\(\);/, /int\w+=input\.nextInt\(\);/, /System\.out\.println\(\w+\+":"\+\w+\)/], "Follow the record's field order and matching types.", "You produced a complete typed record read from its format.", 3),
+    independentBuild("io-write-format", "Write Formatted Currency Output", "Given String item and double price, print ITEM $PRICE with exactly two decimal places.", "System.out.printf(\"%s $%.2f%n\", item, price);", [/System\.out\.printf\("%s\$%\.2f%n",item,price\);/], "Use one placeholder for text and one two-decimal placeholder for the price.", "You constructed formatted output from a display contract.", 3),
+  ],
+  "debugging-testing": [
+    independentBuild("debug-write-safe-loop", "Rebuild a Safe Array Loop", "Given int[] values, print every element exactly once without accessing an invalid index.", "for (int i = 0; i < values.length; i++) {\n    System.out.println(values[i]);\n}", [/for\(inti=0;i<values\.length;i\+\+\)/, /System\.out\.println\(values\[i\]\)/], "Valid indexes begin at zero and stop before length.", "You reconstructed correct loop boundaries from required behavior.", 3),
+    independentBuild("debug-write-tests", "Write Boundary Test Data", "Create int[] tests containing 69, 70, and 71, then print each value with a loop.", "int[] tests = {69, 70, 71};\nfor (int value : tests) {\n    System.out.println(value);\n}", [/int\[\]tests=\{69,70,71\};/, /for\(int\w+:tests\)/, /System\.out\.println\(\w+\)/], "The values immediately below, at, and above the boundary belong together.", "You turned a boundary-testing plan into executable test data.", 3),
+  ],
+  "computers-programs-algorithms": [
+    independentBuild("foundations-write-steps", "Translate Steps into Java", "Given int[] values, calculate and print the sum of every element. Write the initialization, traversal, update, and output yourself.", "int sum = 0;\nfor (int value : values) {\n    sum += value;\n}\nSystem.out.println(sum);", [/int\w+=0;/, /for\(int\w+:values\)/, /\w+\+=\w+;/, /System\.out\.println\(\w+\)/], "Turn each language-independent step into one Java structure.", "You translated an algorithm sequence into executable statements.", 3),
+    independentBuild("foundations-write-model", "Write a Small Data Model", "Represent one temperature reading using a String location and double temperature, then print LOCATION: TEMPERATURE.", "String location = \"Lab\";\ndouble temperature = 21.5;\nSystem.out.println(location + \": \" + temperature);", [/String\w+="[^"]+";/, /double\w+=-?\d+(?:\.\d+)?;/, /System\.out\.println\(\w+\+":"\+\w+\)/], "Choose variables that preserve both parts of the modeled reading.", "You converted a real-world event into stored data and output.", 3),
+  ],
+  "cs-context-applications": [
+    independentBuild("context-write-bits", "Write a Representation Counter", "Given int[] bits containing only 0 and 1, count and print how many zero values it contains.", "int zeros = 0;\nfor (int bit : bits) {\n    if (bit == 0) {\n        zeros++;\n    }\n}\nSystem.out.println(zeros);", [/int\w+=0;/, /for\(int\w+:bits\)/, /if\(\w+==0\)/, /\w+\+\+;/, /System\.out\.println\(\w+\)/], "Treat the representation as data and count only the requested symbol.", "You wrote a computation over a simple digital representation.", 3),
+    independentBuild("context-write-boundary", "Write an Auditable Boundary Rule", "Given int score, store whether it is between 0 and 100 inclusive and print the stored boolean.", "boolean valid = score >= 0 && score <= 100;\nSystem.out.println(valid);", [/boolean\w+=score>=0&&score<=100;/, /System\.out\.println\(\w+\)/], "Express both visible boundaries in one boolean rule.", "You implemented a transparent validity rule from its stated limits.", 3),
+  ],
+};
+
+export const unitMasteryTests: UnitMasteryTest[] = [
+  {
+    id: "unit-1-mastery",
+    unit: "Unit I · Java Fundamentals",
+    title: "Unit I Mastery Test",
+    description: "Build small programs from behavior alone. No starter code and no new Java beyond Chapters 1–3.",
+    afterChapterId: "input-basic-programs",
+    sectionId: "unit-1-mastery-test",
+    questions: [
+      independentBuild(
+        "unit1-build-profile",
+        "Build a Profile Line",
+        "Given Scanner input, read a one-word name and a whole-number age. Print them in the form NAME is AGE.",
+        "String name = input.next();\nint age = input.nextInt();\nSystem.out.println(name + \" is \" + age);",
+        [/String\w+=input\.next\(\);/, /int\w+=input\.nextInt\(\);/, /System\.out\.println\(\w+\+"is"\+\w+\);/],
+        "Choose a matching type and Scanner read for each input, then build the labeled output.",
+        "You retrieved two input patterns and assembled the required output independently.",
+        5,
+      ),
+      independentBuild(
+        "unit1-build-time",
+        "Build a Time Converter",
+        "Given Scanner input, read a total number of seconds. Print how many complete minutes it contains and how many seconds remain, in the form MINUTES minutes and SECONDS seconds.",
+        "int totalSeconds = input.nextInt();\nint minutes = totalSeconds / 60;\nint remainingSeconds = totalSeconds % 60;\nSystem.out.println(minutes + \" minutes and \" + remainingSeconds + \" seconds\");",
+        [/int\w+=input\.nextInt\(\);/, /int\w+=\w+\/60;/, /int\w+=\w+%60;/, /System\.out\.println\(\w+\+"minutesand"\+\w+\+"seconds"\);/],
+        "One calculation finds complete groups of 60; another finds what remains.",
+        "You independently selected input, integer division, remainder, storage, and exact output.",
+        5,
+      ),
+      independentBuild(
+        "unit1-build-purchase",
+        "Build a Purchase Calculation",
+        "Given Scanner input, read a whole-number quantity and a decimal price. Calculate their subtotal, add a 5-dollar fee to a separate total, and print Total: VALUE.",
+        "int quantity = input.nextInt();\ndouble price = input.nextDouble();\ndouble subtotal = quantity * price;\ndouble total = subtotal;\ntotal += 5;\nSystem.out.println(\"Total: \" + total);",
+        [/int\w+=input\.nextInt\(\);/, /double\w+=input\.nextDouble\(\);/, /double\w+=\w+\*\w+;/, /double\w+=\w+;/, /\w+\+=5;/, /System\.out\.println\("Total:"\+\w+\);/],
+        "Follow the data path: read, calculate the subtotal, copy it into a total, update that total, then print.",
+        "You built a multi-type calculation from requirements rather than visual cues.",
+        5,
+      ),
+      independentBuild(
+        "unit1-build-full-line",
+        "Build Mixed Number and Line Input",
+        "Given Scanner input, read a whole-number age and then a full name that may contain spaces. Print NAME is AGE. Make sure the full name is actually read.",
+        "int age = input.nextInt();\ninput.nextLine();\nString name = input.nextLine();\nSystem.out.println(name + \" is \" + age);",
+        [/int\w+=input\.nextInt\(\);/, /input\.nextLine\(\);String\w+=input\.nextLine\(\);/, /System\.out\.println\(\w+\+"is"\+\w+\);/],
+        "After the numeric read, account for the Enter key before asking for the full line.",
+        "You retrieved the complete mixed-input sequence and preserved spaces in the name.",
+        5,
+      ),
+      independentBuild(
+        "unit1-build-credits",
+        "Build a Credits Calculator",
+        "A player starts with 50 credits. Given Scanner input, read how many missions they completed and the credits earned per mission. Calculate and print Final credits: VALUE.",
+        "int credits = 50;\nint missions = input.nextInt();\nint reward = input.nextInt();\ncredits += missions * reward;\nSystem.out.println(\"Final credits: \" + credits);",
+        [/int\w+=50;/, /int\w+=input\.nextInt\(\);int\w+=input\.nextInt\(\);/, /\w+\+=\w+\*\w+;/, /System\.out\.println\("Finalcredits:"\+\w+\);/],
+        "Start from the stored initial state, calculate the earned amount, update the state, and report it.",
+        "You independently assembled stored state, two inputs, precedence, updating, and output.",
+        5,
+      ),
+      independentBuild(
+        "unit1-build-complete-program",
+        "Build a Complete Rectangle Program",
+        "Write a complete Java program that imports Scanner, creates one keyboard reader, reads decimal width and height values, calculates area, and prints Area: VALUE.",
+        "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        double width = input.nextDouble();\n        double height = input.nextDouble();\n        double area = width * height;\n        System.out.println(\"Area: \" + area);\n    }\n}",
+        ["import java.util.Scanner;", /publicclass\w+\{publicstaticvoidmain\(String\[\]args\)\{/, /Scanner\w+=newScanner\(System\.in\);/, /double\w+=\w+\.nextDouble\(\);double\w+=\w+\.nextDouble\(\);/, /double\w+=\w+\*\w+;/, /System\.out\.println\("Area:"\+\w+\);/],
+        "Reconstruct the full wrapper first, then place the reader, inputs, calculation, and output inside main.",
+        "Unit I production mastered: you retrieved and assembled a complete runnable program from behavior alone.",
+        5,
+      ),
+    ],
+  },
+  {
+    id: "unit-2-mastery",
+    unit: "Unit II · Decision Making",
+    title: "Unit II Mastery Test",
+    description: "Build complete decisions from behavior alone. One final submission; every program must pass.",
+    afterChapterId: "decision-programs",
+    sectionId: "unit-2-mastery-test",
+    questions: [
+      independentBuild("unit2-build-admission", "Build an Admission Decision", "Given Scanner input, read an int age and a boolean hasTicket. Print Enter when the person is at least 18 and has a ticket; otherwise print Denied.", "int age = input.nextInt();\nboolean hasTicket = input.nextBoolean();\nif (age >= 18 && hasTicket) {\n    System.out.println(\"Enter\");\n} else {\n    System.out.println(\"Denied\");\n}", [/int\w+=input\.nextInt\(\);/, /boolean\w+=input\.nextBoolean\(\);/, /if\(\w+>=18&&\w+\)/, /System\.out\.println\("Enter"\)/, /System\.out\.println\("Denied"\)/], "Read both values, combine both requirements, and provide the fallback path.", "You built typed input and a compound two-path decision.", 5),
+      independentBuild("unit2-build-shipping", "Build a Validated Shipping Classifier", "Given double total, print Invalid when it is negative, Free when it is at least 75, Reduced when it is at least 40, and Standard otherwise.", "if (total < 0) {\n    System.out.println(\"Invalid\");\n} else if (total >= 75) {\n    System.out.println(\"Free\");\n} else if (total >= 40) {\n    System.out.println(\"Reduced\");\n} else {\n    System.out.println(\"Standard\");\n}", [/total<0/, /total>=75/, /total>=40/, /System\.out\.println\("Invalid"\)/, /System\.out\.println\("Free"\)/, /System\.out\.println\("Reduced"\)/, /System\.out\.println\("Standard"\)/], "Reject invalid input first, then order the valid ranges from highest to lowest.", "You independently ordered validation and mutually exclusive ranges.", 5),
+      independentBuild("unit2-build-menu", "Build a Two-Number Menu", "Given int choice and double first and second, print their sum for choice 1, their difference for choice 2, and Invalid for every other choice.", "if (choice == 1) {\n    System.out.println(first + second);\n} else if (choice == 2) {\n    System.out.println(first - second);\n} else {\n    System.out.println(\"Invalid\");\n}", [/choice==1/, /System\.out\.println\(first\+second\)/, /choice==2/, /System\.out\.println\(first-second\)/, /System\.out\.println\("Invalid"\)/], "Give each menu command one path and preserve a fallback for unsupported choices.", "You translated menu behavior into a complete decision.", 5),
+      independentBuild("unit2-build-grade", "Build a Complete Grade Program", "Write a complete Java program that reads an int score. Print Invalid outside 0 through 100, A for 90 or more, B for 80 or more, C for 70 or more, and Retry otherwise.", "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        int score = input.nextInt();\n        if (score < 0 || score > 100) {\n            System.out.println(\"Invalid\");\n        } else if (score >= 90) {\n            System.out.println(\"A\");\n        } else if (score >= 80) {\n            System.out.println(\"B\");\n        } else if (score >= 70) {\n            System.out.println(\"C\");\n        } else {\n            System.out.println(\"Retry\");\n        }\n    }\n}", ["import java.util.Scanner;", /publicclass\w+\{publicstaticvoidmain\(String\[\]args\)\{/, /Scanner\w+=newScanner\(System\.in\);/, /score<0\|\|score>100/, /score>=90/, /score>=80/, /score>=70/, /System\.out\.println\("Retry"\)/], "Reconstruct the program wrapper and place the validated range decision inside main.", "Unit II production mastered: you built a complete validated decision program.", 5),
+    ],
+  },
+  {
+    id: "unit-3-mastery",
+    unit: "Unit III · Repetition",
+    title: "Unit III Mastery Test",
+    description: "Construct loop state, boundaries, accumulation, and nested output without starter code.",
+    afterChapterId: "nested-loops",
+    sectionId: "unit-3-mastery-test",
+    questions: [
+      independentBuild("unit3-build-sentinel", "Build a Sentinel Average", "Read integers from Scanner input until 0 is entered. Do not include 0. Print No values if 0 is first; otherwise print the decimal average.", "int value = input.nextInt();\nint sum = 0;\nint count = 0;\nwhile (value != 0) {\n    sum += value;\n    count++;\n    value = input.nextInt();\n}\nif (count == 0) {\n    System.out.println(\"No values\");\n} else {\n    double average = (double) sum / count;\n    System.out.println(average);\n}", [/int\w+=input\.nextInt\(\);/, /while\(\w+!=0\)/, /\w+\+=\w+;/, /\w+\+\+;/, /if\(\w+==0\)/, /\(double\)\w+\/\w+/, /System\.out\.println\("Novalues"\)/], "Track both sum and count, refresh the sentinel value, then protect the empty case.", "You built a safe unknown-length average from behavior alone.", 5),
+      independentBuild("unit3-build-range", "Build a Descending Multiple Report", "Use a for loop to print 30, 25, 20, 15, 10, and 5, then print Done on a new line.", "for (int value = 30; value >= 5; value -= 5) {\n    System.out.println(value);\n}\nSystem.out.println(\"Done\");", [/for\(int\w+=30;\w+>=5;\w+-=5\)/, /System\.out\.println\(\w+\)/, /System\.out\.println\("Done"\)/], "Choose a descending start, inclusive lower boundary, and step of five.", "You independently encoded a descending range and final output.", 5),
+      independentBuild("unit3-build-pattern", "Build a Staircase", "Use nested loops to print four rows of stars: one star on the first row, two on the second, three on the third, and four on the fourth.", "for (int row = 1; row <= 4; row++) {\n    for (int star = 1; star <= row; star++) {\n        System.out.print(\"*\");\n    }\n    System.out.println();\n}", [/for\(int\w+=1;\w+<=4;\w+\+\+\)/, /for\(int\w+=1;\w+<=\w+;\w+\+\+\)/, /System\.out\.print\("\*"\)/, /System\.out\.println\(\)/], "Let the outer loop choose the row and the inner loop stop at that row number.", "You created a dependent nested-loop pattern from its visual rule.", 5),
+      independentBuild("unit3-build-statistics", "Build a Complete Repetition Program", "Write a complete Java program that reads a positive int count, then reads exactly that many decimal values and prints their total and decimal average.", "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        int count = input.nextInt();\n        double total = 0;\n        for (int i = 0; i < count; i++) {\n            total += input.nextDouble();\n        }\n        double average = total / count;\n        System.out.println(\"Total: \" + total);\n        System.out.println(\"Average: \" + average);\n    }\n}", ["import java.util.Scanner;", /Scanner\w+=newScanner\(System\.in\);/, /int\w+=\w+\.nextInt\(\);/, /double\w+=0;/, /for\(int\w+=0;\w+<\w+;\w+\+\+\)/, /\w+\+=\w+\.nextDouble\(\);/, /double\w+=\w+\/\w+;/, /System\.out\.println\("Total:"\+\w+\)/, /System\.out\.println\("Average:"\+\w+\)/], "Use the input count as the loop boundary and as the average denominator.", "Unit III production mastered: you assembled a complete counted-input program.", 5),
+    ],
+  },
+  {
+    id: "unit-4-mastery",
+    unit: "Unit IV · Methods",
+    title: "Unit IV Mastery Test",
+    description: "Define, call, compose, and reason about method contracts from empty editors.",
+    afterChapterId: "returns-scope",
+    sectionId: "unit-4-mastery-test",
+    questions: [
+      independentBuild("unit4-build-maximum", "Build a Maximum Method", "Define public static int maximum that receives three ints and returns the greatest value. Do not use library methods.", "public static int maximum(int first, int second, int third) {\n    int largest = first;\n    if (second > largest) {\n        largest = second;\n    }\n    if (third > largest) {\n        largest = third;\n    }\n    return largest;\n}", [/publicstaticintmaximum\(int\w+,int\w+,int\w+\)/, /int\w+=\w+;/, /if\(\w+>\w+\)/, /return\w+;/], "Begin with one valid candidate and update it for each larger parameter.", "You independently built a returning method with local state.", 5),
+      independentBuild("unit4-build-receipt", "Build and Call a Receipt Method", "Define public static void printReceipt that receives a String item, int quantity, and double price and prints ITEM: TOTAL. Call it once with valid example arguments.", "public static void printReceipt(String item, int quantity, double price) {\n    double total = quantity * price;\n    System.out.println(item + \": \" + total);\n}\n\nprintReceipt(\"Notebook\", 2, 3.5);", [/publicstaticvoidprintReceipt\(String\w+,int\w+,double\w+\)/, /double\w+=\w+\*\w+;/, /System\.out\.println\(/, /printReceipt\("[^"]+",-?\d+,-?\d+(?:\.\d+)?\);/], "Put the reusable calculation inside the method, then supply matching arguments in the call.", "You defined and called a multi-parameter void method.", 5),
+      independentBuild("unit4-build-composition", "Build Composed Calculations", "Define public static int doubleValue(int value), then define public static int quadruple(int value) that returns the result of calling doubleValue twice. Call quadruple with 5 and print the result.", "public static int doubleValue(int value) {\n    return value * 2;\n}\n\npublic static int quadruple(int value) {\n    return doubleValue(doubleValue(value));\n}\n\nint result = quadruple(5);\nSystem.out.println(result);", [/publicstaticintdoubleValue\(int\w+\)/, /return\w+\*2;/, /publicstaticintquadruple\(int\w+\)/, /returndoubleValue\(doubleValue\(\w+\)\);/, /int\w+=quadruple\(5\);/, /System\.out\.println\(\w+\)/], "The second method can use the first method's returned value as another argument.", "You composed returning methods and used the final result.", 5),
+      independentBuild("unit4-build-complete", "Build a Complete Method Program", "Write a complete Java program with a public static boolean isValidScore(int score) method. Main must read a score and print Valid when the method returns true for 0 through 100, otherwise Invalid.", "import java.util.Scanner;\n\npublic class Main {\n    public static boolean isValidScore(int score) {\n        return score >= 0 && score <= 100;\n    }\n\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        int score = input.nextInt();\n        if (isValidScore(score)) {\n            System.out.println(\"Valid\");\n        } else {\n            System.out.println(\"Invalid\");\n        }\n    }\n}", ["import java.util.Scanner;", /publicclass\w+\{/, /publicstaticbooleanisValidScore\(int\w+\)/, /return\w+>=0&&\w+<=100;/, /publicstaticvoidmain\(String\[\]args\)/, /if\(isValidScore\(\w+\)\)/, /System\.out\.println\("Valid"\)/, /System\.out\.println\("Invalid"\)/], "Separate the reusable validity rule from the input and output work in main.", "Unit IV production mastered: you organized a complete program around a method contract.", 5),
+    ],
+  },
+  {
+    id: "unit-5-mastery",
+    unit: "Unit V · Arrays, Lists & Strings",
+    title: "Unit V Mastery Test",
+    description: "Construct programs that create, traverse, transform, and connect collection data.",
+    afterChapterId: "arraylists",
+    sectionId: "unit-5-mastery-test",
+    questions: [
+      independentBuild("unit5-build-array-summary", "Build an Array Summary Method", "Define public static double averagePositive that receives int[] values and returns the decimal average of positive elements, or 0.0 when there are none.", "public static double averagePositive(int[] values) {\n    int sum = 0;\n    int count = 0;\n    for (int value : values) {\n        if (value > 0) {\n            sum += value;\n            count++;\n        }\n    }\n    if (count == 0) {\n        return 0.0;\n    }\n    return (double) sum / count;\n}", [/publicstaticdoubleaveragePositive\(int\[\]\w+\)/, /for\(int\w+:\w+\)/, /if\(\w+>0\)/, /\w+\+=\w+;/, /\w+\+\+;/, /if\(\w+==0\)/, /return0\.0;/, /return\(double\)\w+\/\w+;/], "Traverse once, track both matching sum and matching count, then protect the empty result.", "You built a filtered array calculation with an edge case.", 5),
+      independentBuild("unit5-build-string", "Build a Word Counter", "Define public static int countLetterA that receives a String and returns how many a characters it contains regardless of case.", "public static int countLetterA(String text) {\n    text = text.toLowerCase();\n    int count = 0;\n    for (int i = 0; i < text.length(); i++) {\n        if (text.charAt(i) == 'a') {\n            count++;\n        }\n    }\n    return count;\n}", [/publicstaticintcountLetterA\(String\w+\)/, /toLowerCase\(\)/, /for\(int\w+=0;\w+<\w+\.length\(\);\w+\+\+\)/, /charAt\(\w+\)=='a'/, /\w+\+\+;/, /return\w+;/], "Normalize once, then inspect every character and count matches.", "You produced a complete String traversal method.", 5),
+      independentBuild("unit5-build-list", "Build a Safe List Cleanup", "Given ArrayList<String> names, remove every empty String without skipping adjacent empty values, then print the remaining list.", "for (int i = names.size() - 1; i >= 0; i--) {\n    if (names.get(i).isEmpty()) {\n        names.remove(i);\n    }\n}\nSystem.out.println(names);", [/for\(int\w+=names\.size\(\)-1;\w+>=0;\w+--\)/, /names\.get\(\w+\)\.isEmpty\(\)/, /names\.remove\(\w+\)/, /System\.out\.println\(names\)/], "Remove backward so shifting positions cannot hide an unvisited value.", "You chose a safe traversal for list mutation.", 5),
+      independentBuild("unit5-build-parallel", "Build a Parallel Collection Report", "Given matching nonempty String[] names and int[] scores, find the highest score and print NAME: SCORE for that same position.", "int bestIndex = 0;\nfor (int i = 1; i < scores.length; i++) {\n    if (scores[i] > scores[bestIndex]) {\n        bestIndex = i;\n    }\n}\nSystem.out.println(names[bestIndex] + \": \" + scores[bestIndex]);", [/int\w+=0;/, /for\(int\w+=1;\w+<scores\.length;\w+\+\+\)/, /scores\[\w+\]>scores\[\w+\]/, /\w+=\w+;/, /System\.out\.println\(names\[\w+\]\+":"\+scores\[\w+\]\)/], "Track the best index so the relationship between both arrays remains available.", "Unit V production mastered: you connected traversal, selection, and parallel data.", 5),
+    ],
+  },
+  {
+    id: "unit-6-mastery",
+    unit: "Unit VI · Basic Algorithms",
+    title: "Unit VI Mastery Test",
+    description: "Implement search, sort, and combined data algorithms without copied structures.",
+    afterChapterId: "algorithmic-problem-solving",
+    sectionId: "unit-6-mastery-test",
+    questions: [
+      independentBuild("unit6-build-last-search", "Build a Last-Match Search", "Define public static int findLast that receives int[] values and int target and returns the last matching index, or -1 when absent.", "public static int findLast(int[] values, int target) {\n    int result = -1;\n    for (int i = 0; i < values.length; i++) {\n        if (values[i] == target) {\n            result = i;\n        }\n    }\n    return result;\n}", [/publicstaticintfindLast\(int\[\]\w+,int\w+\)/, /int\w+=-1;/, /for\(int\w+=0;\w+<\w+\.length;\w+\+\+\)/, /if\(\w+\[\w+\]==\w+\)/, /\w+=\w+;/, /return\w+;/], "Keep searching after a match and replace the saved index each time.", "You adapted linear search to a different result contract.", 5),
+      independentBuild("unit6-build-sort", "Build Selection Sort", "Define public static void selectionSort that rearranges an int array into ascending order.", "public static void selectionSort(int[] values) {\n    for (int start = 0; start < values.length - 1; start++) {\n        int minIndex = start;\n        for (int i = start + 1; i < values.length; i++) {\n            if (values[i] < values[minIndex]) {\n                minIndex = i;\n            }\n        }\n        int temp = values[start];\n        values[start] = values[minIndex];\n        values[minIndex] = temp;\n    }\n}", [/publicstaticvoidselectionSort\(int\[\]\w+\)/, /for\(int\w+=0;\w+<\w+\.length-1;\w+\+\+\)/, /int\w+=\w+;/, /for\(int\w+=\w+\+1;\w+<\w+\.length;\w+\+\+\)/, /if\(\w+\[\w+\]<\w+\[\w+\]\)/, /int\w+=\w+\[\w+\];/, /\w+\[\w+\]=\w+\[\w+\];/], "For each starting position, find the minimum in the remaining suffix and swap it into place.", "You reconstructed a full sorting algorithm from its invariant.", 5),
+      independentBuild("unit6-build-binary", "Build Binary Search", "Define public static int binarySearch for a sorted int array. Return any matching index or -1 when the target is absent.", "public static int binarySearch(int[] values, int target) {\n    int low = 0;\n    int high = values.length - 1;\n    while (low <= high) {\n        int middle = (low + high) / 2;\n        if (values[middle] == target) {\n            return middle;\n        } else if (values[middle] < target) {\n            low = middle + 1;\n        } else {\n            high = middle - 1;\n        }\n    }\n    return -1;\n}", [/publicstaticintbinarySearch\(int\[\]\w+,int\w+\)/, /int\w+=0;/, /int\w+=\w+\.length-1;/, /while\(\w+<=\w+\)/, /int\w+=\(\w+\+\w+\)\/2;/, /return\w+;/, /\w+=\w+\+1;/, /\w+=\w+-1;/, /return-1;/], "Maintain an inclusive search range and discard the half that cannot contain the target.", "You independently implemented binary search and its failure result.", 5),
+      independentBuild("unit6-build-ranked-report", "Build a Ranked Report", "Given matching String[] names and int[] scores, sort both arrays together from highest score to lowest, then print every NAME: SCORE line.", "for (int start = 0; start < scores.length - 1; start++) {\n    int bestIndex = start;\n    for (int i = start + 1; i < scores.length; i++) {\n        if (scores[i] > scores[bestIndex]) {\n            bestIndex = i;\n        }\n    }\n    int scoreTemp = scores[start];\n    scores[start] = scores[bestIndex];\n    scores[bestIndex] = scoreTemp;\n    String nameTemp = names[start];\n    names[start] = names[bestIndex];\n    names[bestIndex] = nameTemp;\n}\nfor (int i = 0; i < scores.length; i++) {\n    System.out.println(names[i] + \": \" + scores[i]);\n}", [/for\(int\w+=0;\w+<scores\.length-1;\w+\+\+\)/, /scores\[\w+\]>scores\[\w+\]/, /int\w+=scores\[\w+\];/, /String\w+=names\[\w+\];/, /names\[\w+\]=names\[\w+\];/, /for\(int\w+=0;\w+<scores\.length;\w+\+\+\)/, /System\.out\.println\(names\[\w+\]\+":"\+scores\[\w+\]\)/], "Every score swap must perform the same index swap in names before the final traversal.", "Unit VI production mastered: you preserved parallel data while sorting and reporting it.", 5),
+    ],
+  },
+  {
+    id: "unit-7-mastery",
+    unit: "Unit VII · Program Development",
+    title: "Unit VII Mastery Test",
+    description: "Build robust input, formatted output, edge-case handling, and executable tests.",
+    afterChapterId: "debugging-testing",
+    sectionId: "unit-7-mastery-test",
+    questions: [
+      independentBuild("unit7-build-stream", "Build a Safe Stream Summary", "Read every available int from Scanner input. Print Count: N and Sum: N, including correct zero values for empty input.", "int count = 0;\nint sum = 0;\nwhile (input.hasNextInt()) {\n    sum += input.nextInt();\n    count++;\n}\nSystem.out.println(\"Count: \" + count);\nSystem.out.println(\"Sum: \" + sum);", [/int\w+=0;/, /while\(input\.hasNextInt\(\)\)/, /\w+\+=input\.nextInt\(\);/, /\w+\+\+;/, /System\.out\.println\("Count:"\+\w+\)/, /System\.out\.println\("Sum:"\+\w+\)/], "Initialize valid empty results, then update them once per available integer.", "You built an input loop that remains correct for an empty stream.", 5),
+      independentBuild("unit7-build-formatted", "Build a Formatted Record Report", "Given Scanner input, read a one-word item, int quantity, and double price. Print ITEM x QUANTITY = $TOTAL with total shown to exactly two decimal places.", "String item = input.next();\nint quantity = input.nextInt();\ndouble price = input.nextDouble();\ndouble total = quantity * price;\nSystem.out.printf(\"%s x %d = $%.2f%n\", item, quantity, total);", [/String\w+=input\.next\(\);/, /int\w+=input\.nextInt\(\);/, /double\w+=input\.nextDouble\(\);/, /double\w+=\w+\*\w+;/, /System\.out\.printf\("%sx%d=\$%\.2f%n",\w+,\w+,\w+\);/], "Read the record in its stated order, calculate once, and use a matching format placeholder for each value.", "You built typed record input and exact formatted output.", 5),
+      independentBuild("unit7-build-repair", "Rebuild a Correct Average Method", "Define public static double average that returns 0.0 for an empty int array and otherwise returns the decimal average. The result must not use integer division.", "public static double average(int[] values) {\n    if (values.length == 0) {\n        return 0.0;\n    }\n    int sum = 0;\n    for (int value : values) {\n        sum += value;\n    }\n    return (double) sum / values.length;\n}", [/publicstaticdoubleaverage\(int\[\]\w+\)/, /if\(\w+\.length==0\)/, /return0\.0;/, /for\(int\w+:\w+\)/, /\w+\+=\w+;/, /return\(double\)\w+\/\w+\.length;/], "Protect the empty boundary before accumulating and casting for the division.", "You reconstructed a method around its bug risks and required behavior.", 5),
+      independentBuild("unit7-build-tests", "Build Boundary Tests", "Assume public static boolean isPassing(int score) already exists and should return true at 70 and above. Write code that calls it with 69, 70, and 71 and prints each returned boolean.", "System.out.println(isPassing(69));\nSystem.out.println(isPassing(70));\nSystem.out.println(isPassing(71));", [/isPassing\(69\)/, /isPassing\(70\)/, /isPassing\(71\)/, /System\.out\.println\(/], "Test immediately below, exactly at, and immediately above the decision boundary.", "Unit VII production mastered: you converted a test strategy into executable boundary checks.", 5),
+    ],
+  },
+  {
+    id: "unit-8-mastery",
+    unit: "Unit VIII · CS Foundations",
+    title: "Unit VIII Mastery Test",
+    description: "Use the full course toolkit to turn algorithms, representations, and responsible requirements into working code.",
+    afterChapterId: "cs-context-applications",
+    sectionId: "unit-8-mastery-test",
+    questions: [
+      independentBuild("unit8-build-maximum", "Implement a Maximum Algorithm", "Define public static int maximum that returns the greatest value in a nonempty int array without sorting it.", "public static int maximum(int[] values) {\n    int largest = values[0];\n    for (int i = 1; i < values.length; i++) {\n        if (values[i] > largest) {\n            largest = values[i];\n        }\n    }\n    return largest;\n}", [/publicstaticintmaximum\(int\[\]\w+\)/, /int\w+=\w+\[0\];/, /for\(int\w+=1;\w+<\w+\.length;\w+\+\+\)/, /if\(\w+\[\w+\]>\w+\)/, /\w+=\w+\[\w+\];/, /return\w+;/], "Translate the algorithm into initialization, traversal, comparison, update, and return steps.", "You converted an abstract algorithm into executable Java.", 5),
+      independentBuild("unit8-build-representation", "Build a Binary-Value Counter", "Given int[] bits containing only 0 and 1, count and print how many 1 values it contains.", "int ones = 0;\nfor (int bit : bits) {\n    if (bit == 1) {\n        ones++;\n    }\n}\nSystem.out.println(ones);", [/int\w+=0;/, /for\(int\w+:bits\)/, /if\(\w+==1\)/, /\w+\+\+;/, /System\.out\.println\(\w+\)/], "Treat each represented bit as data and count the values matching 1.", "You implemented a small computation over a digital representation.", 5),
+      independentBuild("unit8-build-transparent-rule", "Build a Transparent Selection Rule", "Given matching String[] names and int[] scores, print each name whose score is at least 80, then print Selected: COUNT.", "int selected = 0;\nfor (int i = 0; i < scores.length; i++) {\n    if (scores[i] >= 80) {\n        System.out.println(names[i]);\n        selected++;\n    }\n}\nSystem.out.println(\"Selected: \" + selected);", [/int\w+=0;/, /for\(int\w+=0;\w+<scores\.length;\w+\+\+\)/, /if\(scores\[\w+\]>=80\)/, /System\.out\.println\(names\[\w+\]\)/, /\w+\+\+;/, /System\.out\.println\("Selected:"\+\w+\)/], "Encode the stated threshold directly, preserve the parallel-array relationship, and report the count.", "You implemented a visible, checkable selection rule and its result count.", 5),
+      independentBuild("unit8-build-application", "Build a Complete Application", "Write a complete Java program that reads available integer temperatures, counts how many are below 32, and prints Frozen readings: COUNT. Empty input must print a count of 0.", "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner input = new Scanner(System.in);\n        int frozen = 0;\n        while (input.hasNextInt()) {\n            int temperature = input.nextInt();\n            if (temperature < 32) {\n                frozen++;\n            }\n        }\n        System.out.println(\"Frozen readings: \" + frozen);\n    }\n}", ["import java.util.Scanner;", /publicclass\w+\{publicstaticvoidmain\(String\[\]args\)\{/, /Scanner\w+=newScanner\(System\.in\);/, /int\w+=0;/, /while\(\w+\.hasNextInt\(\)\)/, /int\w+=\w+\.nextInt\(\);/, /if\(\w+<32\)/, /\w+\+\+;/, /System\.out\.println\("Frozenreadings:"\+\w+\)/], "Build the full wrapper, preserve a valid empty-input count, and update it only for matching readings.", "Unit VIII production mastered: you built a complete data-processing application from a behavior contract.", 5),
+    ],
+  },
+];
+
 const masteryExtensionSectionIds: Record<string, Record<string, string[]>> = {
   "comparisons-booleans": { "booleans-comparisons": ["bool-mastery-boundary-1", "bool-mastery-boundary-2"], "booleans-combining": ["bool-mastery-grouping"] },
   "if-else": { "if-else-if": ["if-mastery-order-1", "if-mastery-order-2"], "if-common-mistakes": ["if-mastery-independent"] },
@@ -886,6 +2009,52 @@ const masteryExtensionSectionIds: Record<string, Record<string, string[]>> = {
   "algorithmic-problem-solving": { "algorithm-refine": ["algorithm-mastery-divergence"], "algorithm-cases": ["algorithm-mastery-case"] },
   "input-output": { "io-has-next": ["io-mastery-empty"], "io-formatting": ["io-mastery-format"] },
   "debugging-testing": { "debug-error-types": ["debug-mastery-stage"], "testing-cases": ["debug-mastery-boundary"] },
+};
+
+const independentProductionSectionIds: Record<string, Record<string, string[]>> = {
+  "input-basic-programs": { "input-complete-program": ["input-independent-build"] },
+  "comparisons-booleans": { "booleans-combining": ["bool-independent-build"] },
+  "if-else": { "if-complete-program": ["if-independent-build"] },
+  "decision-programs": { "decision-combined": ["decision-independent-build"] },
+  "while-loops": { "while-combined": ["while-independent-build"] },
+  "for-loops": { "for-combined": ["for-independent-build"] },
+  "nested-loops": { "nested-combined": ["nested-independent-build"] },
+  methods: { "methods-combined": ["methods-independent-build"] },
+  "returns-scope": { "returns-combined": ["returns-independent-build"] },
+  arrays: { "arrays-combined": ["arrays-independent-build"] },
+  "arrays-loops": { "array-processing": ["arrayloop-independent-build"] },
+  strings: { "strings-combined": ["strings-independent-build"] },
+  arraylists: { "arraylist-combined": ["arraylist-independent-build"] },
+  searching: { "search-combined": ["search-independent-build"] },
+  sorting: { "sorting-combined": ["sorting-independent-build"] },
+  "algorithmic-problem-solving": { "algorithm-combined": ["algorithm-independent-build"] },
+  "input-output": { "io-combined": ["io-independent-build"] },
+  "debugging-testing": { "debug-combined": ["debug-independent-build"] },
+  "computers-programs-algorithms": { "foundations-combined": ["foundations-independent-build"] },
+  "cs-context-applications": { "cs-career-foundations": ["context-independent-build"] },
+};
+
+const distributedProductionSectionIds: Record<string, Record<string, string[]>> = {
+  "input-basic-programs": { "input-reading-numbers": ["input-write-number-task"], "input-reading-text": ["input-write-text-task"] },
+  "comparisons-booleans": { "booleans-comparisons": ["bool-write-comparison"], "booleans-and": ["bool-write-combined"] },
+  "if-else": { "if-else-pair": ["if-write-two-path"], "if-nested": ["if-write-nested"] },
+  "decision-programs": { "decision-validation": ["decision-write-validation"], "decision-menu": ["decision-write-menu"] },
+  "while-loops": { "while-counters": ["while-write-counter"], "while-accumulators": ["while-write-accumulator"] },
+  "for-loops": { "for-ranges": ["for-write-range"], "for-accumulation": ["for-write-total"] },
+  "nested-loops": { "nested-patterns": ["nested-write-rectangle"], "nested-tables": ["nested-write-pairs"] },
+  methods: { "methods-calling": ["methods-write-simple"], "methods-parameters": ["methods-write-parameter"] },
+  "returns-scope": { "returns-types": ["returns-write-square"], "scope-constants": ["returns-write-constant"] },
+  arrays: { "arrays-create": ["arrays-write-create"], "arrays-length": ["arrays-write-last"] },
+  "arrays-loops": { "array-fill": ["arrayloop-write-fill"], "array-count": ["arrayloop-write-count"] },
+  strings: { "strings-length-char": ["strings-write-ends"], "strings-methods": ["strings-write-normalize"] },
+  arraylists: { "arraylist-create": ["list-write-create"], "arraylist-update": ["list-write-update"] },
+  searching: { "search-linear": ["search-write-contains"], "search-variations": ["search-write-count"] },
+  sorting: { "sorting-swap": ["sort-write-swap"], "sorting-common-errors": ["sort-write-verify"] },
+  "algorithmic-problem-solving": { "algorithm-problem": ["algorithm-write-positive-sum"], "trace-methods-arrays": ["algorithm-write-parallel"] },
+  "input-output": { "io-structured-console": ["io-write-record"], "io-formatting": ["io-write-format"] },
+  "debugging-testing": { "debug-isolate": ["debug-write-safe-loop"], "testing-cases": ["debug-write-tests"] },
+  "computers-programs-algorithms": { "foundations-algorithm": ["foundations-write-steps"], "foundations-model": ["foundations-write-model"] },
+  "cs-context-applications": { "cs-representation": ["context-write-bits"], "cs-limits": ["context-write-boundary"] },
 };
 
 const authoredSectionPracticeQuestionIds: Record<string, Record<string, string[]>> = {
@@ -972,6 +2141,10 @@ const generatedSectionPractice = Object.fromEntries(chapterSpecs.map((chapter) =
             `Correct. ${concept.label}: ${concept.detail}`,
           ));
         }
+        if (chapter.id === "comparisons-booleans" && section.id === "booleans-comparisons") {
+          const writingQuestion = comparisonWritingQuestions[index];
+          if (writingQuestion) sectionQuestions.push(writingQuestion);
+        }
       });
     } else {
       const id = `${section.id}-understanding`;
@@ -1001,6 +2174,7 @@ const generatedSectionPractice = Object.fromEntries(chapterSpecs.map((chapter) =
       }
     }
 
+    sectionQuestions.push(...retrievalQuestionsFor(chapter.id, section.id));
     questions.push(...sectionQuestions);
     sectionIds[section.id] = sectionQuestions.map((question) => question.id);
   });
@@ -1012,12 +2186,14 @@ export const additionalSectionPracticeQuestionIds: Record<string, Record<string,
   Object.entries(generatedSectionPractice).map(([chapterId, practice]) => {
     const authored = authoredSectionPracticeQuestionIds[chapterId] ?? {};
     const mastery = masteryExtensionSectionIds[chapterId] ?? {};
+    const production = independentProductionSectionIds[chapterId] ?? {};
+    const distributedProduction = distributedProductionSectionIds[chapterId] ?? {};
     const sectionIds = Object.fromEntries(
       Object.entries(practice.sectionIds).map(([sectionId, ids]) => [
         sectionId,
         chapterId === "input-basic-programs"
-          ? (authored[sectionId] ?? ids)
-          : [...ids, ...(authored[sectionId] ?? []), ...(mastery[sectionId] ?? [])],
+          ? [...(authored[sectionId] ?? ids), ...(distributedProduction[sectionId] ?? []), ...(production[sectionId] ?? [])]
+          : [...ids, ...(authored[sectionId] ?? []), ...(mastery[sectionId] ?? []), ...(distributedProduction[sectionId] ?? []), ...(production[sectionId] ?? [])],
       ]),
     );
     return [chapterId, sectionIds];
@@ -1028,7 +2204,7 @@ export const additionalPracticeQuestions: Record<string, CoursePracticeQuestion[
   Object.entries(authoredPracticeQuestions).map(([chapterId, questions]) => [
     chapterId,
     chapterId === "input-basic-programs"
-      ? questions
-      : [...(generatedSectionPractice[chapterId]?.questions ?? []), ...(masteryExtensionQuestions[chapterId] ?? []), ...questions],
+      ? [...questions, ...(distributedProductionQuestions[chapterId] ?? []), ...(independentProductionQuestions[chapterId] ?? [])]
+      : [...(generatedSectionPractice[chapterId]?.questions ?? []), ...(masteryExtensionQuestions[chapterId] ?? []), ...questions, ...(distributedProductionQuestions[chapterId] ?? []), ...(independentProductionQuestions[chapterId] ?? [])],
   ]),
 );

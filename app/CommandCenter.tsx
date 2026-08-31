@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  ArrowUpRight,
   BookOpen,
   Check,
   ChevronDown,
@@ -27,25 +28,45 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserRound,
   X,
 } from "lucide-react";
-import { createContext, Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, Fragment, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { degreeCourses, type DegreeCourse } from "./data/curriculum";
+import { degreeCourses, degreeAuditCourses, type DegreeCourse } from "./data/curriculum";
+import DegreeElectives from "./DegreeElectives";
+import DegreePrerequisites from "./DegreePrerequisites";
 import StructuredLesson from "./StructuredLesson";
 import CopyCodeButton from "./CopyCodeButton";
+import JavaCode from "./JavaCode";
+import JavaEditor from "./JavaEditor";
+import { createMasteryAttempt, createMasteryFollowUp, currentMasteryGrade, masteryAttemptLabel, masteryResultLabel, readMasteryAttempts, recoverLegacyMasteryAttempt, type MasteryAttempt } from "./masteryAssessment";
 import {
   additionalLearningChapters,
   additionalPracticeQuestions,
   additionalSectionPracticeQuestionIds,
   structuredLessonContent,
+  unitMasteryTests,
 } from "./data/cisc1115Course";
+import { javaValidationCode, validateArcadePrizePurchase } from "./practiceValidation";
+import { retrievalQuestionsFor, sectionRetrievalPractice } from "./data/sectionRetrievalPractice";
+import MathCourseView from "./math/MathCourseView";
+import { mathCourses, courseChapters } from "./math/courses";
+import { emptyMathProgress, mathCourseProgress, readMathRecords } from "./math/progress";
+import type { MathProgress, MathRecords, MathTutorContext } from "./math/types";
 
-type View = "home" | "dashboard" | "courses" | "degree" | "course";
+type View = "home" | "dashboard" | "courses" | "degree" | "course" | "math";
+type CoursePosition = {
+  chapterId: string;
+  sectionId: string;
+  scrollTop: number;
+  questions: Record<string, string>;
+};
 type DegreeStatus = "unknown" | "complete" | "in_progress" | "not_started";
 type DegreeRecords = Record<string, DegreeStatus>;
+type StudentIdentity = { displayName: string; email: string };
 
 type LearningSection = {
   id: string;
@@ -66,6 +87,11 @@ type PracticeRecord = {
   attempts: Record<string, number>;
   hints: string[];
   passed: string[];
+  submissions?: number;
+  lastScore?: number;
+  masteryAttempts?: MasteryAttempt[];
+  masteryRetakeActive?: boolean;
+  masteryRetry?: { sourceAttemptId: string; questionIds: string[] };
 };
 
 type PracticeRecords = Record<string, PracticeRecord>;
@@ -80,6 +106,8 @@ type TutorPracticeContext = {
   title: string;
   prompt: string;
   starterCode: string | null;
+  options: { label: string; text: string; selected: boolean }[];
+  selectedOptionLabel: string | null;
   studentAnswer: string;
   answerTruncated: boolean;
   attempts: number;
@@ -102,6 +130,32 @@ type TutorCourseContext = {
   practicePassed: number;
   practiceTotal: number;
   activePractice: TutorPracticeContext | null;
+  masteryAssessment: TutorMasteryContext | null;
+};
+
+type TutorMasteryContext = {
+  assessmentId: string;
+  assessmentTitle: string;
+  mode: "active_test" | "question_retry" | "results_review";
+  retryQuestionIds?: string[];
+  questionTotal: number;
+  firstAttemptScore: number | null;
+  currentMastery: number;
+  answerRevealPolicy: "withhold_reference_solutions" | "submitted_attempt_review";
+  questions: Array<{
+    questionId: string;
+    questionNumber: number;
+    title: string;
+    prompt: string;
+    starterCode: string | null;
+    learnerAnswer: string;
+    answerTruncated: boolean;
+    result: "correct" | "incorrect" | "not_submitted";
+    graderFeedback: string | null;
+    currentGraderFeedback?: string | null;
+    referenceSolution: string | null;
+  }>;
+  reviewedAttempt: { id: string; attemptNumber: number; submittedAt: string | null; recoveredFromLegacy: boolean; score: number; total: number; kind?: MasteryAttempt["kind"]; sourceAttemptId?: string } | null;
 };
 
 type TutorMessage = {
@@ -126,8 +180,18 @@ type PracticeQuestion = {
   options?: string[];
   auditRequirements?: string[];
   multiline?: boolean;
+  productionStage?: 1 | 2 | 3 | 4 | 5;
   validate: (answer: string) => boolean;
 };
+
+function questionUsesJavaEditor(question: PracticeQuestion) {
+  const instructions = `${question.kind} ${question.title} ${question.prompt} ${question.placeholder}`.toLowerCase();
+  const asksForCode = /\b(write|rewrite|repair|fix|build|create|declare|declaration|statement|code|program|editor|implement|complete the code|missing code)\b/.test(instructions);
+  if (asksForCode || (question.productionStage ?? 0) >= 3) return true;
+  const asksForResult = /\b(exact output|type the output|what is printed|what does .* print|predict|trace|calculate the remainder|choose one answer)\b/.test(instructions);
+  if (asksForResult) return false;
+  return /\b(?:int|double|boolean|char|String|Scanner|System\.out|input\.next|public class|static void)\b|[;{}]/.test(question.answer ?? "");
+}
 
 const learningChapters: LearningChapter[] = [
   {
@@ -209,7 +273,8 @@ const titleCase = (value: string) => {
   const minorWords = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "over", "per", "the", "to", "via", "vs"]);
   const preserved = new Map([
     ["arraylist", "ArrayList"], ["arraylists", "ArrayLists"], ["b.s", "B.S."], ["b.s.", "B.S."], ["c++", "C++"], ["cisc", "CISC"], ["cs", "CS"], ["degreeworks", "DegreeWorks"],
-    ["gpa", "GPA"], ["java", "Java"], ["pdf", "PDF"], ["string", "String"],
+    ["gpa", "GPA"], ["i", "I"], ["ii", "II"], ["iii", "III"], ["iv", "IV"], ["v", "V"], ["vi", "VI"], ["vii", "VII"], ["viii", "VIII"],
+    ["java", "Java"], ["pdf", "PDF"], ["string", "String"],
   ]);
   const words = value.split(/\s+/);
   return words.map((word, index) => {
@@ -315,6 +380,129 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
   ...additionalPracticeQuestions,
 };
 
+practiceQuestions["variables-data-types"].push({
+  id: "variables-independent-build",
+  level: "Challenge",
+  kind: "Independent build",
+  title: "Build a Tournament Check-In Card",
+  prompt: "Maya enters a tournament with a score of 120, an accuracy of 92.5, and a completed qualifying level. Write Java that represents this check-in record and prints four labeled lines: Player, Score, Accuracy, and Qualified.",
+  placeholder: "Build the solution from an empty editor",
+  hint: "You need one String, one int, one double, one boolean, and four println statements that use the stored values.",
+  answer: "String playerName = \"Maya\";\nint score = 120;\ndouble accuracy = 92.5;\nboolean qualified = true;\nSystem.out.println(\"Player: \" + playerName);\nSystem.out.println(\"Score: \" + score);\nSystem.out.println(\"Accuracy: \" + accuracy);\nSystem.out.println(\"Qualified: \" + qualified);",
+  success: "You independently selected types, names, values, declarations, and labeled output.",
+  multiline: true,
+  productionStage: 4,
+  auditRequirements: ["String declaration", "int declaration", "double declaration", "boolean declaration", "four labeled println statements"],
+  validate: (answer) => {
+    const code = compactCode(answer);
+    return /String[A-Za-z_$][\w$]*="[^"]*";/.test(code)
+      && /int[A-Za-z_$][\w$]*=-?\d+;/.test(code)
+      && /double[A-Za-z_$][\w$]*=-?\d+(?:\.\d+)?;/.test(code)
+      && /boolean[A-Za-z_$][\w$]*=(?:true|false);/.test(code)
+      && (code.match(/System\.out\.println\(/g)?.length ?? 0) >= 4;
+  },
+});
+
+practiceQuestions["operators-expressions"].push({
+  id: "operators-independent-build",
+  level: "Challenge",
+  kind: "Independent build",
+  title: "Plan an Arcade Prize Purchase",
+  prompt: "You have 137 arcade tickets. An orange prize costs 12 tickets and an apple prize costs 7 tickets. You buy 4 oranges first, then spend as many of the remaining tickets as possible on apples. Write Java that reports Apples: VALUE and Tickets left: VALUE. Use variables to represent the ticket balance, item prices, and quantities.",
+  placeholder: "Build the solution from an empty editor",
+  hint: "First determine the ticket balance after the oranges. That remaining balance determines both how many complete apple prizes fit and what is left over.",
+  answer: "int tickets = 137;\nint orangePrice = 12;\nint applePrice = 7;\nint oranges = 4;\nint afterOranges = tickets - orangePrice * oranges;\nint apples = afterOranges / applePrice;\nint ticketsLeft = afterOranges % applePrice;\nSystem.out.println(\"Apples: \" + apples);\nSystem.out.println(\"Tickets left: \" + ticketsLeft);",
+  success: "You modeled the purchase, chose the intermediate balance, and derived both results.",
+  multiline: true,
+  productionStage: 4,
+  auditRequirements: ["137-ticket balance", "12-ticket orange price", "7-ticket apple price", "four oranges", "purchase subtraction", "integer division", "remainder", "two labeled outputs"],
+  validate: validateArcadePrizePurchase,
+});
+
+practiceQuestions["variables-data-types"].push(
+  {
+    id: "variables-write-declarations",
+    level: "Apply",
+    kind: "Write from requirements",
+    title: "Represent an Inventory Entry",
+    prompt: "A store has 3 notebooks priced at $4.50 each. Write three Java declarations that preserve the product name, quantity, and price.",
+    placeholder: "Write the three declarations",
+    hint: "Match each kind of value to the type that can store it.",
+    answer: "String product = \"Notebook\";\nint quantity = 3;\ndouble price = 4.5;",
+    success: "You translated three data requirements into typed Java declarations.",
+    multiline: true,
+    productionStage: 3,
+    auditRequirements: ["String declaration", "int declaration", "double declaration"],
+    validate: (answer) => {
+      const code = javaValidationCode(answer);
+      return /String[A-Za-z_$][\w$]*="[^"]*";/.test(code)
+        && /int[A-Za-z_$][\w$]*=-?\d+;/.test(code)
+        && /double[A-Za-z_$][\w$]*=-?\d+(?:\.\d+)?;/.test(code);
+    },
+  },
+  {
+    id: "variables-write-label",
+    level: "Apply",
+    kind: "Write from requirements",
+    title: "Print an Inventory Label",
+    prompt: "An inventory program already has String item and int quantity. Print one label in the form ITEM: QUANTITY.",
+    placeholder: "Write the println statement",
+    hint: "Join the first variable, the quoted label punctuation, and the second variable.",
+    answer: "System.out.println(item + \": \" + quantity);",
+    success: "You produced labeled output directly from its required format.",
+    multiline: true,
+    productionStage: 3,
+    auditRequirements: ["println", "String concatenation", "item", "quantity"],
+    validate: (answer) => /System\.out\.println\(item\+":"\+quantity\);/.test(compactCode(answer)),
+  },
+);
+
+practiceQuestions["operators-expressions"].push(
+  {
+    id: "operators-write-time-conversion",
+    level: "Apply",
+    kind: "Write from requirements",
+    title: "Report a Video Duration",
+    prompt: "A video player stores a duration in int totalMinutes. Display the duration as complete hours and leftover minutes.",
+    placeholder: "Write the calculations and output",
+    hint: "Division finds complete groups of 60; modulus finds what remains.",
+    answer: "int hours = totalMinutes / 60;\nint remaining = totalMinutes % 60;\nSystem.out.println(hours + \" hours and \" + remaining + \" minutes\");",
+    success: "You chose division and remainder from a behavioral requirement.",
+    multiline: true,
+    productionStage: 3,
+    auditRequirements: ["integer division by 60", "modulus by 60", "println"],
+    validate: (answer) => {
+      const code = javaValidationCode(answer);
+      return /int\w+=totalMinutes\/60;/.test(code)
+        && /int\w+=totalMinutes%60;/.test(code)
+        && /System\.out\.println\(/.test(code);
+    },
+  },
+  {
+    id: "operators-write-balance-updates",
+    level: "Apply",
+    kind: "Write from requirements",
+    title: "Apply Two Account Updates",
+    prompt: "An account program already stores its current amount in int balance. A $20 deposit arrives, followed by a $5 service charge. Update balance using compound assignment and print the final amount.",
+    placeholder: "Write the updates and output",
+    hint: "Apply each update in the order stated.",
+    answer: "balance += 20;\nbalance -= 5;\nSystem.out.println(balance);",
+    success: "You converted ordered state changes into Java statements.",
+    multiline: true,
+    productionStage: 3,
+    auditRequirements: ["+= 20", "-= 5", "println"],
+    validate: (answer) => {
+      const code = compactCode(answer);
+      return /balance\+=20;/.test(code) && /balance-=5;/.test(code) && /System\.out\.println\(balance\);/.test(code)
+        && code.indexOf("balance+=20;") < code.indexOf("balance-=5;");
+    },
+  },
+);
+
+for (const chapterId of ["variables-data-types", "operators-expressions"]) {
+  practiceQuestions[chapterId].push(...retrievalQuestionsFor(chapterId));
+}
+
 type AuditSnapshot = {
   auditDate: string;
   degreeProgress: number;
@@ -350,19 +538,19 @@ const degreePathLevels: { label: string; description: string; nodes: DegreePathN
     { id: "cisc-2210", label: "Required", title: "Discrete structures", codes: ["CISC 2210"], kind: "required" },
     { id: "cisc-3115", label: "Required", title: "Modern programming techniques", codes: ["CISC 3115"], kind: "required" },
   ] },
-  { label: "Core construction", description: "The required data, implementation, and calculus sequence.", nodes: [
+  { label: "Core construction", description: "Parallel math and programming paths—not a row you must finish before moving on.", nodes: [
     { id: "math-1206", label: "Standard math path", title: "Calculus II", codes: ["MATH 1206"], note: "This map follows the standard calculus sequence; transferred or substituted credit should be confirmed in DegreeWorks.", kind: "required" },
     { id: "cisc-3130", label: "Required", title: "Data structures", codes: ["CISC 3130"], kind: "required" },
-    { id: "cisc-3140", label: "Required", title: "Design & implementation II", codes: ["CISC 3140"], kind: "required" },
+    { id: "cisc-3140", label: "Required", title: "Large-scale applications", codes: ["CISC 3140"], kind: "required" },
   ] },
-  { label: "Advanced branches", description: "Required upper-level work plus the places where you choose a route.", nodes: [
+  { label: "Advanced branches", description: "Two required courses + one from each of four pairs. Each course has its own prerequisites.", nodes: [
     { id: "cisc-3142", label: "Required", title: "Programming paradigms in C++", codes: ["CISC 3142"], kind: "required" },
     { id: "cisc-3320", label: "Required", title: "Operating systems", codes: ["CISC 3320"], note: "CISC 7312X is an alternative only with GPA above 3.0.", kind: "required" },
     { id: "architecture-choice", label: "Choose one", title: "Architecture / organization", codes: ["CISC 3310", "CISC 3305"], kind: "choice" },
     { id: "theory-choice", label: "Choose one", title: "Algorithms / theory", codes: ["CISC 3220", "CISC 3230"], kind: "choice" },
     { id: "probability-choice", label: "Choose one", title: "Probability & statistics", codes: ["MATH 2501", "MATH 3501"], kind: "choice" },
     { id: "ethics-choice", label: "Choose one", title: "Computers & ethics", codes: ["CISC 2820W", "PHIL 3318W"], note: "CISC 2820W may also help the separate CISC writing-intensive rule; confirm with advisement.", kind: "choice" },
-    { id: "electives", label: "Choose three", title: "Upper-level CISC electives", note: "Three classes numbered CISC 3000-4899.", kind: "electives" },
+    { id: "electives", label: "Choose three · required", title: "Upper-level CISC electives", kind: "electives" },
   ] },
   { label: "Finish line", description: "Capstone choice and degree-wide graduation gates.", nodes: [
     { id: "capstone-choice", label: "Choose one", title: "Independent group / study", codes: ["CISC 4900", "CISC 5001"], kind: "choice" },
@@ -387,7 +575,7 @@ const degreeWorksSnapshot: AuditSnapshot = {
 };
 
 const initialDegreeRecords: DegreeRecords = Object.fromEntries(
-  degreeCourses.map((course) => [course.code, "unknown" as DegreeStatus]),
+  degreeAuditCourses.map((course) => [course.code, "unknown" as DegreeStatus]),
 ) as DegreeRecords;
 
 // Retained only so older progress-backup files can still be imported.
@@ -413,8 +601,9 @@ const foundationalPracticePlans: Record<string, ChapterPracticePlan> = {
       "variables-naming": ["variables-valid-name", "variables-case-sensitive", "variables-fix-name"],
       "variables-changing": ["variables-predict", "variables-reassign", "variables-reassign-type"],
       "variables-printing": ["variables-print-name", "variables-print-text"],
-      "variables-concatenation": ["variables-concat", "variables-concat-space", "variables-quoted-number"],
-      "variables-program": ["variables-constraints", "variables-program-trace"],
+      "variables-declaration": ["variables-name-part", "variables-assignment-part", "variables-statement-end", "variables-write-declarations"],
+      "variables-concatenation": ["variables-concat", "variables-concat-space", "variables-quoted-number", "variables-write-label"],
+      "variables-program": ["variables-constraints", "variables-program-trace", "variables-independent-build"],
     },
     review: ["variables-challenge"],
   },
@@ -422,20 +611,47 @@ const foundationalPracticePlans: Record<string, ChapterPracticePlan> = {
     checkpoints: {
       "operators-arithmetic": ["operators-terms", "operators-basic-arithmetic"],
       "operators-division": ["operators-integer-division", "operators-decimal-division", "operators-cast-division"],
-      "operators-modulus": ["operators-modulus-calculate", "operators-modulus-even-remainder"],
+      // The time-conversion build needs both division and the remainder operator.
+      "operators-modulus": ["operators-modulus-calculate", "operators-modulus-even-remainder", "operators-write-time-conversion"],
       "operators-precedence": ["operators-arithmetic-predict", "operators-parentheses-repair"],
       "operators-increment": ["operators-increment-equivalent", "operators-increment-output", "operators-increment-long-form", "operators-increment", "operators-postfix-trace", "operators-postfix-expand", "operators-prefix-meaning", "operators-prefix-trace", "operators-postfix-plus", "operators-prefix-plus", "operators-two-increments", "operators-two-increments-precedence", "operators-postfix-decrement", "operators-prefix-decrement", "operators-prefix-postfix-mixed"],
-      "operators-assignment": ["operators-compound", "operators-compound-subtract", "operators-update-sequence", "operators-compound-expression", "operators-compound-chain", "operators-compound-reverse", "operators-compound-postfix", "operators-compound-repair", "operators-compound-build"],
+      "operators-assignment": ["operators-compound", "operators-compound-subtract", "operators-update-sequence", "operators-compound-expression", "operators-compound-chain", "operators-compound-reverse", "operators-compound-postfix", "operators-compound-repair", "operators-compound-build", "operators-write-balance-updates"],
       "operators-concatenation": ["operators-string-order", "operators-string-parentheses"],
-      "operators-evaluation": ["operators-state-trace"],
+      "operators-evaluation": ["operators-state-trace", "operators-independent-build"],
     },
     review: ["operators-resource-challenge"],
+  },
+  "input-basic-programs": {
+    checkpoints: {
+      "input-execution": ["input-exec-q1", "input-exec-q2", "input-exec-q3", "input-exec-q4", "input-exec-q5"],
+      "input-scanner-setup": ["input-setup-q1", "input-setup-q2", "input-setup-q3", "input-setup-q4", "input-setup-q5"],
+      "input-reading-numbers": ["input-number-q1", "input-number-q2", "input-number-q3", "input-number-q4", "input-number-q5", "input-number-q6", "input-number-q7", "input-number-q8", "input-review-q1", "input-review-q3"],
+      "input-reading-text": ["input-text-q1", "input-text-q2", "input-text-q3", "input-text-q4", "input-text-q5", "input-text-q6", "input-text-q7", "input-review-q2"],
+      "input-program-pattern": ["input-pattern-q1", "input-pattern-q2", "input-pattern-q3", "input-pattern-q4", "input-pattern-q5", "input-pattern-q6"],
+      "input-common-mistakes": ["input-mistake-q1", "input-mistake-q2", "input-mistake-q3", "input-mistake-q4", "input-mistake-q5"],
+      "input-complete-program": ["input-complete-q1", "input-complete-q2", "input-complete-q3", "input-independent-build"],
+    },
+    review: ["input-review-q4", "input-review-q5"],
   },
 };
 
 function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
   const explicit = foundationalPracticePlans[chapterId];
-  if (explicit) return explicit;
+  if (explicit) {
+    const checkpoints = Object.fromEntries(Object.entries(explicit.checkpoints).map(([sectionId, ids]) => [sectionId, [...ids]]));
+    for (const entry of sectionRetrievalPractice.filter((entry) => entry.chapterId === chapterId)) {
+      const ids = checkpoints[entry.sectionId] ??= [];
+      if (!ids.includes(entry.question.id)) ids.push(entry.question.id);
+    }
+    if (chapterId === "input-basic-programs") {
+      // Preserve the hand-authored plan while making existing writing tasks
+      // reachable; previously its override silently omitted these additions.
+      for (const [sectionId, ids] of Object.entries(additionalSectionPracticeQuestionIds[chapterId] ?? {})) {
+        checkpoints[sectionId] = [...new Set([...(checkpoints[sectionId] ?? []), ...ids])];
+      }
+    }
+    return { checkpoints, review: explicit.review };
+  }
 
   const questions = practiceQuestions[chapterId] ?? [];
   if (["cumulative-challenges", "final-assessment"].includes(chapterId)) return { checkpoints: {}, review: questions.map((question) => question.id) };
@@ -469,8 +685,17 @@ function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
   return { checkpoints, review };
 }
 
+function requiredChapterPracticeQuestions(chapterId: string) {
+  const plan = chapterPracticePlan(chapterId);
+  const requiredQuestionIds = new Set([
+    ...Object.values(plan.checkpoints).flat(),
+    ...plan.review,
+  ]);
+  return (practiceQuestions[chapterId] ?? []).filter((question) => requiredQuestionIds.has(question.id));
+}
+
 function chapterProgress(chapterId: string, _completed: string[], practice: PracticeRecords) {
-  const questions = practiceQuestions[chapterId] ?? [];
+  const questions = requiredChapterPracticeQuestions(chapterId);
   const passedQuestions = questions.filter((question) => practice[chapterId]?.passed?.includes(question.id));
   const passed = passedQuestions.length;
   const practiceDone = questions.length > 0 && passed >= questions.length;
@@ -511,7 +736,7 @@ function StatusMark({ done, active = false }: { done: boolean; active?: boolean 
   return <span className={`mission-status ${done ? "done" : active ? "active" : ""}`}>{done ? <Check size={17} strokeWidth={3} /> : active ? <Play size={13} fill="currentColor" /> : <span />}</span>;
 }
 
-function Sidebar({ view, setView, completed, practice, onOpenInfo, onOpenBackup }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords; onOpenInfo: () => void; onOpenBackup: () => void }) {
+function Sidebar({ view, setView, completed, practice, tutorOpen, onToggleTutor, onOpenInfo, student, localWorkspace, signInPath, signOutPath, syncLabel }: { view: View; setView: (view: View) => void; completed: string[]; practice: PracticeRecords; tutorOpen: boolean; onToggleTutor: () => void; onOpenInfo: () => void; student: StudentIdentity | null; localWorkspace: boolean; signInPath: string; signOutPath: string; syncLabel: string }) {
   const progress = learningProgress(completed, practice);
   return <aside className="sidebar">
     <button className="brand exceler-brand" onClick={() => setView("home")} aria-label="Exceler A home"><img className="sidebar-brand-logo" src="/exceler-a-mark-512.png" alt="" /></button>
@@ -523,7 +748,7 @@ function Sidebar({ view, setView, completed, practice, onOpenInfo, onOpenBackup 
       <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />Courses</button>
     </nav>
     {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button></div>}
-    <div className="sidebar-footer"><div className="sidebar-footer-actions"><button className="about-sidebar-button" onClick={onOpenBackup}><Download size={15} />Progress Backup</button><button className="about-sidebar-button" onClick={onOpenInfo}><CircleHelp size={16} />About Exceler A</button></div><div className="sync-state"><span />Progress saved on this device</div></div>
+    <div className="sidebar-footer"><div className="sidebar-footer-actions"><button className="about-sidebar-button" onClick={onOpenInfo}><CircleHelp size={16} />About Exceler A</button></div>{student && !localWorkspace ? <div className="student-account"><UserRound size={15}/><span><b>{student.displayName}</b><small>Private student workspace</small></span><a href={signOutPath} target="_top">Sign out</a></div> : !localWorkspace ? <a className="student-sign-in" href={signInPath} target="_top"><UserRound size={15}/><span><b>Sign in with ChatGPT</b><small>Private sync, DegreeWorks, and tutor</small></span></a> : null}<div className={`sync-state ${student && !localWorkspace ? "cloud" : ""}`}><span />{syncLabel}</div>{localWorkspace || student ? <button className={`sidebar-tutor-button ${tutorOpen ? "open" : ""}`} onClick={onToggleTutor} aria-expanded={tutorOpen} aria-controls="exceler-tutor-drawer">{tutorOpen ? <X size={17} /> : <MessageCircle size={17} />}{tutorOpen ? "Close Tutor" : "Ask Exceler Tutor"}</button> : <a className="sidebar-tutor-button" href={signInPath} target="_top"><LockKeyhole size={16}/>Sign in for Tutor</a>}</div>
   </aside>;
 }
 
@@ -588,17 +813,25 @@ function Dashboard({ completed, practice, degreeRecords, setView }: { completed:
   </main>;
 }
 
-function CoursesView({ completed, practice, onOpenCourse }: { completed: string[]; practice: PracticeRecords; onOpenCourse: () => void }) {
+function CoursesView({ completed, practice, onOpenCourse, math, onOpenMath }: { completed: string[]; practice: PracticeRecords; onOpenCourse: () => void; math: MathRecords; onOpenMath: (id: string) => void }) {
   const progress = learningProgress(completed, practice);
+  const mathematics = mathCourses.filter(course => course.code.startsWith("MATH"));
+  const computing = mathCourses.filter(course => course.code.startsWith("CISC"));
+  const writtenCourseCard = (course: (typeof mathCourses)[number]) => {
+    const state = mathCourseProgress(course, math[course.id] ?? emptyMathProgress());
+    return <button className="course-library-card" key={course.id} onClick={() => onOpenMath(course.id)}><span className="course-glyph large">{course.code.startsWith("CISC") ? "∀" : course.id === "math1006" ? "x" : course.id === "math1011" ? "π" : "∫"}</span><span className="course-library-copy"><small>{course.code} · Self-Study</small><b>{course.title}</b><em>{courseChapters(course).length} chapters · {course.units.length} unit tests · {state.total} problems</em></span><span className="course-library-progress"><strong>{state.percent}%</strong><small>{state.chaptersCleared}/{state.chapterCount} chapters cleared</small><ProgressBar value={state.percent}/></span><ArrowRight size={17}/></button>;
+  };
   return <main className="page-content courses-page">
-    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Open a course to continue its lessons, practice, and chapter progression. Additional Brooklyn College CS courses will be added as they are built and reviewed.</p></div><div className="course-count"><b>1</b><small>Course Available</small></div></header>
-    <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>{titleCase("Programming Courses")}</h3></div><span>1 course</span></header><div className="course-library-list">
+    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Full lessons, written practice, chapter reviews, and unit mastery tests. Follow the math sequence from College Algebra through Calculus I.</p></div><div className="course-count"><b>{1 + mathCourses.length}</b><small>Courses Available</small></div></header>
+    <section className="course-library-group"><header><div><p className="eyebrow">Mathematics</p><h3>Algebra → Precalculus → Calculus I</h3></div><span>{mathematics.length} courses</span></header><div className="course-library-list">{mathematics.map(writtenCourseCard)}</div></section>
+    <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>Programming &amp; Discrete Structures</h3></div><span>{1 + computing.length} courses</span></header><div className="course-library-list">
       <button className="course-library-card" onClick={onOpenCourse}>
         <span className="course-glyph large">J</span>
         <span className="course-library-copy"><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>{learningChapters.length} chapters · Lessons and demonstrated practice</em></span>
         <span className="course-library-progress"><strong>{progress.percent}%</strong><small>{progress.completedChapters} / {learningChapters.length} chapters cleared</small><ProgressBar value={progress.percent} /></span>
         <ArrowRight size={17} />
       </button>
+      {computing.map(writtenCourseCard)}
     </div></section>
   </main>;
 }
@@ -611,58 +844,97 @@ function tutorLessonReference(chapterId: string, sectionId: string) {
 
 const SectionPracticeRendererContext = createContext<(sectionId: string) => React.ReactNode>(() => null);
 
-function CourseView({ completed, practice, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
-  const [selectedChapterId, setSelectedChapterId] = useState(learningChapters[0].id);
-  const [expandedChapterId, setExpandedChapterId] = useState<string | null>(learningChapters[0].id);
-  const [activeSectionId, setActiveSectionId] = useState(learningChapters[0].sections[0]?.id ?? "");
+function CourseView({ completed, practice, position, setPosition, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; position: CoursePosition; setPosition: Dispatch<SetStateAction<CoursePosition>>; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
+  const initialChapter = learningChapters.find((chapter) => chapter.id === position.chapterId) ?? learningChapters[0];
+  const initialMasteryTest = unitMasteryTests.find((test) => test.afterChapterId === initialChapter.id);
+  const initiallyViewingMastery = initialMasteryTest?.sectionId === position.sectionId;
+  const initialSections = initiallyViewingMastery && initialMasteryTest ? [{ id: initialMasteryTest.sectionId, title: initialMasteryTest.title }] : initialChapter.sections;
+  const initialSectionId = initialSections.some((section) => section.id === position.sectionId) ? position.sectionId : initialSections[0]?.id ?? "";
+  const [selectedChapterId, setSelectedChapterId] = useState(initialChapter.id);
+  const [selectedMasteryTestId, setSelectedMasteryTestId] = useState<string | null>(initiallyViewingMastery ? initialMasteryTest?.id ?? null : null);
+  const [expandedChapterId, setExpandedChapterId] = useState<string | null>(initialChapter.id);
+  const [activeSectionId, setActiveSectionId] = useState(initialSectionId);
   const [practiceTutorContext, setPracticeTutorContext] = useState<TutorPracticeContext | null>(null);
+  const [masteryTutorContext, setMasteryTutorContext] = useState<TutorMasteryContext | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const scrollLockRef = useRef<string | null>(null);
+  const scrollSaveTimerRef = useRef<number | null>(null);
+  const initialPositionRef = useRef({ ...position, chapterId: initialChapter.id, sectionId: initialSectionId });
+  const firstChapterLayoutRef = useRef(true);
   const selectedChapter = learningChapters.find((chapter) => chapter.id === selectedChapterId) ?? learningChapters[0];
+  const selectedMasteryTest = unitMasteryTests.find((test) => test.id === selectedMasteryTestId);
+  const visibleSections = useMemo(() => selectedMasteryTest ? [{ id: selectedMasteryTest.sectionId, title: selectedMasteryTest.title }] : selectedChapter.sections, [selectedMasteryTest, selectedChapter.sections]);
+  const contentKey = selectedMasteryTest?.id ?? selectedChapter.id;
   const course = learningProgress(completed, practice);
   const chapter = chapterProgress(selectedChapter.id, completed, practice);
   const practicePlan = useMemo(() => chapterPracticePlan(selectedChapter.id), [selectedChapter.id]);
 
   useLayoutEffect(() => {
     scrollLockRef.current = null;
-    setActiveSectionId(selectedChapter.sections[0]?.id ?? "");
-    if (readerRef.current) readerRef.current.scrollTop = 0;
-  }, [selectedChapter.id, selectedChapter.sections]);
+    const restore = firstChapterLayoutRef.current && initialPositionRef.current.chapterId === selectedChapter.id;
+    firstChapterLayoutRef.current = false;
+    const sectionId = restore && visibleSections.some((section) => section.id === initialPositionRef.current.sectionId) ? initialPositionRef.current.sectionId : visibleSections[0]?.id ?? "";
+    const scrollTop = restore ? Math.max(0, initialPositionRef.current.scrollTop) : 0;
+    setActiveSectionId(sectionId);
+    if (readerRef.current) readerRef.current.scrollTop = scrollTop;
+    setPosition((current) => ({ ...current, chapterId: selectedChapter.id, sectionId, scrollTop }));
+  }, [contentKey, selectedChapter.id, setPosition, visibleSections]);
 
   useEffect(() => {
     const reader = readerRef.current;
     if (!reader) return;
     const update = () => {
       if (scrollLockRef.current) return;
-      const current = selectedChapter.sections.map((section) => { const element = reader.querySelector<HTMLElement>(`#${section.id}`); return element ? { id: section.id, top: element.getBoundingClientRect().top - reader.getBoundingClientRect().top } : null; }).filter((entry): entry is { id: string; top: number } => Boolean(entry)).filter((entry) => entry.top <= 125).at(-1);
+      const current = visibleSections.map((section) => { const element = reader.querySelector<HTMLElement>(`#${section.id}`); return element ? { id: section.id, top: element.getBoundingClientRect().top - reader.getBoundingClientRect().top } : null; }).filter((entry): entry is { id: string; top: number } => Boolean(entry)).filter((entry) => entry.top <= 125).at(-1);
+      const sectionId = current?.id ?? visibleSections[0]?.id ?? "";
       if (current) setActiveSectionId(current.id);
+      if (scrollSaveTimerRef.current !== null) window.clearTimeout(scrollSaveTimerRef.current);
+      scrollSaveTimerRef.current = window.setTimeout(() => {
+        const scrollTop = Math.max(0, Math.round(reader.scrollTop));
+        setPosition((position) => position.chapterId === selectedChapter.id && position.sectionId === sectionId && position.scrollTop === scrollTop ? position : { ...position, chapterId: selectedChapter.id, sectionId, scrollTop });
+        scrollSaveTimerRef.current = null;
+      }, 150);
     };
     update(); reader.addEventListener("scroll", update, { passive: true });
-    return () => reader.removeEventListener("scroll", update);
-  }, [selectedChapter]);
+    return () => {
+      reader.removeEventListener("scroll", update);
+      if (scrollSaveTimerRef.current !== null) window.clearTimeout(scrollSaveTimerRef.current);
+      scrollSaveTimerRef.current = null;
+    };
+  }, [contentKey, selectedChapter.id, setPosition, visibleSections]);
 
   useEffect(() => {
-    const section = selectedChapter.sections.find((item) => item.id === activeSectionId) ?? selectedChapter.sections[0];
+    const section = visibleSections.find((item) => item.id === activeSectionId) ?? visibleSections[0];
     if (!section) return;
     onTutorContextChange({
       courseCode: "CISC 1115",
       courseTitle: "Introduction to Programming Using Java",
       courseProgress: course.percent,
-      chapterId: selectedChapter.id,
-      chapterTitle: titleCase(selectedChapter.title),
-      chapterDescription: selectedChapter.description,
+      chapterId: selectedMasteryTest?.id ?? selectedChapter.id,
+      chapterTitle: titleCase(selectedMasteryTest?.title ?? selectedChapter.title),
+      chapterDescription: selectedMasteryTest?.description ?? selectedChapter.description,
       chapterProgress: chapter.percent,
       sectionId: section.id,
       sectionTitle: titleCase(section.title),
-      lessonReference: tutorLessonReference(selectedChapter.id, section.id),
+      lessonReference: selectedMasteryTest?.description ?? tutorLessonReference(selectedChapter.id, section.id),
       practicePassed: chapter.passed,
       practiceTotal: chapter.questions,
-      activePractice: (section.id.endsWith("practice") || Boolean(practicePlan.checkpoints[section.id])) && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
+      activePractice: !selectedMasteryTest && (section.id.endsWith("practice") || Boolean(practicePlan.checkpoints[section.id])) && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
+      masteryAssessment: selectedMasteryTest ? masteryTutorContext : null,
     });
-  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, onTutorContextChange, practicePlan.checkpoints, practiceTutorContext, selectedChapter]);
+  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, masteryTutorContext, onTutorContextChange, practicePlan.checkpoints, practiceTutorContext, selectedChapter, selectedMasteryTest, visibleSections]);
 
   const selectChapter = (next: LearningChapter) => {
+    setMasteryTutorContext(null);
     if (next.id === selectedChapterId) {
+      if (selectedMasteryTestId) {
+        setSelectedMasteryTestId(null);
+        setExpandedChapterId(next.id);
+        setActiveSectionId(next.sections[0]?.id ?? "");
+        if (readerRef.current) readerRef.current.scrollTop = 0;
+        setPosition((current) => ({ ...current, chapterId: next.id, sectionId: next.sections[0]?.id ?? "", scrollTop: 0 }));
+        return;
+      }
       setExpandedChapterId((current) => current === next.id ? null : next.id);
       return;
     }
@@ -671,6 +943,20 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
     setActiveSectionId(next.sections[0]?.id ?? "");
     setExpandedChapterId(next.id);
     setSelectedChapterId(next.id);
+    setSelectedMasteryTestId(null);
+    setPosition((current) => ({ ...current, chapterId: next.id, sectionId: next.sections[0]?.id ?? "", scrollTop: 0 }));
+    window.requestAnimationFrame(() => { if (readerRef.current) readerRef.current.scrollTop = 0; });
+  };
+  const selectMasteryTest = (test: (typeof unitMasteryTests)[number]) => {
+    setMasteryTutorContext(null);
+    const nextChapter = learningChapters.find((chapter) => chapter.id === test.afterChapterId) ?? selectedChapter;
+    scrollLockRef.current = null;
+    if (readerRef.current) readerRef.current.scrollTop = 0;
+    setSelectedChapterId(nextChapter.id);
+    setSelectedMasteryTestId(test.id);
+    setExpandedChapterId(null);
+    setActiveSectionId(test.sectionId);
+    setPosition((current) => ({ ...current, chapterId: nextChapter.id, sectionId: test.sectionId, scrollTop: 0 }));
     window.requestAnimationFrame(() => { if (readerRef.current) readerRef.current.scrollTop = 0; });
   };
   const scrollToSection = (sectionId: string) => {
@@ -678,17 +964,25 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
     if (!reader || !element) return;
     scrollLockRef.current = sectionId;
     setActiveSectionId(sectionId);
+    setPosition((current) => ({ ...current, chapterId: selectedChapter.id, sectionId }));
     const readerTop = reader.getBoundingClientRect().top;
     const sectionTop = element.getBoundingClientRect().top;
     reader.scrollTo({ top: Math.max(0, reader.scrollTop + sectionTop - readerTop - 22), behavior: "smooth" });
-    window.setTimeout(() => { if (scrollLockRef.current === sectionId) scrollLockRef.current = null; }, 1600);
+    window.setTimeout(() => {
+      if (scrollLockRef.current === sectionId) scrollLockRef.current = null;
+      setPosition((current) => ({ ...current, chapterId: selectedChapter.id, sectionId, scrollTop: Math.max(0, Math.round(reader.scrollTop)) }));
+    }, 1600);
   };
+  const saveActiveQuestion = useCallback((sectionId: string, questionId: string) => {
+    setPosition((current) => current.questions[sectionId] === questionId ? current : { ...current, questions: { ...current.questions, [sectionId]: questionId } });
+  }, [setPosition]);
   const checkpointEntries = Object.entries(practicePlan.checkpoints);
   const renderSectionPractice = (sectionId: string) => {
     const questionIds = practicePlan.checkpoints[sectionId];
     if (!questionIds?.length) return null;
     const checkpointNumber = checkpointEntries.findIndex(([id]) => id === sectionId) + 1;
-    return <ChapterPractice chapterId={selectedChapter.id} questionIds={questionIds} variant="checkpoint" checkpointNumber={checkpointNumber} practiceSectionId={`${sectionId}-check`} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId === sectionId} />;
+    const practiceSectionId = `${sectionId}-check`;
+    return <ChapterPractice chapterId={selectedChapter.id} questionIds={questionIds} variant="checkpoint" checkpointNumber={checkpointNumber} practiceSectionId={practiceSectionId} savedQuestionId={position.questions[practiceSectionId]} onActiveQuestionChange={saveActiveQuestion} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId === sectionId} />;
   };
 
   return <main className="course-page continuous-course">
@@ -697,11 +991,12 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
         <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>
         {learningChapters.map((item, index) => {
           const state = chapterProgress(item.id, completed, practice);
-          const selected = item.id === selectedChapter.id;
+          const selected = item.id === selectedChapter.id && !selectedMasteryTest;
           const open = item.id === expandedChapterId;
           const done = state.percent === 100;
           const itemPracticePlan = chapterPracticePlan(item.id);
           const passedQuestionIds = new Set(practice[item.id]?.passed ?? []);
+          const itemMasteryTest = unitMasteryTests.find((test) => test.afterChapterId === item.id);
           const startsUnit = index === 0 || learningChapters[index - 1].unit !== item.unit;
           return <Fragment key={item.id}>{startsUnit && <p className="course-unit-label">{item.unit}</p>}<div className={`contents-section ${selected ? "selected" : ""} ${open ? "open" : ""} ${done ? "completed" : ""}`}>
             <button className="contents-section-button" aria-expanded={open} onClick={() => selectChapter(item)}>
@@ -715,11 +1010,14 @@ function CourseView({ completed, practice, onPracticeChange, onTutorContextChang
               const sectionDone = sectionQuestionIds.length > 0 && sectionPassed === sectionQuestionIds.length;
               return <button key={section.id} tabIndex={open ? 0 : -1} className={`${open && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Section questions complete"><Check size={12} strokeWidth={3.2} /></span> : sectionQuestionIds.length > 0 ? <small>{sectionPassed}/{sectionQuestionIds.length}</small> : null}</button>;
             })}</div></div></div>
-          </div></Fragment>;
+          </div>{itemMasteryTest && (() => { const testPassed = practice[itemMasteryTest.id]?.passed?.filter((questionId) => itemMasteryTest.questions.some((question) => question.id === questionId)).length ?? 0; const testDone = testPassed === itemMasteryTest.questions.length; const testSelected = selectedMasteryTest?.id === itemMasteryTest.id; return <div className={`contents-section unit-test-root ${testSelected ? "selected" : ""} ${testDone ? "completed" : ""}`}><button className="contents-section-button" onClick={() => selectMasteryTest(itemMasteryTest)}><span className="chapter-number"><GraduationCap size={16} /></span><span className="chapter-copy"><b>{titleCase(itemMasteryTest.title)}</b><small>Unit-level assessment</small></span><span className="chapter-row-actions">{testDone ? <span className="chapter-done-badge" role="img" aria-label="Unit test complete"><Check size={12} strokeWidth={3.2} /></span> : <small>{testPassed}/{itemMasteryTest.questions.length}</small>}</span></button></div>; })()}</Fragment>;
         })}
         <div className="section-progress-card"><div><span>Course Completion</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} chapters cleared</small><p>Only passed practice creates course progress. A chapter clears when every exercise passes.</p></div>
       </aside>
-      <div className="chapter-reader" ref={readerRef}><article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p></header><SectionPracticeRendererContext.Provider value={renderSectionPractice}><ChapterLessonContent chapterId={selectedChapter.id} /></SectionPracticeRendererContext.Provider><ChapterPractice chapterId={selectedChapter.id} questionIds={practicePlan.review} variant="review" practiceSectionId={selectedChapter.sections.at(-1)?.id ?? `${selectedChapter.id}-practice`} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId.endsWith("practice")} /></article></div>
+      <div className="chapter-reader" ref={readerRef}>{selectedMasteryTest ? <article className="chapter-article chapter-swap unit-test-article" key={selectedMasteryTest.id}>
+        <header className="chapter-cover unit-test-cover"><p className="eyebrow">{selectedMasteryTest.unit}</p><h1>{titleCase(selectedMasteryTest.title)}</h1><p>{selectedMasteryTest.description}</p></header>
+        <UnitMasteryAssessment test={selectedMasteryTest} record={practice[selectedMasteryTest.id]} onChange={(record) => onPracticeChange(selectedMasteryTest.id, record)} onTutorContextChange={setMasteryTutorContext} />
+      </article> : <article className="chapter-article chapter-swap" key={selectedChapter.id}><header className="chapter-cover"><h1>{titleCase(selectedChapter.title)}</h1><p>{selectedChapter.description}</p></header><SectionPracticeRendererContext.Provider value={renderSectionPractice}><ChapterLessonContent chapterId={selectedChapter.id} /></SectionPracticeRendererContext.Provider>{(() => { const practiceSectionId = selectedChapter.sections.at(-1)?.id ?? `${selectedChapter.id}-practice`; return <ChapterPractice chapterId={selectedChapter.id} questionIds={practicePlan.review} variant="review" practiceSectionId={practiceSectionId} savedQuestionId={position.questions[practiceSectionId]} onActiveQuestionChange={saveActiveQuestion} record={practice[selectedChapter.id]} onChange={(record) => onPracticeChange(selectedChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId.endsWith("practice")} />; })()}</article>}</div>
     </div>
   </main>;
 }
@@ -730,7 +1028,7 @@ function LearningSectionBlock({ id, eyebrow, title, children }: { id: string; ey
 }
 
 function CodeExample({ label, code }: { label: string; code: string }) {
-  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small><CopyCodeButton code={code} /></div><pre><code>{code}</code></pre></div>;
+  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small><CopyCodeButton code={code} /></div><pre><JavaCode code={code} /></pre></div>;
 }
 
 function DataTypeLesson({ type, category, meaning, description, declaration, explanation, values, rule }: { type: string; category: string; meaning: string; description: string; declaration: string; explanation: string; values: string[]; rule: React.ReactNode }) {
@@ -791,22 +1089,234 @@ function ChapterLessonContent({ chapterId }: { chapterId: string }) {
 
 const emptyPracticeRecord = (): PracticeRecord => ({ answers: {}, attempts: {}, hints: [], passed: [] });
 
-function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1, practiceSectionId, record: savedRecord, onChange, onTutorPracticeContextChange, tutorActive }: { chapterId: string; questionIds: string[]; variant: "checkpoint" | "review"; checkpointNumber?: number; practiceSectionId: string; record?: PracticeRecord; onChange: (record: PracticeRecord) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void; tutorActive: boolean }) {
+function UnitMasteryAssessment({ test, record: savedRecord, onChange, onTutorContextChange }: { test: (typeof unitMasteryTests)[number]; record?: PracticeRecord; onChange: (record: PracticeRecord) => void; onTutorContextChange: (context: TutorMasteryContext) => void }) {
+  const emptyRecord = useMemo(() => emptyPracticeRecord(), []);
+  const record = savedRecord ?? emptyRecord;
+  const questionDefinitions = useMemo(() => test.questions.map((question) => ({
+    id: question.id,
+    title: question.title,
+    prompt: question.prompt,
+    starterCode: question.code,
+    referenceSolution: question.answer ?? "",
+    validate: question.validate,
+  })), [test]);
+  const recoveredAttempt = useMemo(() => {
+    if (record.masteryAttempts?.length || !(record.submissions ?? 0) || record.lastScore === undefined) return null;
+    return recoverLegacyMasteryAttempt({
+      testId: test.id,
+      questions: questionDefinitions,
+      answers: record.answers,
+      passedQuestionIds: record.passed,
+      submissionCount: record.submissions ?? 1,
+      lastScore: record.lastScore,
+    });
+  }, [questionDefinitions, record.answers, record.lastScore, record.masteryAttempts, record.passed, record.submissions, test.id]);
+  const masteryAttempts = useMemo(() => record.masteryAttempts?.length ? record.masteryAttempts : recoveredAttempt ? [recoveredAttempt] : [], [record.masteryAttempts, recoveredAttempt]);
+  const [reviewedAttemptId, setReviewedAttemptId] = useState<string | null>(masteryAttempts.at(-1)?.id ?? null);
+  const activeTest = masteryAttempts.length === 0 || Boolean(record.masteryRetakeActive);
+  const assessmentRef = useRef<HTMLElement | null>(null);
+  const previousActiveTestRef = useRef(activeTest);
+  const validQuestionIds = useMemo(() => new Set(test.questions.map((question) => question.id)), [test.questions]);
+  const currentMasteryIds = record.passed.filter((questionId) => validQuestionIds.has(questionId));
+  const currentMastery = new Set(currentMasteryIds).size;
+  const reviewedAttempt = masteryAttempts.find((attempt) => attempt.id === reviewedAttemptId) ?? masteryAttempts.at(-1) ?? null;
+  const firstAttempt = masteryAttempts[0] ?? null;
+  const retrySource = masteryAttempts.find((attempt) => attempt.id === record.masteryRetry?.sourceAttemptId);
+  const retrying = Boolean(record.masteryRetakeActive && retrySource && record.masteryRetry?.questionIds.length);
+  const activeQuestions = useMemo(() => test.questions.filter((question) => !retrying || record.masteryRetry?.questionIds.includes(question.id)).map((question) => {
+    const saved = retrying ? retrySource?.questionResults.find((result) => result.questionId === question.id) : null;
+    return saved ? { ...question, title: saved.title, prompt: saved.prompt, code: saved.starterCode ?? undefined } : question;
+  }), [test.questions, retrying, record.masteryRetry, retrySource]);
+  const allAnswered = activeQuestions.length > 0 && activeQuestions.every((question) => String(record.answers[question.id] ?? "").trim());
+  const nextAttemptNumber = Math.max(0, ...masteryAttempts.map((attempt) => attempt.attemptNumber)) + 1;
+  const liveGrades = useMemo(() => new Map((reviewedAttempt?.questionResults ?? []).map((result) => {
+    const question = questionDefinitions.find((item) => item.id === result.questionId);
+    return [result.questionId, question ? currentMasteryGrade(question, result.submittedAnswer) : null];
+  })), [reviewedAttempt, questionDefinitions]);
+
+  useEffect(() => {
+    if (!recoveredAttempt || record.masteryAttempts?.length) return;
+    onChange({ ...record, masteryAttempts: [recoveredAttempt], masteryRetakeActive: false });
+  }, [onChange, record, recoveredAttempt]);
+
+  useLayoutEffect(() => {
+    if (previousActiveTestRef.current !== activeTest) assessmentRef.current?.scrollIntoView({ block: "start" });
+    previousActiveTestRef.current = activeTest;
+  }, [activeTest]);
+
+  const tutorContext = useMemo<TutorMasteryContext>(() => {
+    if (activeTest) {
+      return {
+        assessmentId: test.id,
+        assessmentTitle: test.title,
+        mode: retrying ? "question_retry" : "active_test",
+        retryQuestionIds: retrying ? activeQuestions.map((question) => question.id) : undefined,
+        questionTotal: test.questions.length,
+        firstAttemptScore: firstAttempt?.score ?? null,
+        currentMastery,
+        answerRevealPolicy: "withhold_reference_solutions",
+        questions: activeQuestions.map((question) => {
+          const learnerAnswer = record.answers[question.id] ?? "";
+          return {
+            questionId: question.id,
+            questionNumber: test.questions.findIndex((item) => item.id === question.id) + 1,
+            title: question.title,
+            prompt: question.prompt,
+            starterCode: question.code ?? null,
+            learnerAnswer: learnerAnswer.slice(0, 12_000),
+            answerTruncated: learnerAnswer.length > 12_000,
+            result: "not_submitted" as const,
+            graderFeedback: null,
+            referenceSolution: null,
+          };
+        }),
+        reviewedAttempt: null,
+      };
+    }
+
+    return {
+      assessmentId: test.id,
+      assessmentTitle: test.title,
+      mode: "results_review",
+      questionTotal: test.questions.length,
+      firstAttemptScore: firstAttempt?.score ?? null,
+      currentMastery,
+      answerRevealPolicy: "submitted_attempt_review",
+      questions: (reviewedAttempt?.questionResults ?? []).map((result) => ({
+        questionId: result.questionId,
+        questionNumber: result.questionNumber,
+        title: result.title,
+        prompt: result.prompt,
+        starterCode: result.starterCode,
+        learnerAnswer: result.submittedAnswer.slice(0, 12_000),
+        answerTruncated: result.submittedAnswer.length > 12_000,
+        result: result.correct ? "correct" as const : "incorrect" as const,
+        graderFeedback: result.feedback,
+        currentGraderFeedback: !result.correct ? liveGrades.get(result.questionId)?.feedback ?? null : null,
+        referenceSolution: result.referenceSolution,
+      })),
+      reviewedAttempt: reviewedAttempt ? { id: reviewedAttempt.id, attemptNumber: reviewedAttempt.attemptNumber, submittedAt: reviewedAttempt.submittedAt, recoveredFromLegacy: reviewedAttempt.recoveredFromLegacy, score: reviewedAttempt.score, total: reviewedAttempt.total, kind: reviewedAttempt.kind, sourceAttemptId: reviewedAttempt.sourceAttemptId } : null,
+    };
+  }, [activeTest, activeQuestions, retrying, currentMastery, firstAttempt?.score, record.answers, reviewedAttempt, liveGrades, test]);
+
+  useEffect(() => {
+    onTutorContextChange(tutorContext);
+  }, [onTutorContextChange, tutorContext]);
+
+  const updateAnswer = (questionId: string, answer: string) => onChange({ ...record, answers: { ...record.answers, [questionId]: answer } });
+  const saveAttempt = (attempt: MasteryAttempt) => {
+    const correctIds = attempt.questionResults.filter((result) => result.correct).map((result) => result.questionId);
+    const passed = [...new Set([...currentMasteryIds, ...correctIds])];
+    const attempts = { ...record.attempts };
+    if (attempt.kind !== "regrade") {
+      const submittedIds = attempt.reassessedQuestionIds ?? test.questions.map((question) => question.id);
+      submittedIds.forEach((id) => { attempts[id] = (attempts[id] ?? 0) + 1; });
+    }
+    setReviewedAttemptId(attempt.id);
+    onChange({
+      ...record,
+      attempts,
+      hints: [],
+      passed,
+      submissions: masteryAttempts.length + 1,
+      lastScore: attempt.score,
+      masteryAttempts: [...masteryAttempts, attempt],
+      masteryRetakeActive: false,
+      masteryRetry: undefined,
+    });
+  };
+  const submit = () => {
+    if (!allAnswered) return;
+    saveAttempt(retrying && retrySource ? createMasteryFollowUp({
+      source: retrySource, attemptNumber: nextAttemptNumber, questions: questionDefinitions,
+      questionIds: activeQuestions.map((question) => question.id), answers: record.answers,
+    }) : createMasteryAttempt({ testId: test.id, attemptNumber: nextAttemptNumber, questions: questionDefinitions, answers: record.answers }));
+  };
+  const retake = () => onChange({ ...record, answers: {}, masteryRetakeActive: true, masteryRetry: undefined });
+  const retryQuestions = (questionIds: string[]) => {
+    if (!reviewedAttempt || !questionIds.length) return;
+    const answers = { ...record.answers };
+    reviewedAttempt.questionResults.filter((result) => questionIds.includes(result.questionId)).forEach((result) => { answers[result.questionId] = result.submittedAnswer; });
+    onChange({ ...record, answers, masteryRetakeActive: true, masteryRetry: { sourceAttemptId: reviewedAttempt.id, questionIds } });
+  };
+  const recheckQuestion = (questionId: string) => {
+    if (!reviewedAttempt) return;
+    saveAttempt(createMasteryFollowUp({ source: reviewedAttempt, attemptNumber: nextAttemptNumber, questions: questionDefinitions, questionIds: [questionId], answers: {}, kind: "regrade" }));
+  };
+
+  if (!activeTest && reviewedAttempt) {
+    const mastered = currentMastery === test.questions.length;
+    const missed = reviewedAttempt.questionResults.filter((result) => !result.correct);
+    const firstScoreLabel = firstAttempt?.recoveredFromLegacy && firstAttempt.attemptNumber !== 1 ? "Earliest preserved score" : "First-attempt score";
+    return <section ref={assessmentRef} className={`practice-session unit-mastery-session mastery-result ${mastered ? "mastery-complete" : "mastery-not-passed"}`} id={test.sectionId} data-learning-section>
+      <header className="mastery-results-header">
+        <div><p className="eyebrow">Results &amp; Review</p><h2>{titleCase(test.title)}</h2><p>Review the exact assessment submission and compare it with one valid reference solution.</p></div>
+        <div className="mastery-summary-grid"><span><small>{firstScoreLabel}</small><b>{firstAttempt?.score ?? 0}/{firstAttempt?.total ?? test.questions.length}</b></span><span><small>Current mastery</small><b>{currentMastery}/{test.questions.length}</b></span><span><small>Status</small><b>{mastered ? "Mastered" : "In progress"}</b></span></div>
+      </header>
+      <nav className="mastery-attempt-history" aria-label="Mastery test attempt history"><span>Attempt history</span>{masteryAttempts.map((attempt) => <button type="button" key={attempt.id} className={attempt.id === reviewedAttempt.id ? "selected" : ""} onClick={() => setReviewedAttemptId(attempt.id)}>{masteryAttemptLabel(attempt)} · {attempt.score}/{attempt.total}</button>)}</nav>
+      <div className="mastery-attempt-meta"><b>{masteryAttemptLabel(reviewedAttempt)}</b><span>{reviewedAttempt.submittedAt ? new Date(reviewedAttempt.submittedAt).toLocaleString() : "Recovered from older saved progress · original submission time unavailable"}</span></div>
+      {reviewedAttempt.sourceAttemptId && <p className="mastery-follow-up-note">Only question{reviewedAttempt.reassessedQuestionIds?.length === 1 ? "" : "s"} {reviewedAttempt.questionResults.filter((result) => reviewedAttempt.reassessedQuestionIds?.includes(result.questionId)).map((result) => result.questionNumber).join(", ")} {reviewedAttempt.kind === "regrade" ? "rechecked using the exact saved answer" : "resubmitted"}. Other answers and results are carried forward unchanged. This is not a new full-test attempt.</p>}
+      {missed.length > 0 && <section className="mastery-needs-attention" aria-label="Questions needing attention">
+        <h3>What needs attention</h3>
+        <ul>{missed.map((result) => <li key={result.questionId}>
+          <a href={`#review-${result.questionId}`}>Question {result.questionNumber} · {titleCase(result.title)}</a>
+          <p>{liveGrades.get(result.questionId)?.correct ? "The current checker accepts your saved answer. Use Recheck saved answer below to record the correction without retyping." : liveGrades.get(result.questionId)?.feedback ?? result.feedback}</p>
+        </li>)}</ul>
+        {missed.length > 1 && <button className="secondary-button" onClick={() => retryQuestions(missed.map((result) => result.questionId))}>Retry these {missed.length} questions<RotateCcw size={14} /></button>}
+      </section>}
+      <div className="mastery-review-list">{reviewedAttempt.questionResults.map((result) => <article id={`review-${result.questionId}`} className={`mastery-review-question ${result.correct ? "correct" : "incorrect"}`} key={result.questionId}>
+        <header><span>Question {result.questionNumber}</span><strong>{result.correct ? <Check size={14} /> : <X size={14} />}{masteryResultLabel(result)}</strong></header>
+        <h3>{titleCase(result.title)}</h3>
+        <p>{result.prompt}</p>
+        {result.starterCode && <div className="mastery-starter-context"><small>Starter code</small><pre><JavaCode code={result.starterCode} /></pre></div>}
+        <div className="mastery-answer-comparison">
+          <section><h4>Your exact submitted answer</h4>{result.submittedAnswer ? <pre><JavaCode code={result.submittedAnswer} /></pre> : <div className="mastery-missing-answer">No submitted answer was recoverable for this question.</div>}</section>
+          <section><h4>Reference solution</h4><pre><JavaCode code={result.referenceSolution} /></pre></section>
+        </div>
+        <div className={`mastery-grader-feedback ${result.correct ? "correct" : "incorrect"}`}><b>Saved grading feedback</b><p>{result.feedback}</p><small>{result.earnedPoints}/{result.possiblePoints} point · {result.gradingMethod === "input-output-checks" ? "Supported Java input/output checks" : result.gradingMethod === "pattern-validator" ? "Code-pattern checker" : "Legacy validator result"}</small></div>
+        {!result.correct && <div className="mastery-question-actions">
+          <p>{liveGrades.get(result.questionId)?.correct ? "Your saved code passes the current checker. No answer changes are needed." : "Retry only this question; your other answers stay unchanged."}</p>
+          <div><button className="secondary-button" onClick={() => recheckQuestion(result.questionId)}>Recheck saved answer<Check size={14} /></button><button className="primary-button" onClick={() => retryQuestions([result.questionId])}>Retry this question<RotateCcw size={14} /></button></div>
+        </div>}
+      </article>)}</div>
+      <footer className="mastery-results-actions"><p>{mastered ? "This mastery test is complete. Attempt history remains available for review." : "Retry an individual question above, or choose a fresh full test. Earlier attempts remain unchanged."}</p><button className="secondary-button" onClick={retake}>Retake Full Test<RotateCcw size={15} /></button></footer>
+    </section>;
+  }
+
+  const answeredCount = activeQuestions.filter((question) => String(record.answers[question.id] ?? "").trim()).length;
+  return <section ref={assessmentRef} className="practice-session unit-mastery-session strict-test-session" id={test.sectionId} data-learning-section>
+    <div className="practice-header"><h2>{titleCase(test.title)}</h2></div>
+    {retrying && <div className="mastery-retry-banner"><p>Question retry · only {activeQuestions.length === 1 ? "this answer is" : "these answers are"} being resubmitted.</p><button className="secondary-button" onClick={() => onChange({ ...record, masteryRetakeActive: false, masteryRetry: undefined })}>Cancel retry</button></div>}
+    <div className="mastery-test-question-list">{activeQuestions.map((question) => <article className="practice-workspace strict-test-workspace mastery-test-question" key={question.id}>
+      <header><span>Question {test.questions.findIndex((item) => item.id === question.id) + 1}</span><small>{String(record.answers[question.id] ?? "").trim() ? "Answered" : "Not answered"}</small></header>
+      <h3>{titleCase(question.title)}</h3>
+      <p>{question.prompt}</p>
+      {question.code && <div className="mastery-starter-context"><small>Starter code</small><pre><JavaCode code={question.code} /></pre></div>}
+      <label htmlFor={`mastery-${question.id}`}>Your program</label>
+      <div className="practice-answer-field multiline code-editor-field"><JavaEditor id={`mastery-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(answer) => updateAnswer(question.id, answer)} placeholder={question.placeholder} multiline starterCode={question.code ?? ""} /></div>
+    </article>)}</div>
+    <div className="mastery-submit-panel"><div><b>Ready to submit?</b><p>{allAnswered ? "Submission creates an immutable attempt. Earlier answers remain saved." : `${activeQuestions.length - answeredCount} question${activeQuestions.length - answeredCount === 1 ? "" : "s"} still need an answer.`}</p></div><button className="primary-button" onClick={submit} disabled={!allAnswered}>{retrying ? activeQuestions.length === 1 ? "Submit question" : "Submit corrections" : "Submit Test"}<GraduationCap size={16} /></button></div>
+  </section>;
+}
+
+function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1, practiceSectionId, savedQuestionId, record: savedRecord, onChange, onActiveQuestionChange, onTutorPracticeContextChange, tutorActive }: { chapterId: string; questionIds: string[]; variant: "checkpoint" | "review"; checkpointNumber?: number; practiceSectionId: string; savedQuestionId?: string; record?: PracticeRecord; onChange: (record: PracticeRecord) => void; onActiveQuestionChange: (sectionId: string, questionId: string) => void; onTutorPracticeContextChange: (context: TutorPracticeContext) => void; tutorActive: boolean }) {
   const allQuestions = practiceQuestions[chapterId] ?? [];
+  const requiredQuestions = requiredChapterPracticeQuestions(chapterId);
   const questionIdSet = new Set(questionIds);
   const questions = allQuestions.filter((question) => questionIdSet.has(question.id));
   const record = savedRecord ?? emptyPracticeRecord();
-  const allValidPassed = allQuestions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
+  const allValidPassed = requiredQuestions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
   const validPassed = questions.filter((question) => record.passed.includes(question.id)).map((question) => question.id);
   const firstUnpassed = questions.findIndex((question) => !record.passed.includes(question.id));
-  const [activeIndex, setActiveIndex] = useState(firstUnpassed < 0 ? 0 : firstUnpassed);
+  const savedQuestionIndex = questions.findIndex((question) => question.id === savedQuestionId);
+  const [activeIndex, setActiveIndex] = useState(savedQuestionIndex >= 0 ? savedQuestionIndex : firstUnpassed < 0 ? 0 : firstUnpassed);
   const [feedback, setFeedback] = useState<Record<string, "correct" | "incorrect">>({});
   const [visibleAnswers, setVisibleAnswers] = useState<Record<string, boolean>>({});
   const [reviewingCompleted, setReviewingCompleted] = useState(false);
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
   const allPassed = validPassed.length === questions.length;
-  const chapterAllPassed = allValidPassed.length === allQuestions.length;
+  const chapterAllPassed = requiredQuestions.length > 0 && allValidPassed.length === requiredQuestions.length;
   const unansweredIndexes = questions
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => !record.passed.includes(item.id))
@@ -817,9 +1327,18 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const currentAttempts = record.attempts[question.id] ?? 0;
   const answerShown = Boolean(visibleAnswers[question.id]);
   const shownAnswer = question.answer ?? question.options?.find((option) => question.validate(option)) ?? question.hint;
+  const usesJavaEditor = questionUsesJavaEditor(question);
+
+  // The controls and tutor share one ordered list, so option letters cannot drift.
+  const answerOptions = useMemo(() => (question.options ?? []).map((text, index) => ({
+    label: String.fromCharCode(65 + index),
+    text,
+    selected: currentAnswer === text,
+  })), [question.options, currentAnswer]);
 
   useEffect(() => {
     if (!tutorActive) return;
+    onActiveQuestionChange(practiceSectionId, question.id);
     onTutorPracticeContextChange({
       chapterId,
       questionId: question.id,
@@ -830,6 +1349,8 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
       title: titleCase(question.title),
       prompt: question.prompt,
       starterCode: question.code ?? null,
+      options: answerOptions,
+      selectedOptionLabel: answerOptions.find((option) => option.selected)?.label ?? null,
       studentAnswer: currentAnswer.slice(0, 8_000),
       answerTruncated: currentAnswer.length > 8_000,
       attempts: currentAttempts,
@@ -837,7 +1358,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
       answerShown,
       shownAnswer: answerShown ? shownAnswer : null,
     });
-  }, [activeIndex, answerShown, chapterId, currentAnswer, currentAttempts, currentFeedback, onTutorPracticeContextChange, passed, question, questions.length, shownAnswer, tutorActive]);
+  }, [activeIndex, answerOptions, answerShown, chapterId, currentAnswer, currentAttempts, currentFeedback, onActiveQuestionChange, onTutorPracticeContextChange, passed, practiceSectionId, question, questions.length, shownAnswer, tutorActive]);
 
   const updateAnswer = (answer: string) => {
     onChange({ ...record, answers: { ...record.answers, [question.id]: answer } });
@@ -864,7 +1385,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const completionTitle = variant === "checkpoint" ? "Section Check Complete" : chapterAllPassed ? "Chapter Complete" : "Chapter Review Complete";
   const completionCopy = variant === "checkpoint" ? "" : chapterAllPassed ? "Every required exercise passed. This chapter is cleared and your progress is saved." : "The cumulative review passed. Finish the remaining section checks to clear the chapter.";
   const completionCard = <div className={`practice-complete-card ${variant === "checkpoint" ? "section-complete" : chapterAllPassed ? "chapter-complete" : "review-complete"}`}>
-      {variant === "review" && chapterAllPassed && <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>}
+      {variant !== "checkpoint" && chapterAllPassed && <div className="practice-complete-burst" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /></div>}
       <span className="practice-complete-check"><Check size={42} strokeWidth={3.2} /></span>
       <p className="eyebrow">{variant === "checkpoint" ? `Checkpoint ${checkpointNumber}` : "Cumulative Review"}</p>
       <h2>{completionTitle}</h2>
@@ -879,8 +1400,8 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
 
   const practiceBody = <>
     <div className="practice-header"><div><p className="eyebrow">{variant === "checkpoint" ? `Check Your Understanding · ${String(checkpointNumber).padStart(2, "0")}` : "Cumulative Review"}</p><h2>{variant === "checkpoint" ? "Section Check" : "Chapter Review"}</h2>{variant === "review" && <p>Combine what you learned across the chapter. Every earlier section check also counts toward completion.</p>}</div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
-    {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{item.level}</small></button>)}</div>}
-    <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <div className="practice-code-wrap"><CopyCodeButton code={question.code} /><pre className="practice-code"><code>{question.code}</code></pre></div>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{question.options?.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{question.options.map((option, index) => <button type="button" role="radio" aria-checked={currentAnswer === option} className={`${currentAnswer === option ? "selected" : ""} ${answerShown && question.validate(option) ? "revealed-answer" : ""}`} key={option} onClick={() => updateAnswer(option)}><span>{String.fromCharCode(65 + index)}</span><b>{option}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"}`}>{question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck={false} /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" />}{answerShown && <div className="practice-answer-overlay" aria-live="polite"><span>Answer</span>{shownAnswer}</div>}</div>}
+    {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{(item.productionStage ?? 0) >= 4 ? "Build" : item.level}</small></button>)}</div>}
+    <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <div className="practice-code-wrap"><CopyCodeButton code={question.code} /><pre className="practice-code"><JavaCode code={question.code} /></pre></div>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{answerOptions.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{answerOptions.map((option) => <button type="button" role="radio" aria-checked={option.selected} className={`${option.selected ? "selected" : ""} ${answerShown && question.validate(option.text) ? "revealed-answer" : ""}`} key={option.label} onClick={() => updateAnswer(option.text)}><span>{option.label}</span><b>{option.text}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"} ${usesJavaEditor ? "code-editor-field" : "written-answer-field"}`}>{usesJavaEditor ? <JavaEditor id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={updateAnswer} placeholder={question.placeholder} multiline={Boolean(question.multiline)} starterCode={question.code ?? ""} onSubmit={() => { if (passed) goToNextQuestion(); else check(); }} /> : question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck autoCorrect="off" autoCapitalize="off" /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" spellCheck autoCorrect="off" autoCapitalize="off" />}{answerShown && <div className="practice-answer-overlay" aria-live="polite" role="region" aria-label="Shown answer" tabIndex={question.multiline ? 0 : undefined}>{usesJavaEditor ? <JavaCode code={shownAnswer} /> : shownAnswer}</div>}</div>}
       <div className="practice-response-row">
         <div className="practice-feedback-slot">{(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, show the answer if needed, and try again."}</small></p></div>}</div>
         <div className={`practice-actions ${passed ? "passed" : ""}`}>
@@ -911,23 +1432,24 @@ function pathNodeStatus(node: DegreePathNode, records: DegreeRecords): DegreeSta
   return "unknown";
 }
 
-function DegreeMap({ records, setRecords, snapshot, onImport }: { records: DegreeRecords; setRecords: (records: DegreeRecords) => void; snapshot: AuditSnapshot; onImport: () => void }) {
+function DegreeMap({ records, setRecords, snapshot, onImport, canImport = true }: { records: DegreeRecords; setRecords: (records: DegreeRecords) => void; snapshot: AuditSnapshot; onImport: () => void; canImport?: boolean }) {
   const [selected, setSelected] = useState<DegreeCourse | null>(null);
   const completed = degreeCourses.filter((course) => records[course.code] === "complete").length;
   const inProgress = degreeCourses.filter((course) => records[course.code] === "in_progress").length;
   const hasAudit = snapshot.sourceName !== "No audit uploaded";
   return <main className="page-content degree-page focused-degree vertical-degree">
-    <section className="degree-hero audit-backed-hero"><div><p className="eyebrow accent-text">Brooklyn College · Computer Science B.S.</p><h2>{hasAudit ? titleCase("Your path to the degree") : titleCase("Computer Science degree path")}</h2><p>{hasAudit ? "Required courses stay separate from choice groups. Branches mean “choose one,” not “take everything.” Your uploaded audit controls the status colors." : "Explore the required courses, choice groups, and graduation gates without exposing anyone’s personal academic record. Load your own DegreeWorks audit only when you want a private, device-local view."}</p><div className="hero-actions"><button className="primary-button" onClick={onImport}><Upload size={15} />{hasAudit ? "Update DegreeWorks PDF" : "Load Your DegreeWorks PDF"}</button><span className="honesty-note">{hasAudit ? <><Check size={14} /> Audit reviewed {snapshot.auditDate}</> : <><LockKeyhole size={14} /> No personal audit loaded</>}</span></div></div><div className="degree-verification">{hasAudit ? <><div><b>{snapshot.degreeProgress}%</b><small>DegreeWorks progress</small></div><div><b>{snapshot.appliedCredits}</b><small>credits applied</small></div><div><b>{snapshot.remainingCredits}</b><small>credits remaining</small></div></> : <><div><b>B.S.</b><small>degree route</small></div><div><b>BC</b><small>Brooklyn College</small></div><div><b>Local</b><small>private audit data</small></div></>}</div></section>
+    <section className="degree-hero audit-backed-hero"><div><p className="eyebrow accent-text">Brooklyn College · Computer Science B.S.</p><h2>{hasAudit ? titleCase("Your path to the degree") : titleCase("Computer Science degree path")}</h2><p>{hasAudit ? "Required courses stay separate from choice groups. Branches mean “choose one,” not “take everything.” Your uploaded audit controls the status colors." : canImport ? "Explore the requirements, then privately load your own DegreeWorks audit when you want your personal status on the map." : "Explore the complete degree structure anonymously. Sign in when you want a private DegreeWorks map that stays separate from every other student."}</p><div className="hero-actions"><button className="primary-button" onClick={onImport}>{canImport ? <Upload size={15} /> : <LockKeyhole size={15} />}{hasAudit ? "Update DegreeWorks PDF" : canImport ? "Load Your DegreeWorks PDF" : "Sign in to load DegreeWorks"}</button><span className="honesty-note">{hasAudit ? <><Check size={14} /> Audit reviewed {snapshot.auditDate}</> : <><LockKeyhole size={14} /> No personal audit loaded</>}</span></div></div><div className="degree-verification">{hasAudit ? <><div><b>{snapshot.degreeProgress}%</b><small>DegreeWorks progress</small></div><div><b>{snapshot.appliedCredits}</b><small>credits applied</small></div><div><b>{snapshot.remainingCredits}</b><small>credits remaining</small></div></> : <><div><b>B.S.</b><small>degree route</small></div><div><b>BC</b><small>Brooklyn College</small></div><div><b>{canImport ? "Private" : "Sign in"}</b><small>personal audit data</small></div></>}</div></section>
     {hasAudit && <section className="audit-summary-strip"><div><small>Major block</small><b>{snapshot.majorApplied} applied · {snapshot.majorRemaining} remaining</b></div><div><small>Mapped course states</small><b>{completed} complete · {inProgress} in progress</b></div><div><small>Current GPA</small><b className={snapshot.gpa < 2 ? "needs-attention" : ""}>{snapshot.gpa.toFixed(3)} · {snapshot.gpa < 2 ? "2.0 required" : "requirement met"}</b></div><div><small>Source</small><b>{snapshot.sourceName}</b></div></section>}
-    <div className="degree-map-heading"><div><p className="eyebrow">Requirement family tree</p><h3>{titleCase("Start at the top. Follow the branches downward.")}</h3></div><div className="degree-legend"><span><i className="complete" />Complete</span><span><i className="in_progress" />In progress</span><span><i className="not_started" />Remaining</span><span><i className="unknown" />Audit rule</span></div></div>
-    <section className="degree-family-tree">{degreePathLevels.map((level, levelIndex) => <div className="degree-family-level" key={level.label}>{levelIndex > 0 && <div className="family-connector"><span /></div>}<header><span>{String(levelIndex + 1).padStart(2, "0")}</span><div><b>{titleCase(level.label)}</b><small>{level.description}</small></div></header><div className="family-node-row">{level.nodes.map((node) => { const status = pathNodeStatus(node, records); return <div className={`degree-branch-bubble ${node.kind} ${status}`} key={node.id}><div className="bubble-top"><span className="degree-status-icon">{status === "complete" ? <Check size={16} strokeWidth={3} /> : status === "in_progress" ? <Play size={12} fill="currentColor" /> : status === "not_started" ? <LockKeyhole size={14} /> : <GitBranch size={14} />}</span><small>{node.label}</small></div><h4>{titleCase(node.title)}</h4>{node.codes && <div className="bubble-options">{node.codes.map((code, index) => { const course = degreeCourses.find((item) => item.code === code); const optionStatus = records[code] ?? "unknown"; return <div className="bubble-option-wrap" key={code}>{index > 0 && <span className="or-label">OR</span>}<button className={optionStatus} onClick={() => course && setSelected(course)}><b>{code}</b><small>{course ? titleCase(course.title) : ""}</small><i>{optionStatus === "in_progress" ? "In progress" : optionStatus === "complete" ? "Complete" : optionStatus === "not_started" ? "Still needed" : "Requirement"}</i></button></div>; })}</div>}{node.kind === "electives" && <div className="elective-slots"><span>1</span><span>2</span><span>3</span></div>}{node.note && <p>{node.note}</p>}</div>; })}</div></div>)}</section>
+    <div className="degree-map-heading"><div><p className="eyebrow">Requirement family tree</p><h3>{titleCase("Follow the prerequisites, not the row order.")}</h3></div><div className="degree-legend"><span><i className="complete" />Complete</span><span><i className="in_progress" />In progress</span><span><i className="not_started" />Remaining</span><span><i className="unknown" />Audit rule</span></div></div>
+    <p className="degree-map-prerequisite-guide"><strong>You do not need to finish a whole row before starting the next.</strong> Each course lists what it needs below. Within a pair, choose one course; between prerequisite groups, AND means you need both. Checkmarks reflect saved college-course completion—not lesson progress or confirmed registration eligibility. Open “Conditions &amp; equivalencies” for grade and other restrictions; confirm your catalog year, substitutions, and enrollment eligibility with advisement.</p>
+    <section className="degree-family-tree">{degreePathLevels.map((level, levelIndex) => <div className="degree-family-level" key={level.label}>{levelIndex > 0 && <div className="family-connector"><span /></div>}<header><span>{String(levelIndex + 1).padStart(2, "0")}</span><div><b>{titleCase(level.label)}</b><small>{level.description}</small></div></header><div className="family-node-row">{level.nodes.map((node) => { const status = pathNodeStatus(node, records); return <div className={`degree-branch-bubble ${node.kind} ${status}`} key={node.id}><div className="bubble-top"><span className="degree-status-icon">{status === "complete" ? <Check size={16} strokeWidth={3} /> : status === "in_progress" ? <Play size={12} fill="currentColor" /> : status === "not_started" ? <LockKeyhole size={14} /> : <GitBranch size={14} />}</span><small>{node.label}</small></div><h4>{titleCase(node.title)}</h4>{node.codes && <div className="bubble-options">{node.codes.map((code, index) => { const course = degreeCourses.find((item) => item.code === code); const optionStatus = records[code] ?? "unknown"; return <div className="bubble-option-wrap" key={code}>{index > 0 && <span className="or-label">OR</span>}<button className={optionStatus} onClick={() => course && setSelected(course)}><b>{code}</b><small>{course ? titleCase(course.title) : ""}</small><i>{optionStatus === "in_progress" ? "In progress" : optionStatus === "complete" ? "Complete" : optionStatus === "not_started" ? "Still needed" : "Requirement"}</i></button>{course && <DegreePrerequisites course={course} records={records}/>}</div>; })}</div>}{node.kind === "electives" && <DegreeElectives records={records} onOpenCourse={setSelected} />}{node.note && <p>{node.note}</p>}</div>; })}</div></div>)}</section>
     <section className="degree-wide-gates"><div className="gate-heading"><p className="eyebrow">Degree-wide requirements</p><h3>{titleCase("Courses are only one branch of graduation.")}</h3></div><div className="gate-grid"><div className={`degree-gate ${hasAudit ? "in_progress" : "unknown"}`}><span>{hasAudit ? <Play size={14} fill="currentColor" /> : <GraduationCap size={15} />}</span><p><small>College option</small><b>{hasAudit ? `${snapshot.collegeOptionRemaining} credits remaining` : "Separate graduation requirement"}</b><em>{hasAudit ? "The loaded audit determines the remaining college-option work." : "Load an audit to see how this block applies to you."}</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Brooklyn residency</small><b>{hasAudit ? `${snapshot.residencyRemaining} credits remaining` : "Residency minimum applies"}</b><em>{hasAudit ? "Calculated from the loaded DegreeWorks summary." : "Only an official audit can confirm the personal remainder."}</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Advanced CISC in residence</small><b>{hasAudit ? `${snapshot.advancedCiscRemaining} credits remaining` : "Upper-level residency applies"}</b><em>CISC 2210-5004 with C or better.</em></p></div><div className="degree-gate not_started"><span><LockKeyhole size={14} /></span><p><small>Additional B.S. credits</small><b>{hasAudit ? `${snapshot.bsCreditsRemaining} credits remaining` : "Approved B.S. credits required"}</b><em>Approved science, math, CS, and related courses.</em></p></div></div></section>
     <section className="degree-footnotes"><p><b>Important:</b> DegreeWorks reports both completed and in-progress credits in the applied total. In-progress does not mean earned yet.</p><p><b>Planning boundary:</b> graduate-level substitutions and double-counting rules require department or Degree Audit approval.</p></section>
-    <DegreeCourseDrawer course={selected} status={selected ? records[selected.code] ?? "unknown" : "unknown"} onClose={() => setSelected(null)} onStatus={(status) => { if (!selected) return; setRecords({ ...records, [selected.code]: status }); }} />
+    <DegreeCourseDrawer course={selected} records={records} status={selected ? records[selected.code] ?? "unknown" : "unknown"} onClose={() => setSelected(null)} onStatus={(status) => { if (!selected) return; setRecords({ ...records, [selected.code]: status }); }} />
   </main>;
 }
 
-function DegreeCourseDrawer({ course, status, onClose, onStatus }: { course: DegreeCourse | null; status: DegreeStatus; onClose: () => void; onStatus: (status: DegreeStatus) => void }) {
+function DegreeCourseDrawer({ course, records, status, onClose, onStatus }: { course: DegreeCourse | null; records: DegreeRecords; status: DegreeStatus; onClose: () => void; onStatus: (status: DegreeStatus) => void }) {
   if (!course) return null;
   const options: { status: DegreeStatus; label: string; description: string }[] = [
     { status: "complete", label: "Complete", description: "Credit earned or requirement satisfied" },
@@ -935,13 +1457,13 @@ function DegreeCourseDrawer({ course, status, onClose, onStatus }: { course: Deg
     { status: "not_started", label: "Not started", description: "Confirmed remaining" },
     { status: "unknown", label: "Unknown", description: "Keep Exceler A from assuming" },
   ];
-  return <div className="drawer-backdrop" onMouseDown={onClose}><aside className="degree-drawer" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={onClose}><X size={20} /></button><p className="eyebrow">{course.requirement}</p><h2>{course.code}</h2><h3>{titleCase(course.title)}</h3><div className="drawer-facts"><div><small>CREDITS</small><b>{course.credits}</b></div><div><small>MAP STAGE</small><b>{course.stage + 1}</b></div></div><section><p className="eyebrow">Requirement context</p><p>{course.prerequisiteText}</p>{course.choiceLabel && <div className="choice-callout"><small>CHOICE GROUP</small><b>{titleCase(course.choiceLabel)}</b><p>Only one option is counted toward this requirement.</p></div>}</section><section><p className="eyebrow">Your official status</p><div className="status-options">{options.map((option) => <button className={status === option.status ? "active" : ""} key={option.status} onClick={() => onStatus(option.status)}><i className={option.status} /> <span><b>{option.label}</b><small>{option.description}</small></span>{status === option.status && <Check size={15} />}</button>)}</div></section><small className="source-note">Set this from DegreeWorks or your official record—not from self-study progress.</small></aside></div>;
+  return <div className="drawer-backdrop" onMouseDown={onClose}><aside className="degree-drawer" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={onClose}><X size={20} /></button><p className="eyebrow">{course.requirement}</p><h2>{course.code}</h2><h3>{titleCase(course.title)}</h3><div className="drawer-facts"><div><small>CREDITS</small><b>{course.credits}</b></div><div><small>MAP STAGE</small><b>{course.stage + 1}</b></div></div>{mathCourses.filter(item => item.code === course.code).map(item => <a key={item.id} className="primary-button" href={`/${item.id}`}>Open lessons <ArrowRight size={15}/></a>)}<section><p className="eyebrow">Requirement context</p><p>{course.prerequisiteText}</p><DegreePrerequisites course={course} records={records}/>{course.prerequisites && <p className="source-note">Checks use your saved degree statuses, not lesson progress. Confirm registration eligibility with advisement.</p>}{course.catalogUrl && <p><a href={course.catalogUrl} target="_blank" rel="noreferrer">Official course description and prerequisites <ArrowUpRight size={12}/></a></p>}{course.choiceLabel && <div className="choice-callout"><small>CHOICE GROUP</small><b>{titleCase(course.choiceLabel)}</b><p>Only one option is counted toward this requirement.</p></div>}</section><section><p className="eyebrow">Your official status</p><div className="status-options">{options.map((option) => <button className={status === option.status ? "active" : ""} key={option.status} onClick={() => onStatus(option.status)}><i className={option.status} /> <span><b>{option.label}</b><small>{option.description}</small></span>{status === option.status && <Check size={15} />}</button>)}</div></section><small className="source-note">Set this from DegreeWorks or your official record—not from self-study progress.</small></aside></div>;
 }
 
 function parseAuditText(text: string) {
   const proposals = new Map<string, DegreeStatus>();
   const compact = text.toUpperCase().replace(/\s+/g, " ");
-  degreeCourses.forEach((course) => {
+  degreeAuditCourses.forEach((course) => {
     const [subject, number] = course.code.split(" ");
     const matcher = new RegExp(`(?:${subject}\\.?\\s*)?\\b${number}\\b`, "g");
     const contexts: { before: string; after: string; explicitSubject: boolean }[] = [];
@@ -949,7 +1471,9 @@ function parseAuditText(text: string) {
       const index = match.index ?? 0;
       const before = compact.slice(Math.max(0, index - 125), index);
       const explicitSubject = match[0].includes(subject) || new RegExp(`${subject}\\.?\\s*(?:\\d{4}\\s*(?:,|OR)\\s*)*$`).test(before.slice(-65));
-      if (explicitSubject) contexts.push({ before, after: compact.slice(index + match[0].length, index + match[0].length + 125), explicitSubject });
+      // Do not borrow a grade from the following course's audit row.
+      const after = compact.slice(index + match[0].length, index + match[0].length + 125).split(/\b(?:CISC|MATH|PHIL|ENGL|CORC)\.?\s*\d{4}[A-Z]*\b/)[0];
+      if (explicitSubject) contexts.push({ before, after, explicitSubject });
     }
     if (!contexts.length) return;
     const inProgress = contexts.some(({ after }) => /^.{0,75}\bIP\s*\(/.test(after));
@@ -1000,7 +1524,7 @@ function DegreeWorksImport({ open, records, onClose, onApply }: { open: boolean;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   if (!open) return null;
-  const detected = degreeCourses.filter((course) => course.code in proposal);
+  const detected = degreeAuditCourses.filter((course) => course.code in proposal);
   const analyze = (value = text, source = fileName || "Pasted DegreeWorks text") => { setProposal(parseAuditText(value)); setSnapshot(parseAuditSnapshot(value, source)); };
   const loadFile = async (file: File) => {
     setLoading(true); setError(""); setFileName(file.name); setProposal({});
@@ -1018,10 +1542,12 @@ type PortableProgress = {
   practice: PracticeRecords;
   degreeRecords: DegreeRecords;
   auditSnapshot: AuditSnapshot;
+  math?: MathRecords;
 };
 
 const objectValue = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const finiteNumber = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
 
 function readProgressBackup(value: unknown): PortableProgress | null {
   const root = objectValue(value);
@@ -1033,7 +1559,7 @@ function readProgressBackup(value: unknown): PortableProgress | null {
   const practice: PracticeRecords = {};
   const rawPractice = objectValue(data.practice) ?? {};
   Object.entries(rawPractice).forEach(([chapterId, value]) => {
-    const questions = practiceQuestions[chapterId];
+    const questions = practiceQuestions[chapterId] ?? unitMasteryTests.find((test) => test.id === chapterId)?.questions;
     const rawRecord = objectValue(value);
     if (!questions || !rawRecord) return;
     const validIds = new Set(questions.map((question) => question.id));
@@ -1043,13 +1569,27 @@ function readProgressBackup(value: unknown): PortableProgress | null {
     const attempts = Object.fromEntries(Object.entries(rawAttempts).filter(([id, attempt]) => validIds.has(id) && typeof attempt === "number" && Number.isFinite(attempt)).map(([id, attempt]) => [id, Math.max(0, Math.floor(attempt as number))]));
     const hints = Array.isArray(rawRecord.hints) ? rawRecord.hints.filter((id): id is string => typeof id === "string" && validIds.has(id)) : [];
     const passed = Array.isArray(rawRecord.passed) ? rawRecord.passed.filter((id): id is string => typeof id === "string" && validIds.has(id)) : [];
-    practice[chapterId] = { answers, attempts, hints: [...new Set(hints)], passed: [...new Set(passed)] };
+    const masteryAttempts = readMasteryAttempts(rawRecord.masteryAttempts, chapterId, validIds);
+    const rawRetry = objectValue(rawRecord.masteryRetry);
+    const retrySource = masteryAttempts.find((attempt) => attempt.id === rawRetry?.sourceAttemptId);
+    const retryIds = Array.isArray(rawRetry?.questionIds) ? rawRetry.questionIds.filter((id): id is string => typeof id === "string" && validIds.has(id) && Boolean(retrySource?.questionResults.some((result) => result.questionId === id))) : [];
+    practice[chapterId] = {
+      answers,
+      attempts,
+      hints: [...new Set(hints)],
+      passed: [...new Set(passed)],
+      submissions: typeof rawRecord.submissions === "number" && Number.isFinite(rawRecord.submissions) ? Math.max(0, Math.floor(rawRecord.submissions)) : undefined,
+      lastScore: typeof rawRecord.lastScore === "number" && Number.isFinite(rawRecord.lastScore) ? Math.max(0, Math.floor(rawRecord.lastScore)) : undefined,
+      masteryAttempts: masteryAttempts.length ? masteryAttempts : undefined,
+      masteryRetakeActive: Boolean(rawRecord.masteryRetakeActive),
+      masteryRetry: retrySource && retryIds.length ? { sourceAttemptId: retrySource.id, questionIds: [...new Set(retryIds)] } : undefined,
+    };
   });
 
   const rawRecords = objectValue(data.degreeRecords) ?? {};
   const degreeRecords = { ...initialDegreeRecords };
   const validStatuses = new Set<DegreeStatus>(["unknown", "complete", "in_progress", "not_started"]);
-  degreeCourses.forEach((course) => {
+  degreeAuditCourses.forEach((course) => {
     const status = rawRecords[course.code];
     if (typeof status === "string" && validStatuses.has(status as DegreeStatus)) degreeRecords[course.code] = status as DegreeStatus;
   });
@@ -1069,7 +1609,7 @@ function readProgressBackup(value: unknown): PortableProgress | null {
     bsCreditsRemaining: finiteNumber(rawSnapshot.bsCreditsRemaining, degreeWorksSnapshot.bsCreditsRemaining),
     sourceName: typeof rawSnapshot.sourceName === "string" ? rawSnapshot.sourceName.slice(0, 160) : degreeWorksSnapshot.sourceName,
   };
-  return { completed, practice, degreeRecords, auditSnapshot };
+  return { completed, practice, degreeRecords, auditSnapshot, math: data.math === undefined ? undefined : readMathRecords(data.math) };
 }
 
 function ProgressBackupDialog({ open, progress, onClose, onRestore }: { open: boolean; progress: PortableProgress; onClose: () => void; onRestore: (progress: PortableProgress) => void }) {
@@ -1134,7 +1674,7 @@ function ProjectInfoDialog({ open, onClose, onOpenBackup }: { open: boolean; onC
       <div className="project-info-grid">
         <article><span><Code2 size={17} /></span><div><b>What Is Available</b><p>CISC 1115 currently includes 24 connected chapters with lessons, practice, and completion based mainly on demonstrated work. More Brooklyn College computer science and supporting math courses will be added as they are built and reviewed.</p></div></article>
         <article><span><GraduationCap size={18} /></span><div><b>Degree-Path Context</b><p>The map organizes required courses, either-or choices, elective groups, and graduation gates. It is a planning aid—not an official Brooklyn College service or a replacement for DegreeWorks and academic advisement.</p></div></article>
-        <article><span><LockKeyhole size={17} /></span><div><b>Privacy and AI</b><p>The public experience starts without Daniel’s grades, GPA, audit, or college progress. Visitor progress and optional DegreeWorks data stay in that visitor’s browser. The AI tutor is disabled on the hosted public build so strangers cannot use Daniel’s API credits.</p></div></article>
+        <article><span><LockKeyhole size={17} /></span><div><b>Private Student Workspaces</b><p>Anyone can learn anonymously with progress saved on that device. Students may sign in for isolated cloud progress, a private DegreeWorks map, and the protected tutor. The original PDF is read in the browser; only the reviewed academic summary is saved.</p></div></article>
       </div>
       <footer><span>Self-directed education, built course by course.</span><div className="project-info-footer-actions"><button className="secondary-button" onClick={onOpenBackup}><Download size={14} />Progress Backup</button><button className="primary-button" onClick={onClose}>Explore Exceler A<ArrowRight size={14} /></button></div></footer>
     </section>
@@ -1173,8 +1713,7 @@ function TutorMessageContent({ content }: { content: string }) {
   >{content}</ReactMarkdown></div>;
 }
 
-function TutorAssistant({ view, completed, practice, courseContext, snapshot }: { view: View; completed: string[]; practice: PracticeRecords; courseContext: TutorCourseContext | null; snapshot: AuditSnapshot }) {
-  const [open, setOpen] = useState(false);
+function TutorAssistant({ view, completed, practice, courseContext, snapshot, open, setOpen }: { view: View; completed: string[]; practice: PracticeRecords; courseContext: TutorCourseContext | MathTutorContext | null; snapshot: AuditSnapshot; open: boolean; setOpen: Dispatch<SetStateAction<boolean>> }) {
   const [dragging, setDragging] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [responseLength, setResponseLength] = useState<TutorResponseLength>("medium");
@@ -1184,11 +1723,12 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; rect: DOMRect } | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const progress = learningProgress(completed, practice);
-  const activeLesson = view === "course" ? courseContext : null;
+  const activeLesson = view === "course" || view === "math" ? courseContext : null;
   const contextLabel = activeLesson ? activeLesson.sectionTitle : view === "degree" ? "Degree Map" : view === "courses" ? "Courses" : view === "dashboard" ? "Overview" : "Home";
 
   useEffect(() => {
@@ -1216,11 +1756,23 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
     return () => { window.cancelAnimationFrame(frame); window.clearTimeout(settle); };
   }, [busy, messages, open]);
 
+  useLayoutEffect(() => {
+    const input = composerInputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 110)}px`;
+    input.style.overflowY = input.scrollHeight > 110 ? "auto" : "hidden";
+  }, [draft, open]);
+
   useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) setDrawerPosition({ x: 0, y: 0 });
   }, [open]);
 
   const beginDrag = (event: React.PointerEvent<HTMLElement>) => {
@@ -1288,11 +1840,11 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
           context: {
             currentView: view,
             course: {
-              code: "CISC 1115",
-              title: "Introduction to Programming Using Java",
-              progressPercent: progress.percent,
-              chaptersCleared: progress.completedChapters,
-              chapterCount: learningChapters.length,
+              code: activeLesson?.courseCode ?? "CISC 1115",
+              title: activeLesson?.courseTitle ?? "Introduction to Programming Using Java",
+              progressPercent: activeLesson?.courseProgress ?? progress.percent,
+              chaptersCleared: view === "math" ? undefined : progress.completedChapters,
+              chapterCount: view === "math" ? courseChapters(mathCourses.find(c => c.code === activeLesson?.courseCode) ?? mathCourses[0]).length : learningChapters.length,
             },
             activeLesson,
             degreeAudit: {
@@ -1358,7 +1910,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   };
 
   return <div className={`tutor-shell ${open ? "open" : ""}`}>
-    {open && <section ref={drawerRef} className={`tutor-drawer ${expanded ? "expanded" : ""} ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} aria-label="Exceler tutor" aria-live="polite">
+    {open && <section id="exceler-tutor-drawer" ref={drawerRef} className={`tutor-drawer ${expanded ? "expanded" : ""} ${dragging ? "dragging" : ""}`} style={{ translate: `${drawerPosition.x}px ${drawerPosition.y}px` }} aria-label="Exceler tutor" aria-live="polite">
       <header className="tutor-header" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="tutor-identity"><span><img src="/exceler-a-mark-512.png" alt="" /></span><p><b>Exceler Tutor</b><small>Using your current page</small></p></div>
         <span className="tutor-drag-handle" aria-hidden="true"><GripHorizontal size={18} /></span>
@@ -1370,7 +1922,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
         <div className="tutor-scroll-anchor" />
       </div>
       <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
+        <textarea ref={composerInputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
         <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>
       </form>
     </section>}
@@ -1380,8 +1932,13 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot }: 
   </div>;
 }
 
-export default function CommandCenter() {
-  const [view, setView] = useState<View>("home");
+export default function CommandCenter({ initialMathCourse, student = null, signInPath = "/signin-with-chatgpt?return_to=%2F", signOutPath = "/signout-with-chatgpt?return_to=%2F" }: { initialMathCourse?: string; student?: StudentIdentity | null; signInPath?: string; signOutPath?: string } = {}) {
+  const firstChapter = learningChapters[0];
+  const [view, setView] = useState<View>(initialMathCourse ? "math" : "home");
+  const [math, setMath] = useState<MathRecords>({});
+  const [mathCourseId, setMathCourseId] = useState(initialMathCourse ?? "math1006");
+  const [storageError, setStorageError] = useState(false);
+  const [coursePosition, setCoursePosition] = useState<CoursePosition>({ chapterId: firstChapter.id, sectionId: firstChapter.sections[0]?.id ?? "", scrollTop: 0, questions: {} });
   const [completed, setCompleted] = useState<string[]>([]);
   const [practice, setPractice] = useState<PracticeRecords>({});
   const [degreeRecords, setDegreeRecords] = useState<DegreeRecords>(initialDegreeRecords);
@@ -1389,32 +1946,135 @@ export default function CommandCenter() {
   const [importOpen, setImportOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
-  const [courseTutorContext, setCourseTutorContext] = useState<TutorCourseContext | null>(null);
+  const [tutorOpen, setTutorOpen] = useState(false);
+  const [courseTutorContext, setCourseTutorContext] = useState<TutorCourseContext | MathTutorContext | null>(null);
   const [localWorkspace, setLocalWorkspace] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState(false);
+  const [anonymousCandidate, setAnonymousCandidate] = useState<Record<string, unknown> | null>(null);
+  const [syncLabel, setSyncLabel] = useState("Progress saved on this device");
+  const cloudRevisionRef = useRef(0);
+  const lastCloudPayloadRef = useRef("");
+  const queuedCloudPayloadRef = useRef<string | null>(null);
+  const cloudSaveRunningRef = useRef(false);
+  const selectedMathCourse = mathCourses.find(course => course.id === mathCourseId) ?? mathCourses[0];
+  const selectedMathProgress = useMemo(() => math[selectedMathCourse.id] ?? emptyMathProgress(), [math, selectedMathCourse.id]);
+  const updateSelectedMathProgress = useCallback<Dispatch<SetStateAction<MathProgress>>>((update) => {
+    setMath(current => ({ ...current, [selectedMathCourse.id]: typeof update === "function" ? update(current[selectedMathCourse.id] ?? emptyMathProgress()) : update }));
+  }, [selectedMathCourse.id]);
 
   useEffect(() => {
-    try {
+    let cancelled = false;
+    const applyWorkspace = (raw: Record<string, unknown>) => {
+      const restored = readProgressBackup({ app: "Exceler A", version: 1, data: raw });
+      if (!restored) return false;
+      const navigation = objectValue(raw.navigation) as { view?: View; mathCourseId?: string; course?: Partial<CoursePosition> } | null;
+      setMath(readMathRecords(restored.math));
+      setCompleted(restored.completed); setPractice(restored.practice); setDegreeRecords(restored.degreeRecords); setAuditSnapshot(restored.auditSnapshot);
+      if (!initialMathCourse && mathCourses.some(c => c.id === navigation?.mathCourseId)) setMathCourseId(navigation!.mathCourseId!);
+      if (!initialMathCourse && navigation?.view && ["home", "dashboard", "courses", "degree", "course", "math"].includes(navigation.view)) setView(navigation.view);
+      if (navigation?.course) {
+        const storedChapter = learningChapters.find(chapter => chapter.id === navigation.course?.chapterId) ?? firstChapter;
+        const storedSectionId = storedChapter.sections.some(section => section.id === navigation.course?.sectionId) ? navigation.course.sectionId! : storedChapter.sections[0]?.id ?? "";
+        setCoursePosition({ chapterId: storedChapter.id, sectionId: storedSectionId, scrollTop: Number.isFinite(navigation.course.scrollTop) ? Math.max(0, Number(navigation.course.scrollTop)) : 0, questions: navigation.course.questions && typeof navigation.course.questions === "object" ? navigation.course.questions : {} });
+      }
+      return true;
+    };
+    const hydrate = async () => {
       const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
       setLocalWorkspace(isLocal);
-      const stored = localStorage.getItem(isLocal ? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as { completed?: string[]; practice?: PracticeRecords; degreeRecords?: DegreeRecords; auditSnapshot?: AuditSnapshot };
-        if (parsed.completed) setCompleted(parsed.completed);
-        if (parsed.practice) setPractice(parsed.practice);
-        if (parsed.degreeRecords) setDegreeRecords({ ...initialDegreeRecords, ...parsed.degreeRecords });
-        if (parsed.auditSnapshot) setAuditSnapshot({ ...degreeWorksSnapshot, ...parsed.auditSnapshot });
+      try {
+        if (isLocal) {
+          const stored = localStorage.getItem(PRIVATE_STORAGE_KEY);
+          if (stored) applyWorkspace(JSON.parse(stored) as Record<string, unknown>);
+          if (!cancelled) { setSyncLabel("Private progress saved on this device"); setHydrated(true); }
+          return;
+        }
+        if (!student) {
+          const stored = localStorage.getItem(PUBLIC_STORAGE_KEY);
+          if (stored) applyWorkspace(JSON.parse(stored) as Record<string, unknown>);
+          if (!cancelled) { setSyncLabel("Anonymous progress saved on this device"); setHydrated(true); }
+          return;
+        }
+        setSyncLabel("Loading your private workspace…");
+        const response = await fetch("/api/student-state", { cache: "no-store" });
+        if (!response.ok) throw new Error("Your private workspace could not be loaded.");
+        const result = await response.json() as { state: Record<string, unknown> | null; revision: number };
+        if (cancelled) return;
+        cloudRevisionRef.current = result.revision;
+        if (result.state && applyWorkspace(result.state)) {
+          lastCloudPayloadRef.current = JSON.stringify(result.state);
+          setCloudSyncEnabled(true);
+          setSyncLabel("Private progress synced");
+        } else {
+          const anonymous = localStorage.getItem(PUBLIC_STORAGE_KEY);
+          let candidate: Record<string, unknown> | null = null;
+          if (anonymous) {
+            const parsed = JSON.parse(anonymous) as Record<string, unknown>;
+            if (readProgressBackup({ app: "Exceler A", version: 1, data: parsed })) candidate = parsed;
+          }
+          setAnonymousCandidate(candidate);
+          setCloudSyncEnabled(!candidate);
+          setSyncLabel(candidate ? "Choose how to start your private workspace" : "Private progress synced");
+        }
+      } catch {
+        if (!cancelled) { setStorageError(true); setSyncLabel("Private sync needs attention"); }
+      } finally {
+        if (!cancelled) setHydrated(true);
       }
-    } catch { /* The focused demo remains usable if browser storage is unavailable. */ }
-    setHydrated(true);
+    };
+    void hydrate();
+    return () => { cancelled = true; };
+  }, [student?.email]);
+
+  const flushCloudSaves = useCallback(async () => {
+    if (cloudSaveRunningRef.current) return;
+    cloudSaveRunningRef.current = true;
+    while (queuedCloudPayloadRef.current) {
+      const payload = queuedCloudPayloadRef.current;
+      queuedCloudPayloadRef.current = null;
+      setSyncLabel("Saving private progress…");
+      try {
+        const response = await fetch("/api/student-state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: JSON.parse(payload), expectedRevision: cloudRevisionRef.current }) });
+        const result = await response.json() as { revision?: number; error?: string };
+        if (!response.ok || typeof result.revision !== "number") throw new Error(result.error ?? "Private sync failed.");
+        cloudRevisionRef.current = result.revision;
+        lastCloudPayloadRef.current = payload;
+        setStorageError(false); setSyncLabel("Private progress synced");
+      } catch {
+        queuedCloudPayloadRef.current = null;
+        setStorageError(true); setSyncLabel("Private sync needs attention");
+      }
+    }
+    cloudSaveRunningRef.current = false;
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(localWorkspace ? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY, JSON.stringify({ completed, practice, degreeRecords, auditSnapshot }));
-  }, [completed, practice, degreeRecords, auditSnapshot, hydrated, localWorkspace]);
+    const state = { completed, practice, math, degreeRecords, auditSnapshot, navigation: { view, course: coursePosition, mathCourseId } };
+    if (localWorkspace || !student) {
+      try { localStorage.setItem(localWorkspace ? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY, JSON.stringify(state)); setStorageError(false); }
+      catch { setStorageError(true); }
+      return;
+    }
+    if (!cloudSyncEnabled) return;
+    const payload = JSON.stringify(state);
+    if (payload === lastCloudPayloadRef.current) return;
+    queuedCloudPayloadRef.current = payload;
+    const timer = window.setTimeout(() => { void flushCloudSaves(); }, 900);
+    return () => window.clearTimeout(timer);
+  }, [completed, practice, math, degreeRecords, auditSnapshot, view, coursePosition, mathCourseId, hydrated, localWorkspace, student, cloudSyncEnabled, flushCloudSaves]);
 
   const openBackup = () => { setInfoOpen(false); setBackupOpen(true); };
-  const restoreProgress = (next: PortableProgress) => { setCompleted(next.completed); setPractice(next.practice); setDegreeRecords(next.degreeRecords); setAuditSnapshot(next.auditSnapshot); };
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} onOpenInfo={() => setInfoOpen(true)} onOpenBackup={openBackup} /><div className="app-main">{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} onOpenCourse={() => setView("course")} />}{view === "course" && <CourseView completed={completed} practice={practice} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} onImport={() => setImportOpen(true)} />}</div><MobileNav view={view} setView={setView} />{localWorkspace && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} />}<DegreeWorksImport open={importOpen} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
+  const restoreProgress = (next: PortableProgress) => { setCompleted(next.completed); setPractice(next.practice); if (next.math) setMath(next.math); setDegreeRecords(next.degreeRecords); setAuditSnapshot(next.auditSnapshot); };
+  const chooseAnonymousProgress = (keep: boolean) => {
+    if (keep && anonymousCandidate) {
+      const restored = readProgressBackup({ app: "Exceler A", version: 1, data: anonymousCandidate });
+      if (restored) restoreProgress(restored);
+    }
+    lastCloudPayloadRef.current = "";
+    setAnonymousCandidate(null); setCloudSyncEnabled(true); setSyncLabel("Saving private progress…");
+  };
+  const privateFeatures = localWorkspace || Boolean(student);
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} tutorOpen={tutorOpen} onToggleTutor={() => setTutorOpen((current) => !current)} onOpenInfo={() => setInfoOpen(true)} student={student} localWorkspace={localWorkspace} signInPath={signInPath} signOutPath={signOutPath} syncLabel={syncLabel}/><div className="app-main">{storageError && <div className="math-storage-error" role="alert">Your latest changes could not be saved safely. Keep this page open and export a progress backup before closing.</div>}{anonymousCandidate && student && !localWorkspace && <section className="progress-migration-banner"><LockKeyhole size={18}/><div><b>Save this device’s anonymous progress to {student.displayName}?</b><p>Your private account is empty. Nothing will be merged unless you choose it.</p></div><button className="primary-button" onClick={() => chooseAnonymousProgress(true)}>Use this progress</button><button className="secondary-button" onClick={() => chooseAnonymousProgress(false)}>Start fresh</button></section>}{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} math={math} onOpenCourse={() => { setCourseTutorContext(null); setView("course"); }} onOpenMath={(id) => { setCourseTutorContext(null); setMathCourseId(id); setView("math"); }} />}{view === "course" && <CourseView completed={completed} practice={practice} position={coursePosition} setPosition={setCoursePosition} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "math" && <MathCourseView key={selectedMathCourse.id} course={selectedMathCourse} progress={selectedMathProgress} setProgress={updateSelectedMathProgress} onTutorContextChange={setCourseTutorContext} onBack={() => setView("courses")} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} canImport={privateFeatures} onImport={() => privateFeatures ? setImportOpen(true) : window.location.assign(signInPath)} />}</div><MobileNav view={view} setView={setView} />{privateFeatures && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} open={tutorOpen} setOpen={setTutorOpen} />}<DegreeWorksImport open={importOpen && privateFeatures} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, math, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
 }

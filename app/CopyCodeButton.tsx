@@ -19,7 +19,6 @@ export default function CopyCodeButton({ code }: { code: string }) {
   };
 
   return <button type="button" className={`copy-code-button ${copied ? "copied" : ""}`} onClick={copyCode} aria-label={copied ? "Code copied" : "Copy code"} title={copied ? "Copied" : "Copy code"}>
-    {copied ? <Check size={12} strokeWidth={2.8} /> : <Copy size={12} />}
-    <span>{copied ? "Copied" : "Copy"}</span>
+    {copied ? <Check size={11} strokeWidth={2.8} /> : <Copy size={11} />}
   </button>;
 }

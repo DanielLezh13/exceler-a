@@ -1,0 +1,190 @@
+import { retrievalValidator, type RetrievalSyntaxOptions } from "../retrievalPracticeValidation.ts";
+import type { CoursePracticeQuestion } from "./cisc1115Course.ts";
+
+export type RetrievalPlacement = {
+  chapterId: string;
+  sectionId: string;
+  rationale: string;
+  question: CoursePracticeQuestion;
+  alternatives: string[];
+  syntax: RetrievalSyntaxOptions;
+};
+
+function task(chapterId: string, sectionId: string, id: string, title: string, prompt: string, code: string, answer: string, hint: string, rationale: string, alternatives: string[] = [], syntax: RetrievalSyntaxOptions = {}): RetrievalPlacement {
+  // Most additions are deliberately guided retrieval, not independent builds.
+  const productionStage = id === "repair-index" ? 1 : ["branch-categories", "invalid-before-category", "array-traversal", "array-minimum", "list-traversal", "search-result"].includes(id) ? 3 : 2;
+  return {
+    chapterId, sectionId, rationale, alternatives, syntax,
+    question: {
+      id: `retrieve-${id}`, level: "Apply", kind: productionStage === 3 ? "Write from requirements" : "Write Java", title, prompt, code: code || undefined,
+      placeholder: "Write the requested Java code", answer, hint,
+      success: "Correct. You translated the requirement into the requested Java construct.",
+      multiline: true, productionStage,
+      validate: retrievalValidator([answer, ...alternatives], syntax),
+    },
+  };
+}
+
+// Deliberately selected local retrieval gaps, not one task per concept/choice.
+// Larger independent builds, useful traces, and conceptual sections are retained.
+export const sectionRetrievalPractice: RetrievalPlacement[] = [
+  task("operators-expressions", "operators-arithmetic", "arithmetic-total", "Price a Set of Tickets",
+    "A booking has quantity tickets at price dollars each. Write one int declaration named total for the cost of all tickets. Use the existing variables, not the example's calculated answer.",
+    "int quantity = 4;\nint price = 7;", "int total = quantity * price;", "The cost depends on both the number of tickets and the price of one ticket.",
+    "Produce an arithmetic declaration immediately after identifying operators and operands.", [], { fixedNames: ["quantity", "price", "total"] }),
+  task("operators-expressions", "operators-arithmetic", "arithmetic-change", "Work Out the Change",
+    "A customer pays paid dollars for an item costing cost dollars. Write one int declaration named change for the amount to return. The supplied variables already exist.",
+    "int paid = 20;\nint cost = 13;", "int change = paid - cost;", "Subtract what the shop keeps from what the customer handed over.",
+    "Contrast operand order in subtraction with the preceding multiplication task.", [], { fixedNames: ["paid", "cost", "change"] }),
+  task("operators-expressions", "operators-modulus", "leftover-stickers", "Leave the Unpacked Stickers",
+    "Each full sheet holds 8 stickers. Write one int declaration named loose for the stickers left after packing as many full sheets as possible. Use the existing sticker count.",
+    "int stickers = 29;", "int loose = stickers % 8;", "The question asks for what does not fit into a complete group, not the number of groups.",
+    "Practice remainder in a small task alongside the existing time-conversion build.", ["int loose = stickers - (stickers / 8) * 8;"], { fixedNames: ["stickers", "loose"] }),
+  task("operators-expressions", "operators-concatenation", "combined-score", "Report a Combined Score",
+    "Print one line in the form Total: VALUE, where VALUE is the numeric sum of first and second. Write only the output statement, using the variables. For the shown values the line is Total: 17.",
+    "int first = 8;\nint second = 9;", 'System.out.println("Total: " + (first + second));', "The arithmetic sum must happen before it is joined to the label.",
+    "Construct the parentheses that existing concatenation traces only ask the learner to notice.", ['System.out.println("Total: " + (second + first));'], { singleOutput: true }),
+
+  task("comparisons-booleans", "booleans-or-not", "weekend-rule", "Recognize a Weekend Day",
+    "Days are numbered 1 through 7, with Saturday 6 and Sunday 7. Write one boolean declaration named weekend that is true on either weekend day. Express the two alternatives using || and equality comparisons.",
+    "int day = 6;", "boolean weekend = day == 6 || day == 7;", "Either numbered day should be accepted; a day does not need to equal both numbers.",
+    "Retrieve OR from two concrete alternatives rather than only recognize its definition.", ["boolean weekend = day == 7 || day == 6;"], { fixedNames: ["day", "weekend"] }),
+  task("comparisons-booleans", "booleans-or-not", "reverse-state", "Show Whether Registration Is Open",
+    "The program stores whether registration is closed. Write one boolean declaration named open by reversing closed with the NOT operator. Do not replace the changing state with a literal true or false.",
+    "boolean closed = false;", "boolean open = !closed;", "This task needs to reverse one existing boolean, not compare numbers.",
+    "Practice writing unary NOT separately before combining it with other conditions.", [], { fixedNames: ["closed", "open"] }),
+  task("comparisons-booleans", "booleans-and", "safe-range", "Check a Storage Temperature",
+    "A storage room is safe from 2 through 8 degrees, including both endpoints. Write one boolean declaration named safe using && to require both boundaries.",
+    "int temperature = 8;", "boolean safe = temperature >= 2 && temperature <= 8;", "One condition protects the lower limit; the other protects the upper limit.",
+    "Add an inclusive-range construction alongside the existing score-plus-submission AND problem.", ["boolean safe = temperature <= 8 && temperature >= 2;"], { fixedNames: ["temperature", "safe"], integerBounds: true }),
+  task("if-else", "if-branch", "single-if", "Warn About Low Fuel",
+    "Write an if statement that prints Low fuel when fuel is below 5. Otherwise it should print nothing. Use the existing variable; do not write a complete class or main method.",
+    "int fuel = 4;", 'if (fuel < 5) {\n    System.out.println("Low fuel");\n}', "A single conditional action needs no fallback branch.",
+    "Type a complete first if statement at its introduction, before else is taught.", [], { singleOutput: true, integerBounds: true }),
+  task("if-else", "if-else-if", "branch-categories", "Choose a Delivery Label",
+    "Using one if/else if/else chain, print Local for distance below 5, Nearby from 5 through 19, and Far for 20 or more. Distance is a nonnegative whole number. Write only the decision and output code.",
+    "int distance = 20;", 'if (distance < 5) {\n    System.out.println("Local");\n} else if (distance < 20) {\n    System.out.println("Nearby");\n} else {\n    System.out.println("Far");\n}',
+    "Only one label should print. Consider what is already known after an earlier condition fails.",
+    "Construct a full range chain after branch-order contrasts rather than only fill an operator.", ['if (distance >= 20) { System.out.println("Far"); } else if (distance >= 5) { System.out.println("Nearby"); } else { System.out.println("Local"); }', 'if (distance < 5) { System.out.println("Local"); } else if (distance >= 5 && distance < 20) { System.out.println("Nearby"); } else { System.out.println("Far"); }'], { singleOutput: true, integerBounds: true }),
+  task("decision-programs", "decision-ranges", "invalid-before-category", "Classify a Parcel",
+    "Use an if/else if/else chain to print Invalid for weight at or below 0, Small for a positive weight up to and including 5, and Large above 5. Write only the decision code using weight.",
+    "double weight = 5.0;", 'if (weight <= 0) { System.out.println("Invalid"); } else if (weight <= 5) { System.out.println("Small"); } else { System.out.println("Large"); }',
+    "An impossible parcel must not slip into the Small category.",
+    "Combine validation and a decimal boundary in a short independently written classification.", ['if (weight > 5) { System.out.println("Large"); } else if (weight > 0) { System.out.println("Small"); } else { System.out.println("Invalid"); }', 'if (weight <= 0) { System.out.println("Invalid"); } else if (weight > 0 && weight <= 5) { System.out.println("Small"); } else { System.out.println("Large"); }'], { singleOutput: true }),
+
+  task("while-loops", "while-purpose", "first-while", "Count Down a Launch",
+    "Use a while loop to print the current seconds on its own line, then decrease seconds by 1. Repeat while seconds is above 0. Do not print 0 or replace the loop with separate output statements.",
+    "int seconds = 3;", "while (seconds > 0) {\n    System.out.println(seconds);\n    seconds--;\n}", "The condition, output, and update have different jobs. The update must move toward stopping.",
+    "Retrieve the whole while structure immediately after its first example.", ["while (seconds >= 1) { System.out.println(seconds); seconds -= 1; }"], { integerBounds: true }),
+  task("for-loops", "for-anatomy", "first-for", "Number Three Receipts",
+    "Use a for loop to print receipt numbers 1, 2, and 3, one per line. Declare your counter in the loop header. The output must come from the counter, not three hard-coded print statements.",
+    "", "for (int receipt = 1; receipt <= 3; receipt++) {\n    System.out.println(receipt);\n}", "Choose the first number, a condition that includes the last number, and the update.",
+    "Produce a complete for header and body before longer range exercises.", [], { integerBounds: true }),
+  task("for-loops", "for-vs-while", "translate-loop", "Express the Same Repetition Differently",
+    "Rewrite the shown for loop as a while loop. Preserve its output exactly: 2, 4, and 6 on separate lines. Use a counter that starts at 2 and increases by 2.",
+    "for (int number = 2; number <= 6; number += 2) {\n    System.out.println(number);\n}", "int number = 2;\nwhile (number <= 6) {\n    System.out.println(number);\n    number += 2;\n}", "The same three control jobs remain, but they no longer all sit inside a for header.",
+    "Make the equivalence between loop forms a reconstruction task, not just a recognition question.", [], { integerBounds: true }),
+  task("nested-loops", "nested-structure", "first-nested", "Print Two Rows of Seats",
+    "Use two nested for loops to print two rows, each containing three X characters with no spaces. End each row with a line break. Start both counters at 1; the inner loop prints one X per iteration. Write only the loops.",
+    "Required output:\nXXX\nXXX", 'for (int row = 1; row <= 2; row++) {\n    for (int seat = 1; seat <= 3; seat++) {\n        System.out.print("X");\n    }\n    System.out.println();\n}',
+    "One loop handles rows; the other handles positions within one row. Place the newline after a whole row.",
+    "Build a small fixed rectangle before tracing and variable-width patterns; line placement is part of the skill.", [], { integerBounds: true }),
+
+  task("methods", "methods-anatomy", "void-definition", "Create a Reusable Closing Message",
+    "Define public static void showClosed() with no parameters. Its body must print Closed on one line. Write only the method definition, not a class, main method, or call.",
+    "", 'public static void showClosed() {\n    System.out.println("Closed");\n}', "A void method performs an action; no value is returned.",
+    "Retrieve a method header and body near their introduction instead of waiting until the calling section.", [], { members: true, singleOutput: true }),
+  task("methods", "methods-multiple", "ordered-arguments", "Call the Delivery Method",
+    "Write the single call that asks the shown method to report 4 boxes for Maya. Match the method's parameter order; do not rewrite the method.",
+    'public static void reportDelivery(String name, int boxes) {\n    System.out.println(name + ": " + boxes);\n}', 'reportDelivery("Maya", 4);', "The first parameter receives text, and the second receives a whole number.",
+    "Practice producing an argument list, distinct from reading or defining parameters."),
+  task("methods", "methods-library", "parse-library", "Read a Saved Score",
+    "A saved score arrives as text. Write one int declaration named score that gets its numeric value using Integer.parseInt and the existing savedScore variable.",
+    'String savedScore = "145";', "int score = Integer.parseInt(savedScore);", "Parsing turns numeric text into a number you can calculate with.",
+    "Retrieve an introduced library call from its purpose, not only identify documentation fields.", [], { fixedNames: ["savedScore", "score"] }),
+  task("methods", "methods-api-docs", "use-api-entry", "Use the Documented Result",
+    "Use the shown API entry to write one double declaration named side for the side length of a square whose area is stored in area. Use Math.sqrt rather than a hard-coded example result.",
+    "API: static double Math.sqrt(double a)\nReturns the positive square root of a.\n\ndouble area = 81.0;", "double side = Math.sqrt(area);", "Use the documented return type for the variable and pass the area as the argument.",
+    "Turn documentation reading into an actual call and correctly typed declaration.", [], { fixedNames: ["side", "area"] }),
+  task("returns-scope", "returns-purpose", "return-definition", "Return a Service Charge",
+    "Define public static int withFee with one int parameter. It returns that amount plus a fixed fee of 5. Do not print the result or write a caller; return the calculation directly.",
+    "", "public static int withFee(int amount) {\n    return amount + 5;\n}", "The caller needs to receive the value, not merely see it printed.",
+    "Produce a returning method immediately after learning what return contributes.", ["public static int withFee(int value) { return 5 + value; }"], { members: true }),
+  task("returns-scope", "returns-overloading", "overload-call", "Request a Rectangle Area",
+    "Write one int declaration named result that calls the two-parameter area method for a rectangle 3 units wide and 7 units high. Do not calculate the product yourself or redefine the methods.",
+    "public static int area(int side) { return side * side; }\npublic static int area(int width, int height) { return width * height; }", "int result = area(3, 7);", "The argument list chooses which overload Java calls.",
+    "Retrieve the call selecting an overload rather than only classify signatures.", [], { fixedNames: ["result"] }),
+
+  task("arrays", "arrays-indexes", "array-read", "Read the Third Day",
+    "The readings are stored in day order. Write one int declaration named third for the third day's reading. Use the array, not the example value 18.",
+    "int[] readings = {16, 21, 18, 20};", "int third = readings[2];", "The first day is at index 0, so count positions carefully.",
+    "Produce an indexed read from an ordinary position requirement.", [], { fixedNames: ["readings", "third"] }),
+  task("arrays", "arrays-update", "array-update", "Correct One Reading",
+    "The second reading is 2 degrees too low. Write one statement that increases only that existing element by 2. Do not replace its value with a fixed example answer.",
+    "int[] readings = {16, 21, 18, 20};", "readings[1] += 2;", "Choose the index for the second reading, then update the value already stored there.",
+    "Combine indexed state changes with the previously learned update operators."),
+  task("arrays-loops", "array-traversal", "array-traversal", "Read Every Sensor",
+    "Print every reading in order, one per line, using a loop over readings. The array may have any length, including zero. Do not print the example values directly.",
+    "int[] readings = {16, 21, 18, 20};", "for (int reading : readings) {\n    System.out.println(reading);\n}", "Use a traversal that visits each element exactly once and naturally handles an empty array.",
+    "Write a first full traversal before filling, totals, and searching patterns.", ["for (int i = 0; i < readings.length; i++) { System.out.println(readings[i]); }", "int i = 0; while (i < readings.length) { System.out.println(readings[i]); i++; }", "for (int i = 0; i <= readings.length - 1; i++) { System.out.println(readings[i]); }"], { integerBounds: true }),
+  task("arrays-loops", "array-min-max", "array-minimum", "Find the Coldest Reading",
+    "The readings array is nonempty and may contain only negative numbers. Use a loop to find and print its smallest value. Initialize your candidate from the first reading rather than assuming that 0 occurs in the data.",
+    "int[] readings = {-4, -9, -2};", "int lowest = readings[0];\nfor (int reading : readings) {\n    if (reading < lowest) { lowest = reading; }\n}\nSystem.out.println(lowest);", "Keep the best candidate seen so far and replace it only with a smaller reading.",
+    "Construct the running-minimum pattern with a case that exposes a bad zero initializer.", [
+      "int lowest = readings[0]; for (int reading : readings) { if (reading <= lowest) { lowest = reading; } } System.out.println(lowest);",
+      ...[0, 1].flatMap((start) => ["<", "<="].flatMap((comparison) => [
+        `int lowest = readings[0]; for (int i = ${start}; i < readings.length; i++) { if (readings[i] ${comparison} lowest) { lowest = readings[i]; } } System.out.println(lowest);`,
+        `int lowest = readings[0]; int i = ${start}; while (i < readings.length) { if (readings[i] ${comparison} lowest) { lowest = readings[i]; } i++; } System.out.println(lowest);`,
+      ])),
+    ], { singleOutput: true }),
+
+  task("strings", "strings-methods", "string-extract", "Extract a Zone Code",
+    "A nonempty route code always begins with three letters followed by its number. Write one String declaration named zone containing just the first three characters, using substring on route. Do not hard-code the displayed letters.",
+    'String route = "NYC482";', "String zone = route.substring(0, 3);", "The ending index is the first character not included in the result.",
+    "Retrieve substring boundaries alongside existing normalization practice.", [], { fixedNames: ["route", "zone"] }),
+  task("strings", "strings-search-order", "string-search", "Find the Last Separator",
+    "A record uses / between its fields. Write one int declaration named position for the last / in record using lastIndexOf. Preserve the method's -1 result when no separator exists.",
+    'String record = "unit/chapter/section";', 'int position = record.lastIndexOf("/");', "Search from the end, rather than assuming the example's separator position.",
+    "Write an actual search call instead of only recognizing seven method descriptions.", ["int position = record.lastIndexOf('/');"], { fixedNames: ["record", "position"] }),
+  task("strings", "strings-search-order", "string-order", "Compare Two Catalog Names",
+    "Write one boolean declaration named comesFirst that is true when first comes before second in lexicographic order. Use compareTo and treat equal names as false.",
+    'String first = "apple";\nString second = "banana";', "boolean comesFirst = first.compareTo(second) < 0;", "The sign of compareTo's result matters; it is not guaranteed to be exactly -1.",
+    "Connect a numeric method result to a boolean decision and target the exact-minus-one misconception.", ["boolean comesFirst = second.compareTo(first) > 0;"], { fixedNames: ["first", "second", "comesFirst"] }),
+  task("strings", "strings-comparison", "string-equality", "Check a Confirmation Word",
+    "Write one boolean declaration named confirmed using equalsIgnoreCase to check whether answer is yes, allowing different capitalization. Do not remove spaces or use ==.",
+    'String answer = "YES";', 'boolean confirmed = answer.equalsIgnoreCase("yes");', "Compare the content while explicitly ignoring capitalization.",
+    "Produce a content-equality check at the point where String identity versus content is taught.",
+    ["yes", "Yes", "yEs", "yeS", "YEs", "YeS", "yES", "YES"].flatMap((word) => [
+      `boolean confirmed = answer.equalsIgnoreCase("${word}");`,
+      `boolean confirmed = "${word}".equalsIgnoreCase(answer);`,
+    ]), { fixedNames: ["answer", "confirmed"] }),
+  task("arraylists", "arraylist-core", "list-append", "Extend a Reading Queue",
+    "Append Java and then Math to the existing reading queue. Write only the two add calls; do not create a replacement list or print anything.",
+    "ArrayList<String> queue = new ArrayList<>();", 'queue.add("Java");\nqueue.add("Math");', "Each call appends one value, so the call order becomes the list order.",
+    "Retrieve two state-changing list calls before later replacement and removal tasks."),
+  task("arraylists", "arraylist-traverse", "list-traversal", "Print the Reading Queue",
+    "Print every title in queue in its current order, one per line. Use a loop and handle an empty queue without accessing an invalid index. Do not modify the list.",
+    'ArrayList<String> queue = new ArrayList<>();\nqueue.add("Java");\nqueue.add("Math");', "for (String title : queue) {\n    System.out.println(title);\n}", "A direct element traversal or a correctly bounded indexed traversal can work.",
+    "Write a traversal using the collection interface, not just repair size() syntax.", ["for (int i = 0; i < queue.size(); i++) { System.out.println(queue.get(i)); }", "int i = 0; while (i < queue.size()) { System.out.println(queue.get(i)); i++; }"], { integerBounds: true }),
+
+  task("searching", "search-failure", "search-result", "Use a Search Result Safely",
+    "A search returned index: either -1 for missing, or a valid position in values. Use if/else to print Missing when absent, otherwise print the element at that index. Write only the decision; do not rerun the search or change index.",
+    "int[] values = {4, 9, 2};\nint index = -1;", 'if (index == -1) { System.out.println("Missing"); } else { System.out.println(values[index]); }', "Check the failure marker before indexing the array.",
+    "Turn the -1 convention into safe caller code instead of only describing it.", ['if (index >= 0) { System.out.println(values[index]); } else { System.out.println("Missing"); }', 'if (index < 0) { System.out.println("Missing"); } else { System.out.println(values[index]); }', 'if (index != -1) { System.out.println(values[index]); } else { System.out.println("Missing"); }'], { singleOutput: true }),
+  task("sorting", "sorting-bubble", "bubble-pass", "Move the Largest Value Right",
+    "Write one left-to-right bubble-sort pass over values. Compare each adjacent pair and swap it with a temporary variable only when the left value is larger. Use one indexed loop beginning at 0; do not perform the remaining passes or print anything.",
+    "int[] values = {7, 2, 5, 1};", "for (int i = 0; i < values.length - 1; i++) {\n    if (values[i] > values[i + 1]) {\n        int saved = values[i];\n        values[i] = values[i + 1];\n        values[i + 1] = saved;\n    }\n}", "The final comparison uses the last two elements. A swap must preserve both original values.",
+    "Produce the adjacent-pass algorithm, which was previously only shown and traced.", ["for (int i = 0; i < values.length - 1; i++) { if (values[i] > values[i + 1]) { int saved = values[i + 1]; values[i + 1] = values[i]; values[i] = saved; } }", "int i = 0; while (i < values.length - 1) { if (values[i] > values[i + 1]) { int saved = values[i]; values[i] = values[i + 1]; values[i + 1] = saved; } i++; }"], { integerBounds: true }),
+  task("input-output", "io-file-basics", "file-reader", "Connect to a Saved Report",
+    "Inside the shown main method, write two declarations: a File named report referring to report.txt, followed by a Scanner named reader that reads that File. Write only those declarations, not the imports, wrapper, or reading loop.",
+    "import java.io.File;\nimport java.io.FileNotFoundException;\nimport java.util.Scanner;\n\npublic static void main(String[] args) throws FileNotFoundException {\n    // Your two declarations go here.\n}", 'File report = new File("report.txt");\nScanner reader = new Scanner(report);', "Scanner should receive the File value, not System.in and not the filename text itself.",
+    "Practice the newly introduced file-source setup while supplying the exception boilerplate.", [], { fixedNames: ["report", "reader"] }),
+  task("debugging-testing", "debug-messages", "repair-index", "Repair the Reported Array Access",
+    "The output statement throws ArrayIndexOutOfBoundsException. It should print the last element of the nonempty values array, whatever its length. Rewrite only the output statement; keep the array unchanged.",
+    "int[] values = {10, 20};\nSystem.out.println(values[values.length]);", "System.out.println(values[values.length - 1]);", "length is the number of elements, not a valid last index.",
+    "Use the reported error to write a minimal repair rather than merely label its category.", [], { singleOutput: true }),
+];
+
+export const retrievalQuestionsFor = (chapterId: string, sectionId?: string) => sectionRetrievalPractice
+  .filter((entry) => entry.chapterId === chapterId && (sectionId === undefined || entry.sectionId === sectionId))
+  .map((entry) => entry.question);
