@@ -1,8 +1,8 @@
 # Exceler A
 
-Exceler A is a self-directed learning workspace built around the Brooklyn College computer science degree path. It brings structured teaching, demonstrated practice, course progress, and degree planning into one focused interface.
+Exceler A is a self-directed learning workspace built around the Brooklyn College Computer Science B.S. path, including its required supporting mathematics. It brings complete lessons, code-first practice, mastery testing, persistent progress, DegreeWorks mapping, and a contextual AI tutor into one focused interface.
 
-The project is currently centered on CISC 1115: Introduction to Programming Using Java, with a 24-chapter course and a visual map of the broader Computer Science B.S. path.
+The current public course library covers CISC 1115 and CISC 2210 alongside the MATH 1006 → MATH 1011 → MATH 1201 sequence. A visual degree map connects that self-study curriculum to the broader degree path while clearly marking courses that are still to come.
 
 [Open the live project](https://daymark-os.daniellezhanskiy13.chatgpt.site) | [View the repository](https://github.com/DanielLezh13/exceler-a)
 
@@ -16,12 +16,12 @@ The project is currently centered on CISC 1115: Introduction to Programming Usin
 
 ## Core Experience
 
-- **Structured course library:** A 24-chapter CISC 1115 curriculum organized from Java fundamentals through cumulative programming challenges and a final assessment.
+- **Self-directed curriculum:** Five available courses span Java programming, discrete structures, College Algebra, Precalculus, and Calculus I, with full lessons and cumulative practice built around the Brooklyn College path.
 - **Demonstrated practice:** Lessons combine direct explanations, code examples, hints, attempts, difficulty levels, and checked exercises. Reading introduces a concept; completed practice creates progress.
-- **Meaningful progress:** Chapter completion reflects cleared lesson and practice requirements instead of estimated time or passive page views.
+- **Mastery testing:** Unit assessments require learners to produce answers, revisit missed material, and retain immutable attempt history instead of treating content exposure as mastery.
+- **Persistent per-user progress:** Anonymous learning remains on the current device. Signed-in students receive an isolated cloud workspace and can explicitly attach existing anonymous progress.
 - **Degree planning:** A visual Brooklyn College Computer Science B.S. map shows required courses, choice branches, prerequisites, electives, and graduation gates.
 - **Private audit import:** Signed-in students can privately load a DegreeWorks PDF. The original file is read in the browser and is not uploaded; only the reviewed structured result is saved.
-- **Flexible progress:** Anonymous learning stays on that device. Signed-in students receive an isolated cloud workspace and can explicitly attach existing anonymous progress.
 - **Contextual tutor:** Signed-in students can use a course-grounded tutor with per-account limits, a global allowance, and assessment-integrity protections.
 
 ## Privacy Model
@@ -47,6 +47,8 @@ app/
   api/student-state/       Private student workspace endpoint
   api/tutor/route.ts       Authenticated, rate-limited tutor endpoint
   data/cisc1115Course.ts   Course chapters, lessons, and practice
+  data/math*.ts            College Algebra, Precalculus, and Calculus I
+  data/cisc2210.ts         Discrete Structures lessons and assessments
   data/curriculum.ts       Degree-map requirements and relationships
   CommandCenter.tsx        Workspace navigation and primary views
   StructuredLesson.tsx     Lesson and practice presentation
@@ -81,15 +83,16 @@ Never commit that file or expose the key in client-side code.
 npm run build
 npm test
 npm run audit:continuity
+npm run audit:math
 ```
 
-The continuity audit checks the course library for missing instructional layers, undersized assessments, and other curriculum-structure problems.
+The continuity audits check the course library for missing instructional layers, undersized assessments, prerequisite gaps, and other curriculum-structure problems.
 
 ## Status
 
 Exceler A is an independent student-built project. It is not an official Brooklyn College product and does not replace the college catalog or academic advising. Requirements can change, so degree-planning information should be confirmed with official college sources.
 
-The course library will expand beyond CISC 1115 as the project develops.
+The course library will expand beyond its current five courses as additional parts of the degree path are built and reviewed.
 
 ## Author
 
