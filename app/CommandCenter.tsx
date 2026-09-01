@@ -266,6 +266,7 @@ const foundationalTutorReferences: Record<string, Record<string, string>> = {
 
 const PRIVATE_STORAGE_KEY = "daymark-education-v4";
 const PUBLIC_STORAGE_KEY = "exceler-public-learning-v1";
+const SESSION_RESTORE_KEY = "exceler-session-navigation-v1";
 
 const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
@@ -1985,14 +1986,14 @@ export default function CommandCenter({ initialMathCourse, student = null, signI
 
   useEffect(() => {
     let cancelled = false;
-    const applyWorkspace = (raw: Record<string, unknown>) => {
+    const applyWorkspace = (raw: Record<string, unknown>, restoreNavigation: boolean) => {
       const restored = readProgressBackup({ app: "Exceler A", version: 1, data: raw });
       if (!restored) return false;
       const navigation = objectValue(raw.navigation) as { view?: View; mathCourseId?: string; course?: Partial<CoursePosition> } | null;
       setMath(readMathRecords(restored.math));
       setCompleted(restored.completed); setPractice(restored.practice); setDegreeRecords(restored.degreeRecords); setAuditSnapshot(restored.auditSnapshot);
-      if (!initialMathCourse && mathCourses.some(c => c.id === navigation?.mathCourseId)) setMathCourseId(navigation!.mathCourseId!);
-      if (!initialMathCourse && navigation?.view && ["home", "dashboard", "courses", "degree", "course", "math"].includes(navigation.view)) setView(navigation.view);
+      if (restoreNavigation && !initialMathCourse && mathCourses.some(c => c.id === navigation?.mathCourseId)) setMathCourseId(navigation!.mathCourseId!);
+      if (restoreNavigation && !initialMathCourse && navigation?.view && ["home", "dashboard", "courses", "degree", "course", "math"].includes(navigation.view)) setView(navigation.view);
       if (navigation?.course) {
         const storedChapter = learningChapters.find(chapter => chapter.id === navigation.course?.chapterId) ?? firstChapter;
         const storedSectionId = storedChapter.sections.some(section => section.id === navigation.course?.sectionId) ? navigation.course.sectionId! : storedChapter.sections[0]?.id ?? "";
@@ -2002,17 +2003,19 @@ export default function CommandCenter({ initialMathCourse, student = null, signI
     };
     const hydrate = async () => {
       const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      const restoreNavigation = window.sessionStorage.getItem(SESSION_RESTORE_KEY) === "1";
+      window.sessionStorage.setItem(SESSION_RESTORE_KEY, "1");
       setLocalWorkspace(isLocal);
       try {
         if (isLocal) {
           const stored = localStorage.getItem(PRIVATE_STORAGE_KEY);
-          if (stored) applyWorkspace(JSON.parse(stored) as Record<string, unknown>);
+          if (stored) applyWorkspace(JSON.parse(stored) as Record<string, unknown>, restoreNavigation);
           if (!cancelled) { setSyncLabel("Private progress saved on this device"); setHydrated(true); }
           return;
         }
         if (!student) {
           const stored = localStorage.getItem(PUBLIC_STORAGE_KEY);
-          if (stored) applyWorkspace(JSON.parse(stored) as Record<string, unknown>);
+          if (stored) applyWorkspace(JSON.parse(stored) as Record<string, unknown>, restoreNavigation);
           if (!cancelled) { setSyncLabel("Anonymous progress saved on this device"); setHydrated(true); }
           return;
         }
@@ -2022,7 +2025,7 @@ export default function CommandCenter({ initialMathCourse, student = null, signI
         const result = await response.json() as { state: Record<string, unknown> | null; revision: number };
         if (cancelled) return;
         cloudRevisionRef.current = result.revision;
-        if (result.state && applyWorkspace(result.state)) {
+        if (result.state && applyWorkspace(result.state, restoreNavigation)) {
           lastCloudPayloadRef.current = JSON.stringify(result.state);
           setCloudSyncEnabled(true);
           setSyncLabel("Private progress synced");
@@ -2096,5 +2099,8 @@ export default function CommandCenter({ initialMathCourse, student = null, signI
     setAnonymousCandidate(null); setCloudSyncEnabled(true); setSyncLabel("Saving private progress…");
   };
   const privateFeatures = localWorkspace || Boolean(student);
+  if (!hydrated) {
+    return <div className="app-shell startup-shell" role="status" aria-live="polite"><div className="startup-card"><img src="/exceler-a-mark-512.png" alt="" /><span className="startup-spinner" aria-hidden="true" /><p>Loading your workspace…</p></div></div>;
+  }
   return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} tutorOpen={tutorOpen} onToggleTutor={() => setTutorOpen((current) => !current)} onOpenInfo={() => setInfoOpen(true)} student={student} localWorkspace={localWorkspace} signInPath={signInPath} signOutPath={signOutPath} syncLabel={syncLabel}/><div className="app-main">{storageError && <div className="math-storage-error" role="alert">Your latest changes could not be saved safely. Keep this page open and export a progress backup before closing.</div>}{anonymousCandidate && student && !localWorkspace && <section className="progress-migration-banner"><LockKeyhole size={18}/><div><b>Continue with progress from this browser?</b><p>Before you signed in as {student.displayName}, this browser had progress saved on the public Exceler A site. Copy it into your private account, or leave the account empty. Your localhost progress is separate and will not change.</p></div><button className="primary-button" onClick={() => chooseAnonymousProgress(true)}>Copy to my account</button><button className="secondary-button" onClick={() => chooseAnonymousProgress(false)}>Leave account empty</button></section>}{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} math={math} onOpenCourse={() => { setCourseTutorContext(null); setView("course"); }} onOpenMath={(id) => { setCourseTutorContext(null); setMathCourseId(id); setView("math"); }} />}{view === "course" && <CourseView completed={completed} practice={practice} position={coursePosition} setPosition={setCoursePosition} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "math" && <MathCourseView key={selectedMathCourse.id} course={selectedMathCourse} progress={selectedMathProgress} setProgress={updateSelectedMathProgress} onTutorContextChange={setCourseTutorContext} onBack={() => setView("courses")} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} canImport={privateFeatures} onImport={() => privateFeatures ? setImportOpen(true) : window.location.assign(signInPath)} />}</div><MobileNav view={view} setView={setView} />{privateFeatures && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} open={tutorOpen} setOpen={setTutorOpen} />}{!privateFeatures && <a className="mobile-tutor-signin" href={signInPath} target="_top" aria-label="Sign in with ChatGPT to use the Exceler tutor" title="Sign in for Tutor"><MessageCircle size={22}/><span><LockKeyhole size={9}/></span></a>}<DegreeWorksImport open={importOpen && privateFeatures} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, math, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
 }

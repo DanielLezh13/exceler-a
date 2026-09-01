@@ -94,6 +94,13 @@ button { cursor: pointer; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 .app-shell { min-height: 100vh; background: var(--bg); }
+.startup-shell { display: grid; place-items: center; padding: 24px; }
+.startup-card { display: grid; justify-items: center; gap: 14px; color: var(--muted); }
+.startup-card img { width: 54px; height: 54px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(191,245,90,.28)); }
+.startup-card p { margin: 0; font-size: 12px; letter-spacing: .08em; }
+.startup-spinner { width: 22px; height: 22px; border: 2px solid #293129; border-top-color: var(--lime); border-radius: 999px; animation: startup-spin .7s linear infinite; }
+@keyframes startup-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .startup-spinner { animation: none; border-color: var(--lime); opacity: .75; } }
 .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 20; width: var(--sidebar); background: #0b0e0f; border-right: 1px solid var(--line); padding: 24px 16px 18px; display: flex; flex-direction: column; }
 .brand { border: 0; background: transparent; display: flex; gap: 12px; align-items: center; padding: 0 8px 26px; text-align: left; }
 .brand-mark { height: 36px; width: 36px; display: grid; place-items: center; background: var(--lime); color: #10130d; font-weight: 900; letter-spacing: -2px; border-radius: 3px; }
