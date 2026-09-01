@@ -1068,12 +1068,14 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .tutor-composer button:disabled { cursor: not-allowed; opacity: .28; }
 
 @media (max-width: 700px) {
-  .tutor-shell { left: auto; right: 12px; bottom: 73px; justify-items: end; }
-  .tutor-drawer { position: fixed; left: 10px; right: 10px; bottom: 130px; width: auto; height: min(660px, calc(100dvh - 148px)); min-height: 410px; border-radius: 19px; }
+  .tutor-shell { left: auto; right: 12px; bottom: calc(73px + env(safe-area-inset-bottom)); justify-items: end; }
+  .tutor-drawer { position: fixed; left: 10px; right: 10px; bottom: calc(130px + env(safe-area-inset-bottom)); width: auto; height: min(660px, calc(100dvh - 148px - env(safe-area-inset-bottom))); min-height: 410px; border-radius: 19px; }
   .tutor-drawer.expanded { width: auto; height: min(720px, calc(100dvh - 148px)); }
   .tutor-header { cursor: default; touch-action: auto; }
   .tutor-drag-handle { display: none; }
   .tutor-launcher { width: 50px; min-width: 50px; height: 50px; display: grid; }
+  .mobile-tutor-signin { position: fixed; z-index: 79; right: 12px; bottom: calc(73px + env(safe-area-inset-bottom)); width: 50px; height: 50px; display: grid; place-items: center; border: 1px solid #42563d; border-radius: 50%; background: #172017; color: var(--lime); box-shadow: 0 16px 44px rgba(0,0,0,.42), 0 0 18px rgba(191,245,90,.07); }
+  .mobile-tutor-signin > span { position: absolute; right: -1px; bottom: -1px; width: 18px; height: 18px; display: grid; place-items: center; border: 2px solid #111513; border-radius: 50%; background: var(--lime); color: #151a12; }
   .tutor-message { max-width: 95%; }
   .tutor-context-page span { display: none; }
   .tutor-response-length button { min-width: 40px; padding: 0 5px; }
@@ -1431,6 +1433,7 @@ button.home-guidance-card:hover { border-color: #53664a; background: #19201c; tr
 .continuous-course .course-glyph.large { border-radius: 11px; }
 .continuous-course .course-total { width: 275px; }
 .continuous-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); height: 100vh; }
+.mobile-course-toolbar, .mobile-contents-backdrop, .mobile-contents-close, .mobile-tutor-signin { display: none; }
 .contents-rail { overflow-y: auto; border-right: 1px solid var(--line); background: #0d1010; padding: 18px 12px; }
 .contents-heading { display: flex; align-items: center; justify-content: space-between; padding: 3px 10px 15px; }
 .contents-heading > span { color: #626a67; font-size: 8px; }
@@ -1865,7 +1868,9 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
   .home-title-lockup { top: 21px; gap: 8px; }
   .home-title-lockup b { font-size: 24px; }
   .home-title-lockup img { width: 36px; height: 36px; filter: none; animation-name: home-a-arrive-mobile; backface-visibility: hidden; }
-  .home-about-button { top: 21px; right: 14px; width: 36px; height: 36px; min-height: 36px; justify-content: center; padding: 0; font-size: 0; }
+  .home-about-button { top: 21px; right: 14px; width: 36px; height: 36px; min-height: 36px; display: grid; place-items: center; gap: 0; padding: 0; font-size: 0; }
+  .home-about-button > span { display: none; }
+  .home-about-button svg { display: block; margin: 0; }
   .home-declaration { font-size: 10px; }
   .home-maker-line { gap: 5px; font-size: 9px; line-height: 1.55; }
   .home-maker-line b { font-size: 10px; }
@@ -1893,7 +1898,20 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
   .continuous-course { height: auto; overflow: visible; }
   .continuous-course .course-banner { height: auto; padding: 17px 15px; }
   .continuous-layout { display: block; height: auto; }
-  .contents-rail { max-height: 280px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .mobile-course-toolbar { position: sticky; z-index: 42; top: 0; display: block; min-height: 57px; border-bottom: 1px solid #2d3531; background: rgba(14,18,16,.96); padding: 7px 10px; backdrop-filter: blur(16px); }
+  .mobile-course-toolbar > button { width: 100%; min-height: 42px; display: grid; grid-template-columns: minmax(0,1fr) 28px; align-items: center; gap: 10px; border: 1px solid #344039; border-radius: 12px; background: #151b18; color: #dce4df; padding: 6px 9px 6px 12px; text-align: left; box-shadow: none; }
+  .mobile-course-toolbar > button > span { min-width: 0; }
+  .mobile-course-toolbar small, .mobile-course-toolbar b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mobile-course-toolbar small { color: var(--lime); font-size: 7px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+  .mobile-course-toolbar b { margin-top: 3px; font-size: 10px; }
+  .mobile-course-toolbar svg { justify-self: center; color: #8f9a94; transition: transform .18s ease; }
+  .mobile-course-toolbar button[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .mobile-contents-backdrop { position: fixed; z-index: 83; inset: 0 0 calc(61px + env(safe-area-inset-bottom)); display: block; width: auto; height: auto; border: 0; border-radius: 0; background: rgba(3,5,4,.68); padding: 0; opacity: 0; visibility: hidden; pointer-events: none; box-shadow: none; transition: opacity .18s ease, visibility .18s ease; }
+  .mobile-contents-backdrop.visible { opacity: 1; visibility: visible; pointer-events: auto; }
+  .contents-rail, .math-course .contents-rail { position: fixed; z-index: 85; top: max(10px, env(safe-area-inset-top)); right: 10px; bottom: calc(71px + env(safe-area-inset-bottom)); left: 10px; max-height: none; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #3a443f; border-radius: 18px; background: #101513; padding: 10px 12px 22px; box-shadow: 0 28px 90px rgba(0,0,0,.66); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-12px) scale(.985); transition: opacity .18s ease, visibility .18s ease, transform .18s ease; }
+  .contents-rail.mobile-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); }
+  .mobile-contents-close { position: sticky; z-index: 2; top: -10px; width: calc(100% + 24px); min-height: 49px; margin: 0 -12px 10px; display: flex; align-items: center; justify-content: space-between; border: 0; border-bottom: 1px solid #2d3531; border-radius: 17px 17px 0 0; background: rgba(16,21,19,.97); color: #dce4df; padding: 0 15px; box-shadow: none; font-size: 10px; font-weight: 750; }
+  .mobile-contents-close svg { color: var(--lime); }
   .chapter-reader { overflow: visible; }
   .chapter-article { padding: 0 17px 75px; }
   .chapter-cover { padding: 38px 0 33px; }

@@ -764,7 +764,7 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
   return <main className="home-page">
     <section className="home-stage">
       <div className="home-title-lockup" aria-label="Exceler A"><b>EXCELER</b><img src="/exceler-a-mark-512.png" alt="A" /></div>
-      <button className="home-about-button" onClick={onOpenInfo}><CircleHelp size={15} />About</button>
+      <button className="home-about-button" onClick={onOpenInfo}><CircleHelp size={15} /><span>About</span></button>
       <div className="home-primary">
         <div className="home-intro">
           <p className="eyebrow">Self-Directed Academic Learning</p>
@@ -855,6 +855,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const [selectedMasteryTestId, setSelectedMasteryTestId] = useState<string | null>(initiallyViewingMastery ? initialMasteryTest?.id ?? null : null);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(initialChapter.id);
   const [activeSectionId, setActiveSectionId] = useState(initialSectionId);
+  const [mobileContentsOpen, setMobileContentsOpen] = useState(false);
   const [practiceTutorContext, setPracticeTutorContext] = useState<TutorPracticeContext | null>(null);
   const [masteryTutorContext, setMasteryTutorContext] = useState<TutorMasteryContext | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
@@ -869,6 +870,14 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const course = learningProgress(completed, practice);
   const chapter = chapterProgress(selectedChapter.id, completed, practice);
   const practicePlan = useMemo(() => chapterPracticePlan(selectedChapter.id), [selectedChapter.id]);
+  const activeSectionTitle = titleCase(visibleSections.find((section) => section.id === activeSectionId)?.title ?? selectedMasteryTest?.title ?? selectedChapter.title);
+  const resetReaderPosition = () => {
+    setMobileContentsOpen(false);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 700px)").matches) readerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      else readerRef.current?.scrollTo({ top: 0 });
+    }));
+  };
 
   useLayoutEffect(() => {
     scrollLockRef.current = null;
@@ -932,33 +941,31 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
         setSelectedMasteryTestId(null);
         setExpandedChapterId(next.id);
         setActiveSectionId(next.sections[0]?.id ?? "");
-        if (readerRef.current) readerRef.current.scrollTop = 0;
         setPosition((current) => ({ ...current, chapterId: next.id, sectionId: next.sections[0]?.id ?? "", scrollTop: 0 }));
+        resetReaderPosition();
         return;
       }
       setExpandedChapterId((current) => current === next.id ? null : next.id);
       return;
     }
     scrollLockRef.current = null;
-    if (readerRef.current) readerRef.current.scrollTop = 0;
     setActiveSectionId(next.sections[0]?.id ?? "");
     setExpandedChapterId(next.id);
     setSelectedChapterId(next.id);
     setSelectedMasteryTestId(null);
     setPosition((current) => ({ ...current, chapterId: next.id, sectionId: next.sections[0]?.id ?? "", scrollTop: 0 }));
-    window.requestAnimationFrame(() => { if (readerRef.current) readerRef.current.scrollTop = 0; });
+    resetReaderPosition();
   };
   const selectMasteryTest = (test: (typeof unitMasteryTests)[number]) => {
     setMasteryTutorContext(null);
     const nextChapter = learningChapters.find((chapter) => chapter.id === test.afterChapterId) ?? selectedChapter;
     scrollLockRef.current = null;
-    if (readerRef.current) readerRef.current.scrollTop = 0;
     setSelectedChapterId(nextChapter.id);
     setSelectedMasteryTestId(test.id);
     setExpandedChapterId(null);
     setActiveSectionId(test.sectionId);
     setPosition((current) => ({ ...current, chapterId: nextChapter.id, sectionId: test.sectionId, scrollTop: 0 }));
-    window.requestAnimationFrame(() => { if (readerRef.current) readerRef.current.scrollTop = 0; });
+    resetReaderPosition();
   };
   const scrollToSection = (sectionId: string) => {
     const reader = readerRef.current; const element = reader?.querySelector<HTMLElement>(`#${sectionId}`);
@@ -966,6 +973,15 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
     scrollLockRef.current = sectionId;
     setActiveSectionId(sectionId);
     setPosition((current) => ({ ...current, chapterId: selectedChapter.id, sectionId }));
+    if (window.matchMedia("(max-width: 700px)").matches) {
+      setMobileContentsOpen(false);
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => element.scrollIntoView({ behavior: "smooth", block: "start" })));
+      window.setTimeout(() => {
+        if (scrollLockRef.current === sectionId) scrollLockRef.current = null;
+        setPosition((current) => ({ ...current, chapterId: selectedChapter.id, sectionId, scrollTop: Math.max(0, Math.round(window.scrollY)) }));
+      }, 1000);
+      return;
+    }
     const readerTop = reader.getBoundingClientRect().top;
     const sectionTop = element.getBoundingClientRect().top;
     reader.scrollTo({ top: Math.max(0, reader.scrollTop + sectionTop - readerTop - 22), behavior: "smooth" });
@@ -988,7 +1004,10 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
 
   return <main className="course-page continuous-course">
     <div className="continuous-layout">
-      <aside className="contents-rail">
+      <div className="mobile-course-toolbar"><button aria-expanded={mobileContentsOpen} aria-controls="java-course-contents" onClick={() => setMobileContentsOpen((open) => !open)}><span><small>Course Contents</small><b>{activeSectionTitle}</b></span><ChevronDown size={18} /></button></div>
+      <button className={`mobile-contents-backdrop ${mobileContentsOpen ? "visible" : ""}`} aria-label="Close course contents" onClick={() => setMobileContentsOpen(false)} />
+      <aside className={`contents-rail ${mobileContentsOpen ? "mobile-open" : ""}`} id="java-course-contents" aria-label="Course contents">
+        <button className="mobile-contents-close" onClick={() => setMobileContentsOpen(false)}><span>Course Contents</span><X size={18} /></button>
         <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{learningChapters.length} chapters</span></div>
         {learningChapters.map((item, index) => {
           const state = chapterProgress(item.id, completed, practice);
@@ -2077,5 +2096,5 @@ export default function CommandCenter({ initialMathCourse, student = null, signI
     setAnonymousCandidate(null); setCloudSyncEnabled(true); setSyncLabel("Saving private progress…");
   };
   const privateFeatures = localWorkspace || Boolean(student);
-  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} tutorOpen={tutorOpen} onToggleTutor={() => setTutorOpen((current) => !current)} onOpenInfo={() => setInfoOpen(true)} student={student} localWorkspace={localWorkspace} signInPath={signInPath} signOutPath={signOutPath} syncLabel={syncLabel}/><div className="app-main">{storageError && <div className="math-storage-error" role="alert">Your latest changes could not be saved safely. Keep this page open and export a progress backup before closing.</div>}{anonymousCandidate && student && !localWorkspace && <section className="progress-migration-banner"><LockKeyhole size={18}/><div><b>Continue with progress from this browser?</b><p>Before you signed in as {student.displayName}, this browser had progress saved on the public Exceler A site. Copy it into your private account, or leave the account empty. Your localhost progress is separate and will not change.</p></div><button className="primary-button" onClick={() => chooseAnonymousProgress(true)}>Copy to my account</button><button className="secondary-button" onClick={() => chooseAnonymousProgress(false)}>Leave account empty</button></section>}{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} math={math} onOpenCourse={() => { setCourseTutorContext(null); setView("course"); }} onOpenMath={(id) => { setCourseTutorContext(null); setMathCourseId(id); setView("math"); }} />}{view === "course" && <CourseView completed={completed} practice={practice} position={coursePosition} setPosition={setCoursePosition} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "math" && <MathCourseView key={selectedMathCourse.id} course={selectedMathCourse} progress={selectedMathProgress} setProgress={updateSelectedMathProgress} onTutorContextChange={setCourseTutorContext} onBack={() => setView("courses")} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} canImport={privateFeatures} onImport={() => privateFeatures ? setImportOpen(true) : window.location.assign(signInPath)} />}</div><MobileNav view={view} setView={setView} />{privateFeatures && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} open={tutorOpen} setOpen={setTutorOpen} />}<DegreeWorksImport open={importOpen && privateFeatures} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, math, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
+  return <div className="app-shell focused-shell"><Sidebar view={view} setView={setView} completed={completed} practice={practice} tutorOpen={tutorOpen} onToggleTutor={() => setTutorOpen((current) => !current)} onOpenInfo={() => setInfoOpen(true)} student={student} localWorkspace={localWorkspace} signInPath={signInPath} signOutPath={signOutPath} syncLabel={syncLabel}/><div className="app-main">{storageError && <div className="math-storage-error" role="alert">Your latest changes could not be saved safely. Keep this page open and export a progress backup before closing.</div>}{anonymousCandidate && student && !localWorkspace && <section className="progress-migration-banner"><LockKeyhole size={18}/><div><b>Continue with progress from this browser?</b><p>Before you signed in as {student.displayName}, this browser had progress saved on the public Exceler A site. Copy it into your private account, or leave the account empty. Your localhost progress is separate and will not change.</p></div><button className="primary-button" onClick={() => chooseAnonymousProgress(true)}>Copy to my account</button><button className="secondary-button" onClick={() => chooseAnonymousProgress(false)}>Leave account empty</button></section>}{view === "home" && <HomeView completed={completed} practice={practice} snapshot={auditSnapshot} setView={setView} onOpenInfo={() => setInfoOpen(true)} />}{view === "dashboard" && <Dashboard completed={completed} practice={practice} degreeRecords={degreeRecords} setView={setView} />}{view === "courses" && <CoursesView completed={completed} practice={practice} math={math} onOpenCourse={() => { setCourseTutorContext(null); setView("course"); }} onOpenMath={(id) => { setCourseTutorContext(null); setMathCourseId(id); setView("math"); }} />}{view === "course" && <CourseView completed={completed} practice={practice} position={coursePosition} setPosition={setCoursePosition} onPracticeChange={(chapterId, record) => setPractice((current) => ({ ...current, [chapterId]: record }))} onTutorContextChange={setCourseTutorContext} />}{view === "math" && <MathCourseView key={selectedMathCourse.id} course={selectedMathCourse} progress={selectedMathProgress} setProgress={updateSelectedMathProgress} onTutorContextChange={setCourseTutorContext} onBack={() => setView("courses")} />}{view === "degree" && <DegreeMap records={degreeRecords} setRecords={setDegreeRecords} snapshot={auditSnapshot} canImport={privateFeatures} onImport={() => privateFeatures ? setImportOpen(true) : window.location.assign(signInPath)} />}</div><MobileNav view={view} setView={setView} />{privateFeatures && <TutorAssistant view={view} completed={completed} practice={practice} courseContext={courseTutorContext} snapshot={auditSnapshot} open={tutorOpen} setOpen={setTutorOpen} />}{!privateFeatures && <a className="mobile-tutor-signin" href={signInPath} target="_top" aria-label="Sign in with ChatGPT to use the Exceler tutor" title="Sign in for Tutor"><MessageCircle size={22}/><span><LockKeyhole size={9}/></span></a>}<DegreeWorksImport open={importOpen && privateFeatures} records={degreeRecords} onClose={() => setImportOpen(false)} onApply={(nextRecords, nextSnapshot) => { setDegreeRecords(nextRecords); setAuditSnapshot(nextSnapshot); }} /><ProjectInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} onOpenBackup={openBackup} /><ProgressBackupDialog open={backupOpen} progress={{ completed, practice, math, degreeRecords, auditSnapshot }} onClose={() => setBackupOpen(false)} onRestore={restoreProgress} /></div>;
 }
