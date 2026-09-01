@@ -28,6 +28,7 @@ export type LessonExample = {
   label: string;
   code: string;
   note?: string;
+  language?: string;
 };
 
 export type StructuredLessonSection = {

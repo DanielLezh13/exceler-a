@@ -10,8 +10,8 @@ type StructuredLessonProps = {
   renderAfterSection?: (sectionId: string) => React.ReactNode;
 };
 
-function CodeExample({ label, code }: { label: string; code: string }) {
-  return <div className="teaching-code lesson-code"><div><span>Java</span><small>{label}</small><CopyCodeButton code={code} /></div><pre><JavaCode code={code} /></pre></div>;
+function CodeExample({ label, code, language = "Java" }: { label: string; code: string; language?: string }) {
+  return <div className="teaching-code lesson-code"><div><span>{language}</span><small>{label}</small><CopyCodeButton code={code} /></div><pre><JavaCode code={code} /></pre></div>;
 }
 
 export default function StructuredLesson({ sections, renderAfterSection }: StructuredLessonProps) {
@@ -26,7 +26,7 @@ export default function StructuredLesson({ sections, renderAfterSection }: Struc
       </article>)}</div> : null}
 
       {section.examples?.map((example) => <div className="structured-example" key={`${example.label}-${example.code}`}>
-        <CodeExample label={example.label} code={example.code} />
+        <CodeExample label={example.label} code={example.code} language={example.language} />
         {example.note && <p className="lesson-note">{example.note}</p>}
       </div>)}
 
