@@ -1,6 +1,6 @@
 import type { StructuredLessonSection } from "./cisc1115Course";
 
-export type ProfessorTrackBridge = {
+export type ProfessorTrackAddedChapter = {
   id: string;
   title: string;
   description: string;
@@ -9,20 +9,20 @@ export type ProfessorTrackBridge = {
 };
 
 export type ProfessorTrackEntry =
-  | { kind: "bridge"; id: string }
-  | { kind: "chapter"; id: string };
+  | { kind: "added-chapter"; id: string }
+  | { kind: "existing-chapter"; id: string };
 
-export type ProfessorTrackGroup = {
+export type ProfessorTrackUnit = {
   id: string;
   label: string;
   entries: ProfessorTrackEntry[];
 };
 
-export const cisc1115ProfessorBridges: ProfessorTrackBridge[] = [
+export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
   {
     id: "mcneill-lecture-1",
-    title: "Lecture 1 Companion: Computers & Programs",
-    description: "The computer-foundations bridge Prof. McNeill teaches before the first Java coding block. It is conceptual preparation and does not require array programming.",
+    title: "Computers & Programs",
+    description: "The computer foundations Prof. McNeill teaches before the first Java coding block. This chapter builds the mental model for programming without requiring array programming.",
     schedule: "Sept. 1-3 · Introduction",
     sections: [
       {
@@ -173,8 +173,8 @@ export const cisc1115ProfessorBridges: ProfessorTrackBridge[] = [
   },
   {
     id: "mcneill-math-functions",
-    title: "Professor Bridge: Math Functions",
-    description: "A focused introduction to Java's Math tools at the point they appear in Prof. McNeill's schedule. Custom method definitions still come later.",
+    title: "Math Functions",
+    description: "Java's built-in Math tools at the point they appear in Prof. McNeill's schedule. Defining custom methods still comes later.",
     schedule: "Oct. 1 · Math Functions",
     sections: [
       {
@@ -213,8 +213,8 @@ export const cisc1115ProfessorBridges: ProfessorTrackBridge[] = [
   },
   {
     id: "mcneill-text-files",
-    title: "Professor Bridge: Characters, Strings & Files",
-    description: "The early text and file tools scheduled before loops. The later canonical chapters still provide full String algorithms and stream practice after the required foundations exist.",
+    title: "Characters, Strings & File I/O",
+    description: "The foundational character, text, formatted-output, and file tools scheduled before loops. Later chapters build full String algorithms after the required foundations exist.",
     schedule: "Oct. 6-8 · Files, Characters, and Strings",
     sections: [
       {
@@ -294,17 +294,31 @@ export const cisc1115ProfessorBridges: ProfessorTrackBridge[] = [
   },
 ];
 
-export const cisc1115ProfessorTrack: ProfessorTrackGroup[] = [
-  { id: "introduction", label: "01 · Introduction / Computer Foundations", entries: [{ kind: "bridge", id: "mcneill-lecture-1" }] },
-  { id: "variables-io", label: "02 · Variables, Types, Input & Output", entries: ["variables-data-types", "operators-expressions", "input-basic-programs"].map((id) => ({ kind: "chapter" as const, id })) },
-  { id: "selections", label: "03 · Selections", entries: ["comparisons-booleans", "if-else", "decision-programs"].map((id) => ({ kind: "chapter" as const, id })) },
-  { id: "math-functions", label: "04 · Math Functions", entries: [{ kind: "bridge", id: "mcneill-math-functions" }] },
-  { id: "text-files", label: "05 · Files, Characters & Strings", entries: [{ kind: "bridge", id: "mcneill-text-files" }] },
-  { id: "loops", label: "06 · Loops", entries: ["while-loops", "for-loops", "nested-loops"].map((id) => ({ kind: "chapter" as const, id })) },
-  { id: "methods", label: "07 · Methods", entries: ["methods", "returns-scope"].map((id) => ({ kind: "chapter" as const, id })) },
-  { id: "arrays-algorithms", label: "08 · Arrays & Algorithms", entries: ["arrays", "arrays-loops", "strings", "arraylists", "searching", "sorting", "algorithmic-problem-solving"].map((id) => ({ kind: "chapter" as const, id })) },
-  { id: "reinforcement", label: "Exceler A · Reinforcement & Final Work", entries: ["input-output", "debugging-testing", "computers-programs-algorithms", "cs-context-applications", "cumulative-challenges", "final-assessment"].map((id) => ({ kind: "chapter" as const, id })) },
+export const cisc1115ProfessorTrack: ProfessorTrackUnit[] = [
+  { id: "computer-foundations", label: "Unit I · Computer Foundations", entries: [{ kind: "added-chapter", id: "mcneill-lecture-1" }] },
+  { id: "java-fundamentals", label: "Unit II · Variables, Types, Input & Output", entries: ["variables-data-types", "operators-expressions", "input-basic-programs"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "selections", label: "Unit III · Selections", entries: ["comparisons-booleans", "if-else", "decision-programs"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "math-functions", label: "Unit IV · Math Functions", entries: [{ kind: "added-chapter", id: "mcneill-math-functions" }] },
+  { id: "text-files", label: "Unit V · Characters, Strings & File I/O", entries: [{ kind: "added-chapter", id: "mcneill-text-files" }] },
+  { id: "loops", label: "Unit VI · Loops", entries: ["while-loops", "for-loops", "nested-loops"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "methods", label: "Unit VII · Methods", entries: ["methods", "returns-scope"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "arrays-algorithms", label: "Unit VIII · Arrays, Strings & Algorithms", entries: ["arrays", "arrays-loops", "strings", "arraylists", "searching", "sorting", "algorithmic-problem-solving"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "program-development", label: "Unit IX · Program Development", entries: ["input-output", "debugging-testing"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "computing-context", label: "Unit X · Computing Context", entries: ["computers-programs-algorithms", "cs-context-applications"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "course-synthesis", label: "Final · Course Synthesis", entries: ["cumulative-challenges", "final-assessment"].map((id) => ({ kind: "existing-chapter" as const, id })) },
 ];
 
-export const professorBridgeById = new Map(cisc1115ProfessorBridges.map((bridge) => [bridge.id, bridge]));
+export const professorAddedChapterById = new Map(cisc1115ProfessorAddedChapters.map((chapter) => [chapter.id, chapter]));
 
+export const professorChapterNumberById = new Map(cisc1115ProfessorTrack.flatMap((unit) => unit.entries).map((entry, index) => [entry.id, index + 1]));
+
+export const professorMasteryDisplayById = new Map([
+  ["unit-1-mastery", { unit: "Unit II · Variables, Types, Input & Output", title: "Unit II Mastery Test" }],
+  ["unit-2-mastery", { unit: "Unit III · Selections", title: "Unit III Mastery Test" }],
+  ["unit-3-mastery", { unit: "Unit VI · Loops", title: "Unit VI Mastery Test" }],
+  ["unit-4-mastery", { unit: "Unit VII · Methods", title: "Unit VII Mastery Test" }],
+  ["unit-5-mastery", { unit: "Unit VIII · Arrays, Strings & Algorithms", title: "Arrays, Lists & Strings Mastery Test" }],
+  ["unit-6-mastery", { unit: "Unit VIII · Arrays, Strings & Algorithms", title: "Algorithms Mastery Test" }],
+  ["unit-7-mastery", { unit: "Unit IX · Program Development", title: "Unit IX Mastery Test" }],
+  ["unit-8-mastery", { unit: "Unit X · Computing Context", title: "Unit X Mastery Test" }],
+]);

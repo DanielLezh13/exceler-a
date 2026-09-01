@@ -1452,7 +1452,6 @@ button.home-guidance-card:hover { border-color: #53664a; background: #19201c; tr
 .course-track-switch button.selected { border-color: #485a3b; background: #182017; color: #e9f2e3; }
 .course-track-switch button.selected small { color: var(--lime); }
 .course-unit-label { margin: 19px 10px 7px; color: #7b8e70; font: 7px/1.4 var(--font-geist-mono); letter-spacing: .11em; text-transform: uppercase; }
-.professor-track-label { color: #8a9eb9; }
 .course-unit-label:first-of-type { margin-top: 3px; }
 .contents-section { border-top: 1px solid #222725; padding: 8px 0; }
 .contents-section.open { padding-bottom: 0; }
@@ -1461,11 +1460,6 @@ button.home-guidance-card:hover { border-color: #53664a; background: #19201c; tr
 .contents-section.open .contents-section-button { background: #181c1b; color: #f1f3f1; }
 .chapter-number { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid #3a423f; color: #8a9390; font: 10px var(--font-geist-mono); letter-spacing: -.02em; }
 .contents-section.completed .chapter-number { border-color: #52633d; background: #171e14; color: var(--lime); }
-.professor-bridge-item { margin: 4px 0 10px; border: 1px solid #303a42; border-radius: 13px; background: #121719; padding: 2px; }
-.professor-bridge-item.selected { border-color: #55729e; background: #151b23; }
-.professor-bridge-item .chapter-number { color: var(--blue); }
-.professor-bridge-item .chapter-copy { display: grid; align-content: center; gap: 3px; }
-.professor-bridge-item .chapter-copy small { color: #718093; font: 7px var(--font-geist-mono); }
 .chapter-copy { min-width: 0; min-height: 36px; display: flex; align-items: center; }
 .chapter-copy b { display: block; font-size: 13px; line-height: 1.35; }
 .chapter-row-actions { display: flex; align-items: center; gap: 8px; color: #626a67; }
@@ -1505,8 +1499,6 @@ button.home-guidance-card:hover { border-color: #53664a; background: #19201c; tr
 .chapter-cover { padding: 55px 0 46px; border-bottom: 1px solid #2b302f; text-align: center; }
 .chapter-cover h1 { margin: 12px 0 14px; font-size: clamp(42px, 5vw, 68px); letter-spacing: -.065em; line-height: .95; }
 .chapter-cover > p:not(.eyebrow) { max-width: 680px; margin: 0 auto; color: #939b98; font-size: 13px; line-height: 1.75; }
-.professor-bridge-cover { position: relative; }
-.professor-companion-note { display: inline-flex; margin-top: 18px; border: 1px solid #35404a; border-radius: 999px; background: #141a1e; color: #8798ab; padding: 7px 10px; font: 8px var(--font-geist-mono); letter-spacing: .04em; }
 .planned-chapter-preview { margin-top: 46px; border: 1px solid #303735; border-radius: 16px; background: #141817; padding: 28px 30px; }
 .planned-chapter-preview h2 { margin: 10px 0 12px; font-size: 28px; letter-spacing: -.04em; }
 .planned-chapter-preview > p:last-child { max-width: 580px; margin: 0; color: #8e9793; font-size: 12px; line-height: 1.7; }
