@@ -1912,6 +1912,7 @@ button.tree-course-node:hover { border-color: #5d6863; transform: translateY(-1p
   .contents-rail.mobile-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); }
   .mobile-contents-close { position: sticky; z-index: 2; top: -10px; width: calc(100% + 24px); min-height: 49px; margin: 0 -12px 10px; display: flex; align-items: center; justify-content: space-between; border: 0; border-bottom: 1px solid #2d3531; border-radius: 17px 17px 0 0; background: rgba(16,21,19,.97); color: #dce4df; padding: 0 15px; box-shadow: none; font-size: 10px; font-weight: 750; }
   .mobile-contents-close svg { color: var(--lime); }
+  .mobile-tutor-signin { display: grid; }
   .chapter-reader { overflow: visible; }
   .chapter-article { padding: 0 17px 75px; }
   .chapter-cover { padding: 38px 0 33px; }
