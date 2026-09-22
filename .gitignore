@@ -38,3 +38,8 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+
+# local-only workspaces and generated state
+/AGENTS.md
+/native/
+/tsconfig.tsbuildinfo
