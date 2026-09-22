@@ -18,11 +18,13 @@ import {
   GraduationCap,
   GripHorizontal,
   House,
+  History,
   LockKeyhole,
   Maximize2,
   MessageCircle,
   Minimize2,
   Play,
+  Plus,
   RotateCcw,
   Send,
   Sparkles,
@@ -50,7 +52,7 @@ import {
   structuredLessonContent,
   unitMasteryTests,
 } from "./data/cisc1115Course";
-import { cisc1115ProfessorTrack, professorAddedChapterById, professorChapterNumberById, professorMasteryDisplayById, type ProfessorTrackAddedChapter } from "./data/cisc1115ProfessorTrack";
+import { cisc1115ProfessorAddedChapters, cisc1115ProfessorTrack, professorAddedChapterById, professorChapterNumberById, professorMasteryDisplayById, type ProfessorTrackAddedChapter } from "./data/cisc1115ProfessorTrack";
 import { javaValidationCode, validateArcadePrizePurchase } from "./practiceValidation";
 import { retrievalQuestionsFor, sectionRetrievalPractice } from "./data/sectionRetrievalPractice";
 import MathCourseView from "./math/MathCourseView";
@@ -166,6 +168,14 @@ type TutorMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+};
+
+type TutorThread = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: TutorMessage[];
 };
 
 type TutorResponseLength = "short" | "medium" | "long";
@@ -383,6 +393,7 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
     { id: "operators-resource-challenge", level: "Challenge", kind: "Editor challenge", title: "Build a resource calculator", prompt: "Declare missions as 4, reward as 15, multiplier as 2, and fee as 7. Calculate balance with missions * reward * multiplier - fee. Print exactly: Balance: 113 credits", placeholder: "Write the declarations, calculation, and println statement", hint: "Store the longer expression in an int named balance, then concatenate balance between the two text pieces.", success: "Operators challenge cleared. You combined declarations, precedence, a longer expression, and exact String output.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /intmissions=4;/.test(code) && /intreward=15;/.test(code) && /intmultiplier=2;/.test(code) && /intfee=7;/.test(code) && /intbalance=missions\*reward\*multiplier-fee;/.test(code) && /System\.out\.println\("Balance:"\+balance\+"credits"\);/.test(code); } },
   ],
   ...additionalPracticeQuestions,
+  ...Object.fromEntries(cisc1115ProfessorAddedChapters.map((chapter) => [chapter.id, chapter.reviewQuestions])),
 };
 
 practiceQuestions["variables-data-types"].push({
@@ -641,6 +652,9 @@ const foundationalPracticePlans: Record<string, ChapterPracticePlan> = {
 };
 
 function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
+  const professorAddedChapter = professorAddedChapterById.get(chapterId);
+  if (professorAddedChapter) return { checkpoints: {}, review: professorAddedChapter.reviewQuestions.map((question) => question.id) };
+
   const explicit = foundationalPracticePlans[chapterId];
   if (explicit) {
     const checkpoints = Object.fromEntries(Object.entries(explicit.checkpoints).map(([sectionId, ids]) => [sectionId, [...ids]]));
@@ -828,9 +842,9 @@ function CoursesView({ completed, practice, onOpenCourse, math, onOpenMath }: { 
     return <button className="course-library-card" key={course.id} onClick={() => onOpenMath(course.id)}><span className="course-glyph large">{course.code.startsWith("CISC") ? "∀" : course.id === "math1006" ? "x" : course.id === "math1011" ? "π" : "∫"}</span><span className="course-library-copy"><small>{course.code} · Self-Study</small><b>{course.title}</b><em>{courseChapters(course).length} chapters · {course.units.length} unit tests · {state.total} problems</em></span><span className="course-library-progress"><strong>{state.percent}%</strong><small>{state.chaptersCleared}/{state.chapterCount} chapters cleared</small><ProgressBar value={state.percent}/></span><ArrowRight size={17}/></button>;
   };
   return <main className="page-content courses-page">
-    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Full lessons, written practice, chapter reviews, and unit mastery tests. Follow the math sequence from College Algebra through Calculus I.</p></div><div className="course-count"><b>{1 + mathCourses.length}</b><small>Courses Available</small></div></header>
-    <section className="course-library-group"><header><div><p className="eyebrow">Mathematics</p><h3>Algebra → Precalculus → Calculus I</h3></div><span>{mathematics.length} courses</span></header><div className="course-library-list">{mathematics.map(writtenCourseCard)}</div></section>
-    <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>Programming &amp; Discrete Structures</h3></div><span>{1 + computing.length} courses</span></header><div className="course-library-list">
+    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Full lessons, written and code practice, chapter reviews, and unit mastery tests across the connected degree path.</p></div><div className="course-count"><b>{1 + mathCourses.length}</b><small>Courses Available</small></div></header>
+    <section className="course-library-group"><header><div><p className="eyebrow">Mathematics</p><h3>Algebra → Precalculus → Calculus I → Calculus II</h3></div><span>{mathematics.length} courses</span></header><div className="course-library-list">{mathematics.map(writtenCourseCard)}</div></section>
+    <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>Programming → Discrete Structures → Applications</h3></div><span>{1 + computing.length} courses</span></header><div className="course-library-list">
       <button className="course-library-card" onClick={onOpenCourse}>
         <span className="course-glyph large">J</span>
         <span className="course-library-copy"><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>{learningChapters.length} chapters · Lessons and demonstrated practice</em></span>
@@ -882,13 +896,14 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
     return display ? { ...selectedMasteryTest, ...display } : selectedMasteryTest;
   }, [courseTrack, selectedMasteryTest]);
   const visibleSections = useMemo(() => selectedProfessorChapter
-    ? selectedProfessorChapter.sections.map(({ id, title }) => ({ id, title }))
+    ? [...selectedProfessorChapter.sections.map(({ id, title }) => ({ id, title })), { id: `${selectedProfessorChapter.id}-practice`, title: "Chapter Review" }]
     : displayedMasteryTest
       ? [{ id: displayedMasteryTest.sectionId, title: displayedMasteryTest.title }]
       : selectedChapter.sections, [displayedMasteryTest, selectedProfessorChapter, selectedChapter.sections]);
   const contentKey = selectedProfessorChapter?.id ?? selectedMasteryTest?.id ?? selectedChapter.id;
   const course = learningProgress(completed, practice);
   const chapter = chapterProgress(selectedChapter.id, completed, practice);
+  const selectedProfessorState = selectedProfessorChapter ? chapterProgress(selectedProfessorChapter.id, completed, practice) : null;
   const practicePlan = useMemo(() => chapterPracticePlan(selectedChapter.id), [selectedChapter.id]);
   const activeSectionTitle = titleCase(visibleSections.find((section) => section.id === activeSectionId)?.title ?? selectedProfessorChapter?.title ?? displayedMasteryTest?.title ?? selectedChapter.title);
   const resetReaderPosition = () => {
@@ -951,16 +966,18 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
       chapterId: selectedProfessorChapter?.id ?? selectedMasteryTest?.id ?? selectedChapter.id,
       chapterTitle: titleCase(selectedProfessorChapter?.title ?? displayedMasteryTest?.title ?? selectedChapter.title),
       chapterDescription: selectedProfessorChapter?.description ?? displayedMasteryTest?.description ?? selectedChapter.description,
-      chapterProgress: selectedProfessorChapter ? 0 : chapter.percent,
+      chapterProgress: selectedProfessorState?.percent ?? chapter.percent,
       sectionId: section.id,
       sectionTitle: titleCase(section.title),
       lessonReference: selectedProfessorChapter?.sections.find((item) => item.id === section.id) ?? displayedMasteryTest?.description ?? tutorLessonReference(selectedChapter.id, section.id),
-      practicePassed: selectedProfessorChapter ? 0 : chapter.passed,
-      practiceTotal: selectedProfessorChapter ? 0 : chapter.questions,
-      activePractice: !selectedProfessorChapter && !selectedMasteryTest && (section.id.endsWith("practice") || Boolean(practicePlan.checkpoints[section.id])) && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
+      practicePassed: selectedProfessorState?.passed ?? chapter.passed,
+      practiceTotal: selectedProfessorState?.questions ?? chapter.questions,
+      activePractice: selectedProfessorChapter
+        ? section.id.endsWith("-practice") && practiceTutorContext?.chapterId === selectedProfessorChapter.id ? practiceTutorContext : null
+        : !selectedMasteryTest && (section.id.endsWith("practice") || Boolean(practicePlan.checkpoints[section.id])) && practiceTutorContext?.chapterId === selectedChapter.id ? practiceTutorContext : null,
       masteryAssessment: selectedMasteryTest ? masteryTutorContext : null,
     });
-  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, displayedMasteryTest, masteryTutorContext, onTutorContextChange, practicePlan.checkpoints, practiceTutorContext, selectedChapter, selectedMasteryTest, selectedProfessorChapter, visibleSections]);
+  }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, displayedMasteryTest, masteryTutorContext, onTutorContextChange, practicePlan.checkpoints, practiceTutorContext, selectedChapter, selectedMasteryTest, selectedProfessorChapter, selectedProfessorState?.passed, selectedProfessorState?.percent, selectedProfessorState?.questions, visibleSections]);
 
   const selectChapter = (next: LearningChapter) => {
     if (courseTrack === "professor") onProfessorItemChange(next.id);
@@ -1075,13 +1092,23 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const renderProfessorAddedChapterRailItem = (chapter: ProfessorTrackAddedChapter) => {
     const selected = selectedProfessorChapter?.id === chapter.id;
     const chapterNumber = professorChapterNumberById.get(chapter.id) ?? 0;
-    return <div key={chapter.id} className={`contents-section ${selected ? "selected open" : ""}`}>
+    const state = chapterProgress(chapter.id, completed, practice);
+    const passedQuestionIds = new Set(practice[chapter.id]?.passed ?? []);
+    const reviewSection = { id: `${chapter.id}-practice`, title: "Chapter Review" };
+    const railSections = [...chapter.sections, reviewSection];
+    const done = state.percent === 100;
+    return <div key={chapter.id} className={`contents-section ${selected ? "selected open" : ""} ${done ? "completed" : ""}`}>
       <button className="contents-section-button" aria-expanded={selected} onClick={() => selectProfessorChapter(chapter)}>
         <span className="chapter-number">{String(chapterNumber).padStart(2, "0")}</span>
         <span className="chapter-copy"><b>{titleCase(chapter.title)}</b></span>
-        <span className="chapter-row-actions"><ChevronDown size={15} /></span>
+        <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter review complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
       </button>
-      <div className={`chapter-subsections-shell ${selected ? "expanded" : ""}`} aria-hidden={!selected}><div><div className="part-list">{chapter.sections.map((section, sectionIndex) => <button key={section.id} tabIndex={selected ? 0 : -1} className={selected && activeSectionId === section.id ? "active" : ""} onClick={() => selected && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b></button>)}</div></div></div>
+      <div className={`chapter-subsections-shell ${selected ? "expanded" : ""}`} aria-hidden={!selected}><div><div className="part-list">{railSections.map((section, sectionIndex) => {
+        const isReview = section.id === reviewSection.id;
+        const reviewPassed = isReview ? chapter.reviewQuestions.filter((question) => passedQuestionIds.has(question.id)).length : 0;
+        const sectionDone = isReview && reviewPassed === chapter.reviewQuestions.length;
+        return <button key={section.id} tabIndex={selected ? 0 : -1} className={`${selected && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => selected && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Review questions complete"><Check size={12} strokeWidth={3.2} /></span> : isReview ? <small>{reviewPassed}/{chapter.reviewQuestions.length}</small> : null}</button>;
+      })}</div></div></div>
     </div>;
   };
   const switchCourseTrack = (next: CourseTrack) => {
@@ -1127,6 +1154,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
       <div className="chapter-reader" ref={readerRef}>{selectedProfessorChapter ? <article className="chapter-article chapter-swap" key={selectedProfessorChapter.id}>
         <header className="chapter-cover"><h1>{titleCase(selectedProfessorChapter.title)}</h1><p>{selectedProfessorChapter.description}</p></header>
         <StructuredLesson sections={selectedProfessorChapter.sections} />
+        <ChapterPractice chapterId={selectedProfessorChapter.id} questionIds={selectedProfessorChapter.reviewQuestions.map((question) => question.id)} variant="review" practiceSectionId={`${selectedProfessorChapter.id}-practice`} savedQuestionId={position.questions[`${selectedProfessorChapter.id}-practice`]} onActiveQuestionChange={saveActiveQuestion} record={practice[selectedProfessorChapter.id]} onChange={(record) => onPracticeChange(selectedProfessorChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId.endsWith("-practice")} />
       </article> : displayedMasteryTest ? <article className="chapter-article chapter-swap unit-test-article" key={displayedMasteryTest.id}>
         <header className="chapter-cover unit-test-cover"><p className="eyebrow">{displayedMasteryTest.unit}</p><h1>{titleCase(displayedMasteryTest.title)}</h1><p>{displayedMasteryTest.description}</p></header>
         <UnitMasteryAssessment test={displayedMasteryTest} record={practice[selectedMasteryTest.id]} onChange={(record) => onPracticeChange(selectedMasteryTest.id, record)} onTutorContextChange={setMasteryTutorContext} />
@@ -1486,7 +1514,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
     setFeedback((current) => ({ ...current, [question.id]: correct ? "correct" : "incorrect" }));
   };
   const toggleAnswer = () => {
-    if (!answerShown && !record.hints.includes(question.id)) {
+    if (!passed && !answerShown && !record.hints.includes(question.id)) {
       onChange({ ...record, hints: [...record.hints, question.id] });
     }
     setVisibleAnswers((current) => ({ ...current, [question.id]: !current[question.id] }));
@@ -1514,11 +1542,12 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const practiceBody = <>
     <div className="practice-header"><div><p className="eyebrow">{variant === "checkpoint" ? `Check Your Understanding · ${String(checkpointNumber).padStart(2, "0")}` : "Cumulative Review"}</p><h2>{variant === "checkpoint" ? "Section Check" : "Chapter Review"}</h2>{variant === "review" && <p>Combine what you learned across the chapter. Every earlier section check also counts toward completion.</p>}</div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
     {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{(item.productionStage ?? 0) >= 4 ? "Build" : item.level}</small></button>)}</div>}
-    <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <div className="practice-code-wrap"><CopyCodeButton code={question.code} /><pre className="practice-code"><JavaCode code={question.code} /></pre></div>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{answerOptions.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{answerOptions.map((option) => <button type="button" role="radio" aria-checked={option.selected} className={`${option.selected ? "selected" : ""} ${answerShown && question.validate(option.text) ? "revealed-answer" : ""}`} key={option.label} onClick={() => updateAnswer(option.text)}><span>{option.label}</span><b>{option.text}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"} ${usesJavaEditor ? "code-editor-field" : "written-answer-field"}`}>{usesJavaEditor ? <JavaEditor id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={updateAnswer} placeholder={question.placeholder} multiline={Boolean(question.multiline)} starterCode={question.code ?? ""} onSubmit={() => { if (passed) goToNextQuestion(); else check(); }} /> : question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck autoCorrect="off" autoCapitalize="off" /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" spellCheck autoCorrect="off" autoCapitalize="off" />}{answerShown && <div className="practice-answer-overlay" aria-live="polite" role="region" aria-label="Shown answer" tabIndex={question.multiline ? 0 : undefined}>{usesJavaEditor ? <JavaCode code={shownAnswer} /> : shownAnswer}</div>}</div>}
-      <div className="practice-response-row">
+    <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <div className="practice-code-wrap"><CopyCodeButton code={question.code} /><pre className="practice-code"><JavaCode code={question.code} /></pre></div>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{answerOptions.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{answerOptions.map((option) => <button type="button" role="radio" aria-checked={option.selected} className={`${option.selected ? "selected" : ""} ${answerShown && question.validate(option.text) ? "revealed-answer" : ""}`} key={option.label} onClick={() => updateAnswer(option.text)}><span>{option.label}</span><b>{option.text}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"} ${usesJavaEditor ? "code-editor-field" : "written-answer-field"}`}>{usesJavaEditor ? <JavaEditor id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={updateAnswer} placeholder={question.placeholder} multiline={Boolean(question.multiline)} starterCode={question.code ?? ""} onSubmit={() => { if (passed) goToNextQuestion(); else check(); }} /> : question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck autoCorrect="off" autoCapitalize="off" /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" spellCheck autoCorrect="off" autoCapitalize="off" />}{answerShown && !passed && <div className="practice-answer-overlay" aria-live="polite" role="region" aria-label="Shown answer" tabIndex={question.multiline ? 0 : undefined}>{usesJavaEditor ? <JavaCode code={shownAnswer} /> : shownAnswer}</div>}</div>}
+      {answerShown && passed && !answerOptions.length && <div className="practice-example-answer" aria-live="polite" role="region" aria-label="Example answer"><div><b>Example answer</b><small>Your accepted answer stays above so you can compare both approaches.</small></div><pre>{usesJavaEditor ? <JavaCode code={shownAnswer} /> : shownAnswer}</pre></div>}
+      <div className={`practice-response-row ${passed ? "passed" : ""}`}>
         <div className="practice-feedback-slot">{(feedback[question.id] || passed) && <div className={`practice-feedback ${passed || feedback[question.id] === "correct" ? "correct" : "incorrect"}`}><span>{passed || feedback[question.id] === "correct" ? <Check size={18} strokeWidth={3} /> : <RotateCcw size={17} />}</span><p><b>{passed || feedback[question.id] === "correct" ? "Passed" : "Not yet"}</b><small>{passed || feedback[question.id] === "correct" ? question.success : "Check the exact requirement, show the answer if needed, and try again."}</small></p></div>}</div>
         <div className={`practice-actions ${passed ? "passed" : ""}`}>
-          {!passed && <button className="soft-button" onClick={toggleAnswer} aria-pressed={answerShown}>{answerShown ? <EyeOff size={14} /> : <Eye size={14} />}{answerShown ? "Hide Answer" : "Show Answer"}</button>}
+          {(!passed || !answerOptions.length) && <button className="soft-button" onClick={toggleAnswer} aria-pressed={answerShown}>{answerShown ? <EyeOff size={14} /> : <Eye size={14} />}{passed ? answerShown ? "Hide Example Answer" : "View Example Answer" : answerShown ? "Hide Answer" : "Show Answer"}</button>}
           {passed ? (
             nextQuestionIndex >= 0
               ? <button className="primary-button practice-next-button" onClick={goToNextQuestion}>Next Question<ArrowRight size={16} /></button>
@@ -1785,7 +1814,7 @@ function ProjectInfoDialog({ open, onClose, onOpenBackup }: { open: boolean; onC
       <header><div className="project-info-brand"><span><img src="/exceler-a-mark-512.png" alt="" /></span><div><p className="eyebrow">Independent Learning Project</p><h2 id="project-info-title">About Exceler A</h2></div></div><button onClick={onClose} aria-label="Close project information"><X size={19} /></button></header>
       <div className="project-info-intro"><p>Exceler A is a student-built learning system that turns the Brooklyn College Computer Science B.S. path into sequenced teaching, demonstrated practice, and a visual degree map.</p><span>Built by <b>Daniel Lezhanskiy</b></span></div>
       <div className="project-info-grid">
-        <article><span><Code2 size={17} /></span><div><b>What Is Available</b><p>Available now: CISC 1115 and CISC 2210, plus the supporting CS-degree math sequence through MATH 1201. Courses include connected lessons, written practice, and mastery tests. More courses from the Brooklyn College Computer Science B.S. path are coming as they are built and reviewed.</p></div></article>
+        <article><span><Code2 size={17} /></span><div><b>What Is Available</b><p>Available now: the computing path through CISC 3140, the CISC 3310 and CISC 3305 architecture alternatives, and the supporting math sequence through MATH 1206. Courses include connected lessons, written or code practice, chapter reviews, and mastery tests. More courses from the Brooklyn College Computer Science B.S. path are coming as they are built and reviewed.</p></div></article>
         <article><span><GraduationCap size={18} /></span><div><b>Degree-Path Context</b><p>The map organizes required courses, either-or choices, elective groups, and graduation gates. It is a planning aid—not an official Brooklyn College service or a replacement for DegreeWorks and academic advisement.</p></div></article>
         <article><span><LockKeyhole size={17} /></span><div><b>Private Student Workspaces</b><p>Anyone can learn anonymously with progress saved on that device. Students may sign in for isolated cloud progress, a private DegreeWorks map, and the protected tutor. The original PDF is read in the browser; only the reviewed academic summary is saved.</p></div></article>
       </div>
@@ -1801,6 +1830,50 @@ const tutorWelcomeMessage = (): TutorMessage => ({
 });
 
 const tutorMessageId = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+const TUTOR_THREAD_LIMIT = 20;
+const TUTOR_MESSAGE_LIMIT = 60;
+const TUTOR_HISTORY_CHARACTER_BUDGET = 350_000;
+const LOCAL_TUTOR_HISTORY_KEY = "exceler-local-tutor-chats-v1";
+
+function tutorThreadTitle(question: string) {
+  const compact = question.replace(/\s+/g, " ").trim();
+  return compact.length > 52 ? `${compact.slice(0, 49).trimEnd()}…` : compact || "New chat";
+}
+
+function newTutorThread(): TutorThread {
+  const now = Date.now();
+  return { id: tutorMessageId(), title: "New chat", createdAt: now, updatedAt: now, messages: [tutorWelcomeMessage()] };
+}
+
+function normalizeTutorThreads(threads: TutorThread[]) {
+  const normalized = threads
+    .map((thread) => ({ ...thread, messages: thread.messages.slice(-TUTOR_MESSAGE_LIMIT) }))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, TUTOR_THREAD_LIMIT);
+  while (normalized.length > 1 && JSON.stringify(normalized).length > TUTOR_HISTORY_CHARACTER_BUDGET) normalized.pop();
+  while (normalized.length === 1 && normalized[0].messages.length > 2 && JSON.stringify(normalized).length > TUTOR_HISTORY_CHARACTER_BUDGET) normalized[0] = { ...normalized[0], messages: normalized[0].messages.slice(2) };
+  return normalized;
+}
+
+function readTutorThreads(value: unknown): TutorThread[] {
+  if (!Array.isArray(value)) return [];
+  const threads = value.flatMap((item): TutorThread[] => {
+    if (!item || typeof item !== "object") return [];
+    const candidate = item as Partial<TutorThread>;
+    if (typeof candidate.id !== "string" || typeof candidate.title !== "string" || !Array.isArray(candidate.messages)) return [];
+    const messages = candidate.messages.flatMap((message): TutorMessage[] => {
+      if (!message || typeof message !== "object") return [];
+      const entry = message as Partial<TutorMessage>;
+      if (typeof entry.id !== "string" || (entry.role !== "user" && entry.role !== "assistant") || typeof entry.content !== "string") return [];
+      return [{ id: entry.id, role: entry.role, content: entry.content.slice(0, 8_000) }];
+    });
+    const createdAt = Number.isFinite(candidate.createdAt) ? Number(candidate.createdAt) : Date.now();
+    const updatedAt = Number.isFinite(candidate.updatedAt) ? Number(candidate.updatedAt) : createdAt;
+    return [{ id: candidate.id, title: candidate.title.slice(0, 80) || "New chat", createdAt, updatedAt, messages: messages.length ? messages : [tutorWelcomeMessage()] }];
+  });
+  return normalizeTutorThreads(threads);
+}
 
 function textFromReactNode(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -1831,8 +1904,12 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
   const [expanded, setExpanded] = useState(false);
   const [responseLength, setResponseLength] = useState<TutorResponseLength>("medium");
   const [settingsReady, setSettingsReady] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historySaveError, setHistorySaveError] = useState(false);
+  const [threads, setThreads] = useState<TutorThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState("");
   const [drawerPosition, setDrawerPosition] = useState({ x: 0, y: 0 });
-  const [messages, setMessages] = useState<TutorMessage[]>([tutorWelcomeMessage()]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const messagesRef = useRef<HTMLDivElement | null>(null);
@@ -1841,6 +1918,8 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; rect: DOMRect } | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const progress = learningProgress(completed, practice);
+  const activeThread = useMemo(() => threads.find((thread) => thread.id === activeThreadId) ?? threads[0] ?? null, [activeThreadId, threads]);
+  const messages = useMemo(() => activeThread?.messages ?? [tutorWelcomeMessage()], [activeThread]);
   const activeLesson = view === "course" || view === "math" ? courseContext : null;
   const contextLabel = activeLesson ? activeLesson.sectionTitle : view === "degree" ? "Degree Map" : view === "courses" ? "Courses" : view === "dashboard" ? "Overview" : "Home";
 
@@ -1851,6 +1930,68 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
     if (savedSize === "expanded") setExpanded(true);
     setSettingsReady(true);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const applyHistory = (value: unknown, storedActiveThreadId?: unknown) => {
+      const restored = readTutorThreads(value);
+      const readyThreads = restored.length ? restored : [newTutorThread()];
+      if (cancelled) return;
+      setThreads(readyThreads);
+      setActiveThreadId(typeof storedActiveThreadId === "string" && readyThreads.some((thread) => thread.id === storedActiveThreadId) ? storedActiveThreadId : readyThreads[0].id);
+      setHistoryReady(true);
+    };
+    const loadHistory = async () => {
+      const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      try {
+        if (isLocal) {
+          const stored = window.localStorage.getItem(LOCAL_TUTOR_HISTORY_KEY);
+          if (!stored) applyHistory([]);
+          else {
+            const parsed = JSON.parse(stored) as { threads?: unknown; activeThreadId?: unknown };
+            applyHistory(parsed.threads, parsed.activeThreadId);
+          }
+          return;
+        }
+        const response = await fetch("/api/tutor-chats", { cache: "no-store" });
+        if (!response.ok) throw new Error("Saved chats could not be loaded.");
+        const result = await response.json() as { threads?: unknown; activeThreadId?: unknown };
+        applyHistory(result.threads, result.activeThreadId);
+      } catch {
+        if (cancelled) return;
+        const thread = newTutorThread();
+        setThreads([thread]);
+        setActiveThreadId(thread.id);
+        setHistorySaveError(true);
+      }
+    };
+    void loadHistory();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!historyReady) return;
+    const payload = { threads: normalizeTutorThreads(threads), activeThreadId };
+    const isLocal = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+    if (isLocal) {
+      let failed = false;
+      try { window.localStorage.setItem(LOCAL_TUTOR_HISTORY_KEY, JSON.stringify(payload)); }
+      catch { failed = true; }
+      const statusTimer = window.setTimeout(() => setHistorySaveError(failed), 0);
+      return () => window.clearTimeout(statusTimer);
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/tutor-chats", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: controller.signal });
+        if (!response.ok) throw new Error("Saved chats could not be updated.");
+        setHistorySaveError(false);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setHistorySaveError(true);
+      }
+    }, 700);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [activeThreadId, historyReady, threads]);
 
   useEffect(() => {
     if (!settingsReady) return;
@@ -1923,20 +2064,54 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
     setExpanded((current) => !current);
   };
 
-  const clearConversation = () => {
+  const stopResponse = () => {
     requestRef.current?.abort();
     requestRef.current = null;
     setBusy(false);
-    setMessages([tutorWelcomeMessage()]);
+  };
+
+  const createConversation = () => {
+    stopResponse();
+    const thread = newTutorThread();
+    setThreads((current) => normalizeTutorThreads([thread, ...current]));
+    setActiveThreadId(thread.id);
+    setHistoryOpen(false);
+    setDraft("");
+  };
+
+  const selectConversation = (threadId: string) => {
+    stopResponse();
+    setActiveThreadId(threadId);
+    setHistoryOpen(false);
+    setDraft("");
+  };
+
+  const deleteConversation = () => {
+    if (!activeThread || !window.confirm(`Delete “${activeThread.title}”? This cannot be undone.`)) return;
+    stopResponse();
+    const remaining = threads.filter((thread) => thread.id !== activeThread.id);
+    if (remaining.length) {
+      setThreads(remaining);
+      setActiveThreadId(remaining[0].id);
+    } else {
+      const replacement = newTutorThread();
+      setThreads([replacement]);
+      setActiveThreadId(replacement.id);
+    }
+    setHistoryOpen(false);
   };
 
   const submit = async (suggested?: string) => {
     const question = (suggested ?? draft).trim();
     if (!question || busy) return;
+    const targetThread = activeThread ?? newTutorThread();
+    const targetThreadId = targetThread.id;
     const userMessage: TutorMessage = { id: tutorMessageId(), role: "user", content: question };
     const assistantId = tutorMessageId();
-    const history = [...messages.filter((message) => message.content.trim()), userMessage].slice(-12);
-    setMessages((current) => [...current, userMessage, { id: assistantId, role: "assistant", content: "" }]);
+    const history = [...targetThread.messages.filter((message) => message.content.trim()), userMessage].slice(-12);
+    const startedThread: TutorThread = { ...targetThread, title: targetThread.title === "New chat" ? tutorThreadTitle(question) : targetThread.title, updatedAt: Date.now(), messages: [...targetThread.messages, userMessage, { id: assistantId, role: "assistant", content: "" }] };
+    setThreads((current) => normalizeTutorThreads([startedThread, ...current.filter((thread) => thread.id !== targetThreadId)]));
+    setActiveThreadId(targetThreadId);
     setDraft("");
     setBusy(true);
     const controller = new AbortController();
@@ -1990,7 +2165,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
           const event = JSON.parse(data) as { type?: string; delta?: string; message?: string; error?: { message?: string } };
           if (event.type === "response.output_text.delta" && event.delta) {
             answer += event.delta;
-            setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: answer } : message));
+            setThreads((current) => normalizeTutorThreads(current.map((thread) => thread.id === targetThreadId ? { ...thread, updatedAt: Date.now(), messages: thread.messages.map((message) => message.id === assistantId ? { ...message, content: answer } : message) } : thread)));
           }
           if (event.type === "error") throw new Error(event.message || event.error?.message || "The response stream failed.");
         } catch (error) {
@@ -2015,7 +2190,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       const message = error instanceof Error ? error.message : "The tutor could not respond right now.";
-      setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, content: `I hit a connection problem: ${message}` } : item));
+      setThreads((current) => normalizeTutorThreads(current.map((thread) => thread.id === targetThreadId ? { ...thread, updatedAt: Date.now(), messages: thread.messages.map((item) => item.id === assistantId ? { ...item, content: `I hit a connection problem: ${message}` } : item) } : thread)));
     } finally {
       if (requestRef.current === controller) requestRef.current = null;
       setBusy(false);
@@ -2027,13 +2202,13 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
       <header className="tutor-header" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="tutor-identity"><span><img src="/exceler-a-mark-512.png" alt="" /></span><p><b>Exceler Tutor</b><small>Using your current page</small></p></div>
         <span className="tutor-drag-handle" aria-hidden="true"><GripHorizontal size={18} /></span>
-        <div className="tutor-header-actions"><button className="tutor-action-size" onClick={toggleTutorSize} aria-label={expanded ? "Restore tutor size" : "Expand tutor"} title={expanded ? "Restore size" : "Expand chat"}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button className="tutor-action-clear" onClick={clearConversation} aria-label="Clear tutor conversation" title="Clear conversation"><Trash2 size={16} /></button><button className="tutor-action-close" onClick={() => setOpen(false)} aria-label="Close tutor" title="Close tutor"><X size={18} /></button></div>
+        <div className="tutor-header-actions"><button className={`tutor-action-history ${historyOpen ? "selected" : ""}`} onClick={() => setHistoryOpen((current) => !current)} aria-label="Open saved tutor chats" aria-pressed={historyOpen} title="Chat history"><History size={16} /></button><button className="tutor-action-new" onClick={createConversation} aria-label="Start a new tutor chat" title="New chat"><Plus size={17} /></button><button className="tutor-action-size" onClick={toggleTutorSize} aria-label={expanded ? "Restore tutor size" : "Expand tutor"} title={expanded ? "Restore size" : "Expand chat"}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button className="tutor-action-clear" onClick={deleteConversation} aria-label="Delete this tutor chat" title="Delete chat"><Trash2 size={16} /></button><button className="tutor-action-close" onClick={() => setOpen(false)} aria-label="Close tutor" title="Close tutor"><X size={18} /></button></div>
       </header>
       <div className="tutor-context"><div className="tutor-context-page"><Sparkles size={13} /><span>Context</span><b>{contextLabel}</b></div><div className="tutor-response-length" role="group" aria-label="Tutor response length">{(["short", "medium", "long"] as TutorResponseLength[]).map((length) => <button key={length} type="button" className={responseLength === length ? "selected" : ""} aria-pressed={responseLength === length} onClick={() => setResponseLength(length)} title={`${length[0].toUpperCase()}${length.slice(1)} tutor responses`}>{length}</button>)}</div></div>
-      <div ref={messagesRef} className="tutor-messages">
+      {historyOpen ? <section className="tutor-history" aria-label="Saved tutor chats"><header><div><b>Saved chats</b><small className={historySaveError ? "error" : ""}>{historySaveError ? "Chats could not be saved" : `${threads.length} conversation${threads.length === 1 ? "" : "s"}`}</small></div><button type="button" onClick={createConversation}><Plus size={14} />New chat</button></header><div className="tutor-history-list">{threads.map((thread) => <button key={thread.id} type="button" className={thread.id === activeThread?.id ? "selected" : ""} onClick={() => selectConversation(thread.id)}><span>{thread.title}</span><small>{new Date(thread.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</small></button>)}</div></section> : <div ref={messagesRef} className="tutor-messages">
         {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
         <div className="tutor-scroll-anchor" />
-      </div>
+      </div>}
       <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <textarea ref={composerInputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
         <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
 import * as course from "../../app/data/cisc1115Course.ts";
+import * as professorTrack from "../../app/data/cisc1115ProfessorTrack.ts";
 import * as validation from "../../app/practiceValidation.ts";
 import * as retrieval from "../../app/data/sectionRetrievalPractice.ts";
 
@@ -21,6 +22,6 @@ export async function loadCourseModel() {
     slice("function questionUsesJavaEditor", "const learningChapters:"),
   ].join("\n");
   const compiled = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const dependencies = { ...course, ...validation, ...retrieval };
+  const dependencies = { ...course, ...professorTrack, ...validation, ...retrieval };
   return new Function(...Object.keys(dependencies), `${compiled}\nreturn { learningChapters, practiceQuestions, chapterPracticePlan, requiredChapterPracticeQuestions, questionUsesJavaEditor };`)(...Object.values(dependencies));
 }

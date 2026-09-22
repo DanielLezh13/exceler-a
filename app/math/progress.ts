@@ -1,5 +1,6 @@
 import { chapterQuestions, courseChapters, courseQuestions, mathCourses } from "./courses.ts";
 import { gradeMath, mathGradeStatus } from "./grading.ts";
+import { readMachineSpec } from "./teachingMachine.ts";
 import type { MathAttempt, MathCourse, MathGrade, MathProgress, MathQuestion, MathRecords, MathResponse, MathTutorContext, MathUnit } from "./types.ts";
 
 export const emptyMathProgress = (): MathProgress => ({ responses: {}, checked: {}, passed: [], history: {}, drafts: {} });
@@ -47,7 +48,7 @@ export function submitMathAttempt(progress: MathProgress, test: MathUnit["assess
 const object = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const readResponse = (value: unknown): MathResponse => {
   const r = object(value);
-  return { values: Array.isArray(r?.values) ? r.values.slice(0, 12).map(v => typeof v === "string" ? v.slice(0, 600) : "") : [], working: typeof r?.working === "string" ? r.working.slice(0, 6000) : "" };
+  return { values: Array.isArray(r?.values) ? r.values.slice(0, 12).map(v => typeof v === "string" ? v.slice(0, 4000) : "") : [], working: typeof r?.working === "string" ? r.working.slice(0, 6000) : "" };
 };
 function readGrade(value: unknown, fields: number): MathGrade | null {
   const g = object(value);
@@ -81,7 +82,7 @@ export function readMathRecords(value: unknown): MathRecords {
           const r = object(result), snapshot = object(r?.question);
           // Whitelist the snapshot structure; never execute imported validators or HTML.
           if (!snapshot || typeof snapshot.id !== "string" || results.some(r=>r.question.id===snapshot.id) || typeof snapshot.prompt !== "string" || !Array.isArray(snapshot.fields) || !Array.isArray(snapshot.solution)) return [];
-          const fields = snapshot.fields.flatMap(value => { const f = object(value); return f && typeof f.label === "string" && typeof f.answer === "string" && ["number","expression","function","set","interval","choice","logic","pairs","sequence","bits"].includes(String(f.kind)) ? [{ label:f.label,answer:f.answer,kind:f.kind,options:Array.isArray(f.options)?f.options.filter(v=>typeof v==="string"):undefined,tolerance:typeof f.tolerance==="number"&&f.tolerance>0&&f.tolerance<0.1?f.tolerance:undefined,form:f.form==="factored"||f.form==="expanded"?f.form:undefined }] : []; });
+          const fields = snapshot.fields.flatMap(value => { const f = object(value); return f && typeof f.label === "string" && typeof f.answer === "string" && ["number","expression","function","set","interval","choice","logic","pairs","sequence","bits","code"].includes(String(f.kind)) ? [{ label:f.label,answer:f.answer,kind:f.kind,machine:readMachineSpec(f.machine),options:Array.isArray(f.options)?f.options.filter(v=>typeof v==="string"):undefined,tolerance:typeof f.tolerance==="number"&&f.tolerance>0&&f.tolerance<0.1?f.tolerance:undefined,form:f.form==="factored"||f.form==="expanded"?f.form:undefined,language:["java","javascript","html","css","sql","text"].includes(String(f.language))?f.language:undefined }] : []; });
           if (fields.length !== snapshot.fields.length || !fields.length) return [];
           const question = { id:snapshot.id,prompt:snapshot.prompt,fields,hint:typeof snapshot.hint==="string"?snapshot.hint:"",solution:snapshot.solution.filter(v=>typeof v==="string"),requires:Array.isArray(snapshot.requires)?snapshot.requires.filter(v=>typeof v==="string"):[] } as MathQuestion;
           const grade=readGrade(r?.grade,fields.length); if (!grade) return [];

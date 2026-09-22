@@ -70,3 +70,11 @@ No stored learner records are cleared, migrated, or overwritten. Existing answer
 - Existing-question and mastery-test fingerprint comparison passes; no existing question was removed or rewritten.
 - Local page responds successfully. No browser interaction, new learner submission, or public deployment was performed for this change.
 - The build still reports a large-chunk advisory. Full-repository lint cleanliness is not claimed; unrelated pre-existing errors are outside this curriculum change.
+
+## Targeted follow-up: Tracing Truth
+
+Date: 2026-09-21
+
+The Tracing Truth section previously checked the meanings of `!`, `&&`, and `||`, but supplied too little practice actually reducing mixed boolean expressions. Seven traces now form a controlled progression: `!` with `&&`; `&&` before `||`; a near-identical parenthesized contrast; a negated false group; the preserved negated-group challenge under different values; an explicit reduction-order choice; and a final comparison/AND/OR trace.
+
+The lesson now states the complete working order and demonstrates parentheses followed by `!`. Existing question IDs and validators remain unchanged; the effective negated-group question moved from Combining Conditions to Tracing Truth, where its reasoning belongs. No `if`, branches, loops, De Morgan's laws, short-circuit side effects, or truth-table terminology was added because those are not required for this local objective and some belong to later material. The set stops after the useful precedence and grouping contrasts rather than enumerating arbitrary truth-value permutations.

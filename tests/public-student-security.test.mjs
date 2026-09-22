@@ -63,6 +63,47 @@ test("student cloud state is isolated by server-authenticated identity and revis
   assert.equal((await route.GET()).status, 401);
 });
 
+test("tutor chat history is isolated by account and bounded before storage", async () => {
+  const rows = new Map();
+  let currentUser = { userId: "student-a" };
+  const db = {
+    prepare(sql) {
+      return { bind(...args) {
+        return {
+          async first() {
+            const row = rows.get(args[0]);
+            return row ? { payload: row, updatedAt: "now" } : null;
+          },
+          async run() {
+            assert.match(sql, /INSERT INTO tutor_chat_states/);
+            rows.set(args[0], args[1]);
+            return { meta: { changes: 1 } };
+          },
+        };
+      } };
+    },
+  };
+  const source = await readFile(new URL("../app/api/tutor-chats/route.ts", import.meta.url), "utf8");
+  const route = compile(source, {
+    "../../chatgpt-auth": { getChatGPTUser: async () => currentUser },
+    "../../../db": { getD1: () => db },
+  });
+  const history = {
+    activeThreadId: "thread-1",
+    threads: [{ id: "thread-1", title: "Boolean order", createdAt: 1, updatedAt: 2, messages: [{ id: "message-1", role: "user", content: "Does && happen before ||?" }] }],
+  };
+  let response = await route.PUT(new Request("https://exceler.test/api/tutor-chats", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(history) }));
+  assert.equal(response.status, 200);
+  currentUser = { userId: "student-b" };
+  assert.deepEqual(await (await route.GET()).json(), { threads: [], activeThreadId: "" });
+  currentUser = { userId: "student-a" };
+  assert.deepEqual(await (await route.GET()).json(), history);
+  response = await route.PUT(new Request("https://exceler.test/api/tutor-chats", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...history, threads: Array.from({ length: 21 }, (_, index) => ({ ...history.threads[0], id: `thread-${index}` })) }) }));
+  assert.equal(response.status, 400);
+  currentUser = null;
+  assert.equal((await route.GET()).status, 401);
+});
+
 test("public tutor requires identity, same-origin requests, limits, and bounded educational instructions", async t => {
   const source = await readFile(new URL("../app/api/tutor/route.ts", import.meta.url), "utf8");
   let currentUser = null;
@@ -106,6 +147,10 @@ test("public account UI keeps anonymous, signed-in, and local workspaces distinc
   assert.match(command, /Continue with progress from this browser/);
   assert.match(command, /Your localhost progress is separate and will not change/);
   assert.match(command, /localWorkspace \? PRIVATE_STORAGE_KEY : PUBLIC_STORAGE_KEY/);
+  assert.match(command, /LOCAL_TUTOR_HISTORY_KEY = "exceler-local-tutor-chats-v1"/);
+  assert.match(command, /fetch\("\/api\/tutor-chats"/);
+  assert.match(command, /aria-label="Open saved tutor chats"/);
+  assert.match(command, /aria-label="Start a new tutor chat"/);
   assert.match(command, /student-account/);
   assert.match(command, /Sign in to load DegreeWorks/);
   assert.match(command, /privateFeatures && <TutorAssistant/);

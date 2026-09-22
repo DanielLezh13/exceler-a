@@ -7,6 +7,7 @@ import { cisc1115ProfessorAddedChapters, cisc1115ProfessorTrack, professorChapte
 const canonicalChapterIds = ["variables-data-types", "operators-expressions", ...additionalLearningChapters.map((chapter) => chapter.id)];
 const professorChapterIds = cisc1115ProfessorTrack.flatMap((group) => group.entries.filter((entry) => entry.kind === "existing-chapter").map((entry) => entry.id));
 const addedChapterText = (id) => JSON.stringify(cisc1115ProfessorAddedChapters.find((chapter) => chapter.id === id));
+const addedChapterReviewText = (id) => JSON.stringify(cisc1115ProfessorAddedChapters.find((chapter) => chapter.id === id)?.reviewQuestions);
 
 test("the professor track reorders references without replacing canonical chapters", () => {
   assert.equal(canonicalChapterIds.length, 24);
@@ -71,6 +72,44 @@ test("the timed chapters expose Math and text/file material at the syllabus poin
   for (const pattern of [/Math\.sqrt/, /Math\.pow/, /Math\.abs/, /Math\.min/, /Math\.max/, /Math\.floor/, /Math\.ceil/, /Math\.round/, /Math\.random/, /Math\.PI/]) assert.match(math, pattern);
   const textFiles = addedChapterText("mcneill-text-files");
   for (const pattern of [/char/, /String/, /length\(\)/, /charAt/, /substring/, /equals/, /compareTo/, /printf/, /Scanner/, /FileNotFoundException/, /PrintWriter/]) assert.match(textFiles, pattern);
+});
+
+test("every added syllabus chapter ends with a working cumulative review", async () => {
+  const expectedCounts = new Map([
+    ["mcneill-lecture-1", 19],
+    ["mcneill-math-functions", 7],
+    ["mcneill-text-files", 11],
+  ]);
+  const allQuestionIds = [];
+  for (const chapter of cisc1115ProfessorAddedChapters) {
+    assert.equal(chapter.reviewQuestions.length, expectedCounts.get(chapter.id), `${chapter.id} review count changed unexpectedly`);
+    assert.ok(chapter.reviewQuestions.every((question) => question.answer && question.validate(question.answer)), `${chapter.id} must accept every shown answer`);
+    for (const question of chapter.reviewQuestions.filter((item) => item.kind === "Multiple choice")) {
+      assert.ok(question.options?.length >= 3, `${chapter.id}/${question.id} needs credible choices`);
+      assert.equal(new Set(question.options).size, question.options.length, `${chapter.id}/${question.id} choices must be unique`);
+    }
+    allQuestionIds.push(...chapter.reviewQuestions.map((question) => question.id));
+  }
+  assert.equal(new Set(allQuestionIds).size, allQuestionIds.length, "added chapter review ids must be unique");
+
+  const foundations = addedChapterReviewText("mcneill-lecture-1");
+  for (const pattern of [/program/i, /algorithm/i, /hardware/i, /software/i, /bits?/i, /bytes?/i, /ALU/, /control unit/i, /clock speed/i, /cores?/i, /RAM/, /memory address/i, /storage/i, /operating system/i, /machine language/i, /high-level language/i, /assembler/i, /compiler/i, /interpreter/i, /bytecode/i, /JVM/, /pseudocode/i, /sorting/i]) assert.match(foundations, pattern);
+  for (const pattern of [/n\[2\]/, /n\[a\]/, /indexes 0 and 2/i, /swapping/i]) assert.match(foundations, pattern);
+  assert.doesNotMatch(foundations, /int\[\]|for\s*\(|while\s*\(/, "the first review must not require later Java syntax");
+
+  const foundationQuestions = cisc1115ProfessorAddedChapters.find((chapter) => chapter.id === "mcneill-lecture-1").reviewQuestions;
+  const answerPositions = foundationQuestions.map((question) => question.options.indexOf(question.answer));
+  const positionCounts = [0, 1, 2, 3].map((position) => answerPositions.filter((answerPosition) => answerPosition === position).length);
+  assert.ok(positionCounts.every((count) => count >= 4 && count <= 5), `foundation answer positions should be balanced, got ${positionCounts.join(", ")}`);
+
+  const math = addedChapterReviewText("mcneill-math-functions");
+  for (const pattern of [/Math\.sqrt/, /Math\.pow/, /Math\.abs/, /Math\.min/, /Math\.max/, /Math\.floor/, /Math\.ceil/, /Math\.round/, /Math\.random/, /Math\.PI/]) assert.match(math, pattern);
+  const textFiles = addedChapterReviewText("mcneill-text-files");
+  for (const pattern of [/char/, /String/, /\\\\n/, /\\\\t/, /charAt/, /substring/, /equals/, /compareTo/, /printf/, /%d/, /%f/, /Scanner/, /File/, /PrintWriter/, /close\(\)/]) assert.match(textFiles, pattern);
+
+  const commandCenter = await readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8");
+  assert.match(commandCenter, /ChapterPractice chapterId=\{selectedProfessorChapter\.id\}/, "added chapters must render their saved chapter review");
+  assert.match(commandCenter, /selectedProfessorChapter\.reviewQuestions\.map/, "the rendered review must use each added chapter's authored questions");
 });
 
 test("mastery identities and persistence keys remain independent of display track", async () => {

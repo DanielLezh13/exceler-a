@@ -1,0 +1,3 @@
+import AuthenticatedCommandCenter from "../AuthenticatedCommandCenter";
+export const metadata = { title: "Large-Scale Applications · CISC 3140 | Exceler A", description: "Team-based web application design, implementation, data, testing, and delivery.", openGraph: { title: "Large-Scale Applications · CISC 3140", description: "Web structure, JavaScript, networking, APIs, databases, architecture, and delivery.", images: [] }, twitter: { title: "Large-Scale Applications · CISC 3140", description: "Web structure, JavaScript, networking, APIs, databases, architecture, and delivery.", images: [] } };
+export default function LargeScaleApplicationsPage() { return <AuthenticatedCommandCenter initialMathCourse="cisc3140"/>; }

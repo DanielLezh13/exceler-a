@@ -13,18 +13,19 @@ import * as progressTools from "../app/math/progress.ts";
 // Real component JSX and handlers with deterministic hooks. No browser or live AI call.
 const source=await readFile(new URL("../app/math/MathCourseView.tsx",import.meta.url),"utf8");
 const compiled=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+function JavaEditor(props) { return jsxRuntime.jsx("textarea",{id:props.id,value:props.value,onChange:event=>props.onChange(event.target.value)}); }
 function harness(course,initial=progressTools.emptyMathProgress()) {
   let progress=structuredClone(initial),context,index=0,effects=[];
   const states=[];
   const hooks={...React,useMemo:factory=>factory(),useState:initial=>{const i=index++;if(!(i in states))states[i]=initial;return [states[i],update=>{states[i]=typeof update==="function"?update(states[i]):update;}];},useRef:()=>({current:null}),useEffect:effect=>effects.push(effect)};
-  const modules={"react":hooks,"react/jsx-runtime":jsxRuntime,"lucide-react":icons,"./courses":courses,"./grading":grading,"./inputHelp":inputHelp,"./progress":progressTools};
+  const modules={"react":hooks,"react/jsx-runtime":jsxRuntime,"lucide-react":icons,"../JavaEditor":{default:JavaEditor},"./courses":courses,"./grading":grading,"./inputHelp":inputHelp,"./progress":progressTools};
   const exports={};new Function("require","exports",compiled)(name=>{assert.ok(modules[name],name);return modules[name];},exports);
   return {get progress(){return progress;},get context(){return context;},render(){index=0;effects=[];const tree=exports.default({course,progress,setProgress:update=>{progress=typeof update==="function"?update(progress):update;},onTutorContextChange:value=>{context=value;},onBack:()=>{}});effects.forEach(effect=>effect());return tree;}};
 }
 function elements(node) {
   if(Array.isArray(node))return node.flatMap(elements);
   if(!node||typeof node!=="object"||!node.props)return [];
-  if(typeof node.type==="function"&&["AnswerInputs","WorkedSolution","InputGuide","MathGraph"].includes(node.type.name))return [node,...elements(node.type(node.props))];
+  if(typeof node.type==="function"&&["AnswerInputs","WorkedSolution","InputGuide","MathGraph","JavaEditor"].includes(node.type.name))return [node,...elements(node.type(node.props))];
   return [node,...elements(node.props.children)];
 }
 function text(node){if(Array.isArray(node))return node.map(text).join("");if(typeof node==="string"||typeof node==="number")return String(node);return node?.props?text(node.props.children):"";}
@@ -50,6 +51,23 @@ test("math practice: type, check, edit, switch question, and restore without sta
   assert.equal(reloaded.context.activePractice.questionId,"a-sign-2");
   button(tree,"Previous question").props.onClick();tree=reloaded.render();
   assert.equal(input(tree,"a-sign-1-part-0").props.value,"6");
+});
+
+test("teaching assembly uses a blank multiline editor, executes checks and preserves line breaks in solutions",()=>{
+  const course=courses.mathCourses.find(c=>c.id==="cisc3310");
+  const section=courses.courseChapters(course).find(c=>c.id==="cisc3310-execution").sections[0];
+  const q=section.questions[3],p=progressTools.emptyMathProgress();p.position=section.id;p.questions={[section.id]:q.id};
+  const h=harness(course,p);let tree=h.render();
+  const editor=()=>elements(tree).find(n=>n.type==="textarea"&&n.props.id===`${q.id}-part-0`);
+  assert.equal(editor().props.value,"");assert.match(editor().props.placeholder,/teaching assembly/);
+  editor().props.onChange({target:{value:"OUT 8"}});tree=h.render();button(tree,"Check Answer").props.onClick();tree=h.render();
+  assert.ok(!h.progress.passed.includes(q.id));
+  editor().props.onChange({target:{value:"MUL R7,R0,5\nADD R7,R7,8\nOUT R7"}});tree=h.render();button(tree,"Check Answer").props.onClick();tree=h.render();
+  assert.ok(h.progress.passed.includes(q.id));
+  const solution=elements(tree).find(n=>n.props.className==="math-code-solution");
+  assert.equal(text(solution),q.fields[0].answer);assert.match(text(solution),/\n/);
+  const restored=progressTools.readMathRecords(JSON.parse(JSON.stringify({[course.id]:h.progress})))[course.id];
+  assert.equal(restored.responses[q.id].values[0],"MUL R7,R0,5\nADD R7,R7,8\nOUT R7");
 });
 
 test("math test UI saves full results and retries just one question across reload",()=>{
@@ -88,7 +106,7 @@ test("every math lesson, review, and unit test produces a complete component tre
       const p=progressTools.emptyMathProgress();p.position=location;
       const h=harness(course,p),tree=h.render(),nodes=elements(tree);
       assert.ok(nodes.some(n=>n.type==="h1"),location);
-      assert.ok(nodes.some(n=>n.type==="input"||n.props.role==="radiogroup"),location);
+      assert.ok(nodes.some(n=>n.type==="input"||n.type==="textarea"||n.props.role==="radiogroup"),location);
       assert.equal(h.context.courseCode,course.code);
       for(const path of nodes.filter(n=>n.type==="path")) assert.doesNotMatch(path.props.d??"",/NaN|Infinity/);
       if(location!==unit.assessment.id) {button(tree,"Show Answer").props.onClick();h.render();assert.ok(h.context.activePractice.shownAnswer,location);}
@@ -164,6 +182,7 @@ test("math answers stay simple and old working is preserved without an editable 
 test("math choice cards match CS option labels and support keyboard selection and tutor context",()=>{
   for(const course of courses.mathCourses) {
     const section=courses.courseChapters(course).flatMap(c=>c.sections).find(s=>s.questions.some(q=>q.fields.some(f=>f.options)));
+    if(!section)continue; // Fully constructed-response tracks have no choice-card interaction.
     const q=section.questions.find(q=>q.fields.some(f=>f.options)),field=q.fields.find(f=>f.options);
     const p=progressTools.emptyMathProgress();p.position=section.id;p.questions={[section.id]:q.id};
     const h=harness(course,p);let tree=h.render();
@@ -274,23 +293,22 @@ test("course library places Discrete Structures with computing and reuses existi
   let opened;
   const tree=mod.CoursesView({completed:[],practice:{},math:{},onOpenCourse(){},onOpenMath:id=>{opened=id;}});
   const groups=elements(tree).filter(n=>n.props.className==="course-library-group");
-  assert.match(text(groups[0]),/3 courses/);assert.doesNotMatch(text(groups[0]),/CISC 2210/);
-  assert.match(text(groups[1]),/2 courses/);assert.match(text(groups[1]),/CISC 1115/);assert.match(text(groups[1]),/CISC 2210/);
+  assert.match(text(groups[0]),/4 courses/);assert.doesNotMatch(text(groups[0]),/CISC 2210/);
+  assert.match(text(groups[1]),/7 courses/);assert.match(text(groups[1]),/CISC 1115/);assert.match(text(groups[1]),/CISC 2210/);assert.match(text(groups[1]),/CISC 3140/);assert.match(text(groups[1]),/CISC 3310/);assert.match(text(groups[1]),/CISC 3305/);
   const card=elements(groups[1]).find(n=>n.type==="button"&&text(n).includes("CISC 2210"));
   card.props.onClick();assert.equal(opened,"cisc2210");
 });
 
-test("all written-course entry routes server-render their actual lesson and metadata",async()=>{
+test("all written-course entry routes publish metadata while the authenticated workspace loads",async()=>{
   const {default:worker}=await import(new URL(`../dist/server/index.js?math-render=${Date.now()}`,import.meta.url));
   for(const course of courses.mathCourses) {
     const response=await worker.fetch(new Request(`https://exceler-a.example/${course.id}`,{headers:{accept:"text/html"}}),{ASSETS:{fetch:async()=>new Response("Missing",{status:404})}},{waitUntil(){},passThroughOnException(){}});
     assert.equal(response.status,200,course.code);
     const html=await response.text();
     assert.ok(html.includes(course.code));
-    const title={math1006:"College Algebra",math1011:"Precalculus",math1201:"Calculus I",cisc2210:"Discrete Structures"}[course.id];
+    const title={math1006:"College Algebra",math1011:"Precalculus",math1201:"Calculus I",math1206:"Calculus II",cisc2210:"Discrete Structures",cisc3115:"Modern Programming Techniques",cisc3130:"Data Structures",cisc3140:"Large-Scale Applications",cisc3310:"Principles of Computer Architecture",cisc3305:"Computer Organization"}[course.id];
     assert.ok(html.includes(`<title>${title} · ${course.code}`),course.code);
-    assert.ok(html.includes(course.units[0].chapters[0].sections[0].title.replaceAll("&","&amp;")));
-    assert.ok(html.includes("Check Answer"));
+    assert.ok(html.includes("Loading your workspace"),course.code);
     assert.doesNotMatch(html,/sk-proj-|OPENAI_API_KEY/);
   }
 });

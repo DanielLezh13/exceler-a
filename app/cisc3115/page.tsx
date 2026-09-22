@@ -1,0 +1,3 @@
+import AuthenticatedCommandCenter from "../AuthenticatedCommandCenter";
+export const metadata = { title: "Modern Programming Techniques · CISC 3115 | Exceler A", description: "Object-oriented Java, testing, recursion, events, threads, and networking.", openGraph: { title: "Modern Programming Techniques · CISC 3115", description: "A full second-course Java learning path.", images: [] }, twitter: { title: "Modern Programming Techniques · CISC 3115", description: "A full second-course Java learning path.", images: [] } };
+export default function ModernProgrammingPage() { return <AuthenticatedCommandCenter initialMathCourse="cisc3115"/>; }

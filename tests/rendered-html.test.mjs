@@ -27,18 +27,16 @@ async function render() {
   );
 }
 
-test("server-renders the Exceler A public experience", async () => {
+test("server-renders Exceler A metadata and a safe workspace-loading shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>Exceler A — Self-Directed Academic Learning<\/title>/i);
-  assert.match(html, /aria-label="Exceler A"/i);
-  assert.match(html, />Home</i);
-  assert.match(html, />Degree Map</i);
-  assert.match(html, />Courses</i);
-  assert.match(html, /Progress saved on this device/i);
+  assert.match(html, /class="app-shell startup-shell"/i);
+  assert.match(html, /role="status" aria-live="polite"/i);
+  assert.match(html, /Loading your workspace/i);
   assert.doesNotMatch(html, /OPENAI_API_KEY|sk-proj-/i);
 });
 

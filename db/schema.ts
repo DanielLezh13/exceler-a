@@ -8,6 +8,12 @@ export const studentStates = sqliteTable("student_states", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const tutorChatStates = sqliteTable("tutor_chat_states", {
+  userId: text("user_id").primaryKey(),
+  payload: text("payload").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const tutorDailyUsage = sqliteTable("tutor_daily_usage", {
   userId: text("user_id").notNull(),
   day: text("day").notNull(),

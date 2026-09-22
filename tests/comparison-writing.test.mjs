@@ -99,3 +99,30 @@ test("hard-coded answers, missing output, invalid types, undeclared names and in
   ]) assert.equal(question.validate(answer), false, answer);
   assert.equal(byId.get("comparison-write-at-most").validate("int cost = quantity * price; System.out.println(cost <= budget);"), false);
 });
+
+test("Tracing Truth progresses through NOT, precedence, parentheses, and mixed comparisons", () => {
+  const chapter = additionalPracticeQuestions["comparisons-booleans"];
+  const ids = additionalSectionPracticeQuestionIds["comparisons-booleans"]["booleans-truth"];
+  const expected = [
+    "booleans-truth-concept-1",
+    "booleans-truth-concept-2",
+    "booleans-truth-concept-3",
+    "bool-truth-not-and",
+    "bool-truth-and-before-or",
+    "bool-truth-parentheses-change",
+    "bool-truth-negated-group-true",
+    "bool-mastery-grouping",
+    "bool-truth-trace-order",
+    "bool-truth-mixed-comparisons",
+  ];
+  assert.deepEqual(ids, expected);
+  assert.deepEqual(chapter.filter((question) => ids.includes(question.id)).map((question) => question.id), expected);
+  for (const id of expected.slice(3)) {
+    const question = chapter.find((item) => item.id === id);
+    assert.ok(question?.code, id);
+    assert.ok(question.validate(question.answer), id);
+    assert.equal(question.validate(question.answer === "true" ? "false" : "true"), false, id);
+    assert.doesNotMatch(question.code, /\b(?:if|else|while|for)\b/, id);
+  }
+  assert.ok(!additionalSectionPracticeQuestionIds["comparisons-booleans"]["booleans-combining"].includes("bool-mastery-grouping"));
+});

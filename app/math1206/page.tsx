@@ -1,0 +1,3 @@
+import AuthenticatedCommandCenter from "../AuthenticatedCommandCenter";
+export const metadata = { title: "Calculus II · MATH 1206 | Exceler A", description: "Full Calculus II lessons, typed practice, and unit mastery tests.", openGraph: { title: "Calculus II · MATH 1206", description: "Integration techniques, applications, series, Taylor models, and polar coordinates.", images: [] }, twitter: { title: "Calculus II · MATH 1206", description: "Integration techniques, applications, series, Taylor models, and polar coordinates.", images: [] } };
+export default function CalculusTwoPage() { return <AuthenticatedCommandCenter initialMathCourse="math1206"/>; }

@@ -1,0 +1,3 @@
+import AuthenticatedCommandCenter from "../AuthenticatedCommandCenter";
+export const metadata = { title: "Data Structures · CISC 3130 | Exceler A", description: "Data-structure design, implementation, tracing, analysis, sorting, and searching.", openGraph: { title: "Data Structures · CISC 3130", description: "Sequences, stacks, queues, trees, heaps, hashing, sorting, and searching.", images: [] }, twitter: { title: "Data Structures · CISC 3130", description: "Sequences, stacks, queues, trees, heaps, hashing, sorting, and searching.", images: [] } };
+export default function DataStructuresPage() { return <AuthenticatedCommandCenter initialMathCourse="cisc3130"/>; }

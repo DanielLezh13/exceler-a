@@ -116,6 +116,7 @@ test("saved passed answers keep their choice labels, and navigation clears stale
   assertVisibleOptions(tree, view.context);
   assert.equal(view.context.status, "passed");
   assert.equal(view.context.options.find((option) => option.selected).text, correct);
+  assert.ok(!elements(tree).some((element) => textOf(element).includes("Example Answer")), "passed multiple-choice questions do not need an example-answer control");
   elements(tree).find((element) => element.props["aria-label"] === "Open question 2").props.onClick();
   tree = view.render();
   assertVisibleOptions(tree, view.context);
@@ -127,6 +128,22 @@ test("saved passed answers keep their choice labels, and navigation clears stale
   assert.deepEqual(view.context.options, []);
   assert.equal(view.context.selectedOptionLabel, null);
   assert.equal(view.context.questionId, codeQuestion.id);
+});
+
+test("passed code answers can reveal an example without covering or replacing the learner answer", () => {
+  const learnerAnswer = codeQuestion.answer;
+  const view = harness({ answers: { [codeQuestion.id]: learnerAnswer }, passed: [codeQuestion.id], attempts: { [codeQuestion.id]: 1 }, hints: [] }, codeQuestion.id);
+  let tree = view.render();
+  const reveal = elements(tree).find((element) => textOf(element) === "View Example Answer");
+  assert.ok(reveal);
+  reveal.props.onClick();
+  tree = view.render();
+  const example = elements(tree).find((element) => element.props["aria-label"] === "Example answer");
+  assert.equal(view.record.answers[codeQuestion.id], learnerAnswer);
+  assert.deepEqual(view.record.hints, [], "reviewing a passed answer is not a hint");
+  assert.ok(example);
+  assert.equal(view.context.shownAnswer, codeQuestion.answer);
+  assert.ok(elements(tree).some((element) => textOf(element) === "Hide Example Answer"));
 });
 
 test("inactive exercises cannot overwrite the tutor's current choices", () => {

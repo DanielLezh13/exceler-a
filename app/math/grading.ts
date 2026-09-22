@@ -1,6 +1,7 @@
 import type { MathField, MathGrade, MathQuestion, MathResponse } from "./types.ts";
 import { equivalentFunctions } from "./functionEquivalence.ts";
 import { gradeDiscreteField } from "./discreteGrading.ts";
+import { gradeMachine } from "./teachingMachine.ts";
 
 // Deliberately small, non-executing mathematical parser. Never eval learner input.
 type Node = { kind: "number"; value: number } | { kind: "variable" } | { kind: "unary"; op: string; value: Node } | { kind: "binary"; op: string; left: Node; right: Node } | { kind: "call"; name: string; value: Node };
@@ -56,6 +57,22 @@ export function evaluateMath(source: string, x?: number): number {
   return value;
 }
 const near = (a: number, b: number, tolerance = 1e-9) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tolerance * Math.max(1, Math.abs(a), Math.abs(b));
+
+function compactCode(value: string) {
+  let result = "", quote = "", escaped = false;
+  for (const raw of value.trim().replace(/\r/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"')) {
+    if (quote) {
+      result += raw;
+      if (escaped) escaped = false;
+      else if (raw === "\\") escaped = true;
+      else if (raw === quote) quote = "";
+      continue;
+    }
+    if (raw === '"' || raw === "'" || raw === "`") { quote = raw; result += raw; }
+    else if (!/\s/.test(raw)) result += raw;
+  }
+  return result;
+}
 
 // Compare rational functions by polynomial cross multiplication, not spot checks.
 // Explicit domains/restrictions are separate answer fields when they are assessed.
@@ -143,9 +160,11 @@ function intervals(s: string): Interval[] {
 export function gradeField(field: MathField, answer: string): { passed: boolean; feedback: string } {
   if (!answer.trim()) return { passed: false, feedback: "No answer submitted for this part." };
   try {
+    if (field.kind === "code" && field.machine) return gradeMachine(answer, field.machine);
     if (["logic", "pairs", "sequence", "bits"].includes(field.kind)) return gradeDiscreteField(field, answer, evaluateMath);
     let passed = false;
-    if (field.kind === "choice") passed = normalizeMath(answer) === normalizeMath(field.answer);
+    if (field.kind === "code") passed = compactCode(answer) === compactCode(field.answer);
+    else if (field.kind === "choice") passed = normalizeMath(answer) === normalizeMath(field.answer);
     else if (field.kind === "function") {
       const strip=(s:string)=>s.replace(/^\s*(?:y'?|[fg]'?\s*\(\s*x\s*\))\s*=\s*/i, "");
       const verdict=equivalentFunctions(parse(strip(answer)),parse(strip(field.answer)),valueOf);
@@ -161,7 +180,7 @@ export function gradeField(field: MathField, answer: string): { passed: boolean;
     else if (field.kind === "set") { const a = numericSet(answer), b = numericSet(field.answer); passed = a.length === b.length && a.every((v, i) => near(v, b[i], field.tolerance)); }
     else if (field.kind === "interval") { const a = intervals(answer), b = intervals(field.answer); passed = a.length === b.length && a.every((v, i) => (v.lo === b[i].lo || near(v.lo, b[i].lo)) && (v.hi === b[i].hi || near(v.hi, b[i].hi)) && v.closedLo === b[i].closedLo && v.closedHi === b[i].closedHi); }
     else passed = near(evaluateMath(answer.replace(/^\s*(?:x|y)\s*=\s*/, "")), evaluateMath(field.answer), field.tolerance);
-    return { passed, feedback: passed ? "Accepted: your answer is mathematically equivalent to the required result." : field.kind === "set" ? "The solution set differs: check for missing, extra, or extraneous solutions." : field.kind === "interval" ? "The set differs: check boundaries, open/closed endpoints, and excluded values." : "This result does not match the required value or relationship. Recheck the calculation and the question's conditions." };
+    return { passed, feedback: passed ? field.kind === "code" ? "Accepted: the required code structure is present." : "Accepted: your answer is mathematically equivalent to the required result." : field.kind === "code" ? "The code does not yet match the exact structure requested. Recheck names, syntax, and required behavior." : field.kind === "set" ? "The solution set differs: check for missing, extra, or extraneous solutions." : field.kind === "interval" ? "The set differs: check boundaries, open/closed endpoints, and excluded values." : "This result does not match the required value or relationship. Recheck the calculation and the question's conditions." };
   } catch (error) { return { passed: false, feedback: error instanceof Error ? error.message : "Unable to interpret this notation; consult the input guide." }; }
 }
 export function gradeMath(question: MathQuestion, response: MathResponse): MathGrade {

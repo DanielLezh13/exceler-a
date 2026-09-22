@@ -1,4 +1,4 @@
-export type MathAnswerKind = "number" | "expression" | "function" | "set" | "interval" | "choice" | "logic" | "pairs" | "sequence" | "bits";
+export type MathAnswerKind = "number" | "expression" | "function" | "set" | "interval" | "choice" | "logic" | "pairs" | "sequence" | "bits" | "code";
 export type MathField = {
   label: string;
   answer: string;
@@ -6,6 +6,8 @@ export type MathField = {
   options?: string[];
   tolerance?: number;
   form?: "factored" | "expanded";
+  language?: "java" | "javascript" | "html" | "css" | "sql" | "text";
+  machine?: import("./teachingMachine.ts").MachineSpec;
 };
 export type MathQuestion = {
   id: string;
