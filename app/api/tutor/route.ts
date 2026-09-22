@@ -15,8 +15,15 @@ type TutorRequest = {
 const MODEL = process.env.OPENAI_TUTOR_MODEL ?? "gpt-5.6-terra";
 const MAX_MESSAGE_LENGTH = 2_000;
 const MAX_CONTEXT_LENGTH = 48_000;
-const MAX_DAILY_REQUESTS = Math.min(50, Math.max(1, Number(process.env.TUTOR_DAILY_REQUEST_LIMIT ?? 20)));
-const MAX_MONTHLY_REQUESTS = Math.min(20_000, Math.max(100, Number(process.env.TUTOR_MONTHLY_REQUEST_LIMIT ?? 2_000)));
+function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, Math.floor(parsed))) : fallback;
+}
+
+const MAX_DAILY_REQUESTS = boundedInteger(process.env.TUTOR_DAILY_REQUEST_LIMIT, 20, 1, 50);
+const MAX_MONTHLY_REQUESTS = boundedInteger(process.env.TUTOR_MONTHLY_REQUEST_LIMIT, 2_000, 100, 20_000);
+const OWNER_MONTHLY_REQUESTS = boundedInteger(process.env.TUTOR_OWNER_MONTHLY_REQUEST_LIMIT, 2_000, 100, 20_000);
+const OWNER_USER_IDS = new Set((process.env.TUTOR_OWNER_USER_IDS ?? "").split(",").map(value => value.trim()).filter(Boolean));
 const COOLDOWN_SECONDS = 8;
 const ACTIVE_WINDOW_SECONDS = 90;
 
@@ -77,21 +84,24 @@ function errorResponse(message: string, status: number) {
 
 type TutorReservation = { userId: string; day: string; activeUntil: number };
 
-async function reserveTutorUse(userId: string): Promise<TutorReservation | Response> {
+async function reserveTutorUse(userId: string, ownerTier: boolean): Promise<TutorReservation | Response> {
   const now = Math.floor(Date.now() / 1000);
   const day = new Date(now * 1000).toISOString().slice(0, 10);
   const period = day.slice(0, 7);
+  const dailyLimit = ownerTier ? OWNER_MONTHLY_REQUESTS : MAX_DAILY_REQUESTS;
+  const monthlyLimit = ownerTier ? OWNER_MONTHLY_REQUESTS : MAX_MONTHLY_REQUESTS;
+  const usagePeriod = ownerTier ? `owner:${period}` : period;
   const activeUntil = now + ACTIVE_WINDOW_SECONDS;
   const db = getD1();
   const personal = await db.prepare(`INSERT INTO tutor_daily_usage (user_id, day, request_count, last_request_at, active_until)
     VALUES (?, ?, 1, ?, ?)
     ON CONFLICT(user_id, day) DO UPDATE SET request_count = request_count + 1, last_request_at = excluded.last_request_at, active_until = excluded.active_until
     WHERE tutor_daily_usage.request_count < ? AND tutor_daily_usage.last_request_at <= ? AND tutor_daily_usage.active_until <= ?`)
-    .bind(userId, day, now, activeUntil, MAX_DAILY_REQUESTS, now - COOLDOWN_SECONDS, now).run();
+    .bind(userId, day, now, activeUntil, dailyLimit, now - COOLDOWN_SECONDS, now).run();
   if (personal.meta.changes !== 1) return errorResponse("Tutor limit reached or another response is still active. Try again later.", 429);
   const global = await db.prepare(`INSERT INTO tutor_global_usage (period, request_count) VALUES (?, 1)
     ON CONFLICT(period) DO UPDATE SET request_count = request_count + 1
-    WHERE tutor_global_usage.request_count < ?`).bind(period, MAX_MONTHLY_REQUESTS).run();
+    WHERE tutor_global_usage.request_count < ?`).bind(usagePeriod, monthlyLimit).run();
   if (global.meta.changes !== 1) {
     await db.prepare("UPDATE tutor_daily_usage SET active_until = 0 WHERE user_id = ? AND day = ? AND active_until = ?").bind(userId, day, activeUntil).run();
     return errorResponse("The public tutor has reached its monthly allowance. Lessons and practice remain available.", 503);
@@ -139,7 +149,7 @@ export async function POST(request: Request) {
 
   let reservation: TutorReservation | null = null;
   if (user) {
-    const reserved = await reserveTutorUse(user.userId);
+    const reserved = await reserveTutorUse(user.userId, OWNER_USER_IDS.has(user.userId));
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
   }

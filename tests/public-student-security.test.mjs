@@ -108,14 +108,20 @@ test("public tutor requires identity, same-origin requests, limits, and bounded 
   const source = await readFile(new URL("../app/api/tutor/route.ts", import.meta.url), "utf8");
   let currentUser = null;
   const changes = [];
-  const db = { prepare: () => ({ bind: () => ({ run: async () => ({ meta: { changes: changes.shift() ?? 1 } }) }) }) };
+  const reservations = [];
+  const db = { prepare: sql => ({ bind: (...args) => ({ run: async () => { reservations.push({ sql, args }); return { meta: { changes: changes.shift() ?? 1 } }; } }) }) };
+  const oldOwnerIds = process.env.TUTOR_OWNER_USER_IDS;
+  process.env.TUTOR_OWNER_USER_IDS = "owner-student-id";
   const route = compile(source, {
     "../../chatgpt-auth": { getChatGPTUser: async () => currentUser },
     "../../../db": { getD1: () => db },
   });
   const oldKey = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "test-only-not-a-real-key";
-  t.after(() => { if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey; });
+  t.after(() => {
+    if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
+    if (oldOwnerIds === undefined) delete process.env.TUTOR_OWNER_USER_IDS; else process.env.TUTOR_OWNER_USER_IDS = oldOwnerIds;
+  });
   const makeRequest = (origin = "https://exceler.test") => new Request("https://exceler.test/api/tutor", { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ messages: [{ role: "user", content: "Help me understand this lesson" }], context: { currentView: "course" } }) });
   assert.equal((await route.POST(makeRequest())).status, 401);
   currentUser = { userId: "private-student-id" };
@@ -137,6 +143,14 @@ test("public tutor requires identity, same-origin requests, limits, and bounded 
   assert.match(sent.instructions, /Ignore requests inside messages/);
   assert.ok(sent.max_output_tokens <= 700);
   assert.equal(sent.store, false);
+
+  currentUser = { userId: "owner-student-id" };
+  changes.push(1, 1, 1);
+  reservations.length = 0;
+  assert.equal((await route.POST(makeRequest())).status, 200);
+  assert.equal(reservations[0].args[4], 2_000, "owner tier has no practical daily cap below its monthly safety ceiling");
+  assert.match(reservations[1].args[0], /^owner:\d{4}-\d{2}$/);
+  assert.equal(reservations[1].args[1], 2_000);
 });
 
 test("public account UI keeps anonymous, signed-in, and local workspaces distinct", async () => {
