@@ -22,7 +22,7 @@ The current public course library covers CISC 1115 and CISC 2210 alongside the M
 - **Persistent per-user progress:** Anonymous learning remains on the current device. Signed-in students receive an isolated cloud workspace and can explicitly attach existing anonymous progress.
 - **Degree planning:** A visual Brooklyn College Computer Science B.S. map shows required courses, choice branches, prerequisites, electives, and graduation gates.
 - **Private audit import:** Signed-in students can privately load a DegreeWorks PDF. The original file is read in the browser and is not uploaded; only the reviewed structured result is saved.
-- **Contextual tutor:** Signed-in students can use a course-grounded tutor with per-account limits, a global allowance, and assessment-integrity protections.
+- **Contextual tutor:** Signed-in students can use a course-grounded tutor with per-account limits, a global allowance, and assessment-integrity protections. A text-readable PDF can be attached to one chat for follow-up questions. The browser extracts up to 28,000 characters; that extracted text is saved with the private chat and sent to the tutor, while the original PDF file is not uploaded. Scanned pages require OCR first.
 
 ## Privacy Model
 

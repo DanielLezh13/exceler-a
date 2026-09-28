@@ -23,6 +23,7 @@ import {
   Maximize2,
   MessageCircle,
   Minimize2,
+  Paperclip,
   Play,
   Plus,
   RotateCcw,
@@ -176,6 +177,15 @@ type TutorThread = {
   createdAt: number;
   updatedAt: number;
   messages: TutorMessage[];
+  document?: TutorDocument;
+};
+
+type TutorDocument = {
+  name: string;
+  text: string;
+  pages: number;
+  includedPages: number;
+  truncated: boolean;
 };
 
 type TutorResponseLength = "short" | "medium" | "long";
@@ -1658,6 +1668,39 @@ async function extractPdfText(file: File) {
   return pages.join("\n");
 }
 
+const TUTOR_PDF_MAX_BYTES = 12 * 1024 * 1024;
+const TUTOR_PDF_MAX_CHARS = 28_000;
+
+async function extractTutorPdf(file: File): Promise<TutorDocument> {
+  if (file.size > TUTOR_PDF_MAX_BYTES) throw new Error("Choose a PDF smaller than 12 MB.");
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const document = await loadingTask.promise;
+  try {
+    const parts: string[] = [];
+    let includedPages = 0;
+    let truncated = false;
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const pageText = content.items.map((item) => "str" in item ? item.str : "").join(" ").trim();
+      if (!pageText) continue;
+      const prefix = `\n[Page ${pageNumber}]\n`;
+      const remaining = TUTOR_PDF_MAX_CHARS - parts.join("").length - prefix.length;
+      if (remaining <= 0) { truncated = true; break; }
+      parts.push(prefix + pageText.slice(0, remaining));
+      includedPages = pageNumber;
+      if (pageText.length > remaining || pageNumber < document.numPages && parts.join("").length >= TUTOR_PDF_MAX_CHARS) { truncated = true; break; }
+    }
+    const text = parts.join("").trim();
+    if (!text) throw new Error("This PDF has no selectable text. A scanned PDF needs OCR before the tutor can read it.");
+    return { name: file.name.slice(0, 120), text, pages: document.numPages, includedPages, truncated };
+  } finally {
+    await loadingTask.destroy();
+  }
+}
+
 function DegreeWorksImport({ open, records, onClose, onApply }: { open: boolean; records: DegreeRecords; onClose: () => void; onApply: (records: DegreeRecords, snapshot: AuditSnapshot) => void }) {
   const [text, setText] = useState("");
   const [proposal, setProposal] = useState<DegreeRecords>({});
@@ -1870,7 +1913,11 @@ function readTutorThreads(value: unknown): TutorThread[] {
     });
     const createdAt = Number.isFinite(candidate.createdAt) ? Number(candidate.createdAt) : Date.now();
     const updatedAt = Number.isFinite(candidate.updatedAt) ? Number(candidate.updatedAt) : createdAt;
-    return [{ id: candidate.id, title: candidate.title.slice(0, 80) || "New chat", createdAt, updatedAt, messages: messages.length ? messages : [tutorWelcomeMessage()] }];
+    const possibleDocument = candidate.document;
+    const document = possibleDocument && typeof possibleDocument.name === "string" && typeof possibleDocument.text === "string" && possibleDocument.text.length <= TUTOR_PDF_MAX_CHARS && Number.isInteger(possibleDocument.pages) && Number.isInteger(possibleDocument.includedPages) && typeof possibleDocument.truncated === "boolean"
+      ? { name: possibleDocument.name.slice(0, 120), text: possibleDocument.text, pages: possibleDocument.pages, includedPages: possibleDocument.includedPages, truncated: possibleDocument.truncated }
+      : undefined;
+    return [{ id: candidate.id, title: candidate.title.slice(0, 80) || "New chat", createdAt, updatedAt, messages: messages.length ? messages : [tutorWelcomeMessage()], ...(document ? { document } : {}) }];
   });
   return normalizeTutorThreads(threads);
 }
@@ -1911,6 +1958,8 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
   const [activeThreadId, setActiveThreadId] = useState("");
   const [drawerPosition, setDrawerPosition] = useState({ x: 0, y: 0 });
   const [draft, setDraft] = useState("");
+  const [documentError, setDocumentError] = useState("");
+  const [readingDocument, setReadingDocument] = useState(false);
   const [busy, setBusy] = useState(false);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -2077,6 +2126,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
     setActiveThreadId(thread.id);
     setHistoryOpen(false);
     setDraft("");
+    setDocumentError("");
   };
 
   const selectConversation = (threadId: string) => {
@@ -2084,6 +2134,35 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
     setActiveThreadId(threadId);
     setHistoryOpen(false);
     setDraft("");
+    setDocumentError("");
+  };
+
+  const attachPdf = async (file: File) => {
+    if (readingDocument || busy) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) { setDocumentError("Choose a PDF file."); return; }
+    setReadingDocument(true);
+    setDocumentError("");
+    const targetThread = activeThread ?? newTutorThread();
+    try {
+      const document = await extractTutorPdf(file);
+      const nextThreads = [{ ...targetThread, document, updatedAt: Date.now() }, ...threads.filter((thread) => thread.id !== targetThread.id)];
+      const nextHistory = JSON.stringify({ threads: nextThreads, activeThreadId: targetThread.id });
+      if (nextHistory.length > TUTOR_HISTORY_CHARACTER_BUDGET || new TextEncoder().encode(nextHistory).byteLength > 390_000) {
+        throw new Error("This PDF would exceed saved chat space. Remove an older PDF or start a new chat without deleting this one.");
+      }
+      setThreads(nextThreads);
+      setActiveThreadId(targetThread.id);
+    } catch (error) {
+      setDocumentError(error instanceof Error ? error.message : "The tutor could not read this PDF.");
+    } finally {
+      setReadingDocument(false);
+    }
+  };
+
+  const removePdf = () => {
+    if (!activeThread) return;
+    setThreads((current) => current.map((thread) => thread.id === activeThread.id ? { ...thread, document: undefined, updatedAt: Date.now() } : thread));
+    setDocumentError("");
   };
 
   const deleteConversation = () => {
@@ -2103,7 +2182,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
 
   const submit = async (suggested?: string) => {
     const question = (suggested ?? draft).trim();
-    if (!question || busy) return;
+    if (!question || busy || readingDocument) return;
     const targetThread = activeThread ?? newTutorThread();
     const targetThreadId = targetThread.id;
     const userMessage: TutorMessage = { id: tutorMessageId(), role: "user", content: question };
@@ -2124,6 +2203,7 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
         signal: controller.signal,
         body: JSON.stringify({
           messages: history.map(({ role, content }) => ({ role, content })),
+          document: targetThread.document,
           responseLength,
           context: {
             currentView: view,
@@ -2209,9 +2289,14 @@ function TutorAssistant({ view, completed, practice, courseContext, snapshot, op
         {messages.map((message) => <article key={message.id} className={`tutor-message ${message.role}`}><small>{message.role === "assistant" ? "Tutor" : "You"}</small><div>{message.content ? <TutorMessageContent content={message.content} /> : <span className="tutor-thinking"><i /><i /><i /></span>}</div></article>)}
         <div className="tutor-scroll-anchor" />
       </div>}
+      {!historyOpen && activeThread?.document && <div className="tutor-pdf-status"><Paperclip size={14} /><span><b>{activeThread.document.name}</b><small>{activeThread.document.truncated ? `Text through page ${activeThread.document.includedPages} of ${activeThread.document.pages} (partial)` : `${activeThread.document.pages} ${activeThread.document.pages === 1 ? "page" : "pages"} available to the tutor`} · attached to this chat</small></span><button type="button" onClick={removePdf} aria-label="Remove PDF from this chat" title="Remove PDF"><X size={14} /></button></div>}
+      {!historyOpen && documentError && <p className="tutor-pdf-error" role="alert">{documentError}</p>}
+      {!historyOpen && historySaveError && <p className="tutor-pdf-error" role="alert">This chat could not be saved. Keep this window open while the connection is checked.</p>}
+      {!historyOpen && !activeThread?.document && !documentError && <p className="tutor-pdf-hint">PDF text is saved in this private chat and sent to the tutor when you ask about it.</p>}
       <form className="tutor-composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <textarea ref={composerInputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about what you’re learning…" rows={1} aria-label="Ask the Exceler tutor" />
-        <button type="submit" disabled={!draft.trim() || busy} aria-label="Send question"><Send size={17} /></button>
+        <label className="tutor-pdf-picker" title="Attach a PDF to this chat" aria-label="Attach a PDF to this chat"><Paperclip size={17} /><input type="file" accept=".pdf,application/pdf" disabled={readingDocument || busy} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ""; if (file) void attachPdf(file); }} /></label>
+        <textarea ref={composerInputRef} value={draft} maxLength={4_000} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder={readingDocument ? "Reading PDF…" : "Ask about what you’re learning…"} rows={1} aria-label="Ask the Exceler tutor" />
+        <button type="submit" disabled={!draft.trim() || busy || readingDocument} aria-label="Send question"><Send size={17} /></button>
       </form>
     </section>}
     <button className="tutor-launcher" onClick={toggleTutor} aria-label={open ? "Close Exceler tutor" : "Ask Exceler tutor"} aria-expanded={open} title={open ? "Close Tutor" : "Ask Tutor"}>

@@ -5,9 +5,21 @@ const MAX_HISTORY_BYTES = 400_000;
 const MAX_THREADS = 20;
 const MAX_MESSAGES_PER_THREAD = 60;
 const MAX_MESSAGE_LENGTH = 8_000;
+const MAX_DOCUMENT_LENGTH = 28_000;
 
 type StoredMessage = { id: string; role: "user" | "assistant"; content: string };
-type StoredThread = { id: string; title: string; createdAt: number; updatedAt: number; messages: StoredMessage[] };
+type StoredDocument = { name: string; text: string; pages: number; includedPages: number; truncated: boolean };
+type StoredThread = { id: string; title: string; createdAt: number; updatedAt: number; messages: StoredMessage[]; document?: StoredDocument };
+
+function validDocument(value: unknown): value is StoredDocument {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const document = value as Partial<StoredDocument>;
+  return typeof document.name === "string" && document.name.length > 0 && document.name.length <= 120
+    && typeof document.text === "string" && document.text.length > 0 && document.text.length <= MAX_DOCUMENT_LENGTH
+    && Number.isInteger(document.pages) && Number(document.pages) > 0
+    && Number.isInteger(document.includedPages) && Number(document.includedPages) > 0 && Number(document.includedPages) <= Number(document.pages)
+    && typeof document.truncated === "boolean";
+}
 
 function error(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -26,6 +38,7 @@ function validHistory(value: unknown): value is { threads: StoredThread[]; activ
       && entry.title.length <= 80
       && Number.isFinite(entry.createdAt)
       && Number.isFinite(entry.updatedAt)
+      && (entry.document === undefined || validDocument(entry.document))
       && Array.isArray(entry.messages)
       && entry.messages.length <= MAX_MESSAGES_PER_THREAD
       && entry.messages.every((message) => !!message

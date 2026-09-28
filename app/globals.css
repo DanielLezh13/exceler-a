@@ -1091,8 +1091,18 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .tutor-thinking i { width: 4px; height: 4px; border-radius: 50%; background: var(--lime); animation: tutor-dot .9s infinite ease-in-out; }
 .tutor-thinking i:nth-child(2) { animation-delay: .12s; }.tutor-thinking i:nth-child(3) { animation-delay: .24s; }
 @keyframes tutor-dot { 0%, 70%, 100% { opacity: .28; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-3px); } }
-.tutor-composer { margin: 0 12px 12px; min-height: 52px; display: grid; grid-template-columns: minmax(0,1fr) 36px; align-items: end; gap: 8px; border: 1px solid #3a443f; border-radius: 15px; background: #0c100f; padding: 7px 7px 7px 12px; }
+.tutor-pdf-status { margin: 0 12px 7px; display: flex; align-items: center; gap: 8px; min-width: 0; border: 1px solid #405238; border-radius: 10px; background: #172017; color: #bfe889; padding: 7px 9px; }
+.tutor-pdf-status > span { min-width: 0; flex: 1; }
+.tutor-pdf-status b, .tutor-pdf-status small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tutor-pdf-status b { font-size: 10px; }.tutor-pdf-status small { color: #9aa79a; font-size: 8px; margin-top: 2px; }
+.tutor-pdf-status button { flex: 0 0 auto; display: grid; place-items: center; width: 24px; height: 24px; border: 0; background: transparent; color: #9eaca0; padding: 0; }
+.tutor-pdf-hint, .tutor-pdf-error { margin: 0 15px 7px; font-size: 8px; line-height: 1.35; color: #758078; }
+.tutor-pdf-error { color: #e3a19a; }
+.tutor-composer { margin: 0 12px 12px; min-height: 52px; display: grid; grid-template-columns: 28px minmax(0,1fr) 36px; align-items: end; gap: 8px; border: 1px solid #3a443f; border-radius: 15px; background: #0c100f; padding: 7px 7px 7px 9px; }
 .tutor-composer:focus-within { border-color: #668257; box-shadow: 0 0 0 3px rgba(191,245,90,.06); }
+.tutor-pdf-picker { position: relative; width: 28px; height: 36px; display: grid; place-items: center; color: #9ba69e; cursor: pointer; }
+.tutor-pdf-picker:hover { color: var(--lime); }
+.tutor-pdf-picker input { position: absolute; width: 100%; height: 100%; inset: 0; opacity: 0; cursor: pointer; }
 .tutor-composer textarea { display: block; width: 100%; max-height: 110px; min-height: 34px; resize: none; overflow-y: hidden; border: 0; outline: 0; background: transparent; color: #e2e7e4; padding: 7px 0 4px; font: 10px/1.45 var(--font-geist-sans); }
 .tutor-composer textarea::placeholder { color: #5d6661; }
 .tutor-composer button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 11px; background: var(--lime); color: #13180f; }
