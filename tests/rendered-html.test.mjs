@@ -308,6 +308,14 @@ test("every practice question reveals a concrete answer that its validator accep
   }
 });
 
+test("validated grade accepts either order of the invalid-range check", () => {
+  const question = additionalPracticeQuestions["if-else"].find(({ id }) => id === "if-q7");
+  assert.ok(question);
+  assert.equal(question.validate(question.answer), true);
+  assert.equal(question.validate(question.answer.replace("score < 0 || score > 100", "score > 100 || score < 0")), true);
+  assert.equal(question.validate(question.answer.replace("score < 0 || score > 100", "score < 0 && score > 100")), false);
+});
+
 test("the rectangle build accepts print and println", () => {
   const question = additionalPracticeQuestions["input-basic-programs"].find(({ id }) => id === "input-complete-q1");
   assert.ok(question);
