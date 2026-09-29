@@ -1452,6 +1452,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const [feedback, setFeedback] = useState<Record<string, "correct" | "incorrect">>({});
   const [visibleAnswers, setVisibleAnswers] = useState<Record<string, boolean>>({});
   const [reviewingCompleted, setReviewingCompleted] = useState(false);
+  const questionRouteRef = useRef<HTMLElement | null>(null);
   const question = questions[Math.min(activeIndex, questions.length - 1)];
   const passed = record.passed.includes(question.id);
   const allPassed = validPassed.length === questions.length;
@@ -1467,6 +1468,16 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
   const answerShown = Boolean(visibleAnswers[question.id]);
   const shownAnswer = question.answer ?? question.options?.find((option) => question.validate(option)) ?? question.hint;
   const usesJavaEditor = questionUsesJavaEditor(question);
+
+  useEffect(() => {
+    const route = questionRouteRef.current;
+    const active = route?.querySelector<HTMLButtonElement>("button.active");
+    if (!route || !active) return;
+    const routeBounds = route.getBoundingClientRect();
+    const activeBounds = active.getBoundingClientRect();
+    if (activeBounds.left < routeBounds.left + 8) route.scrollBy({ left: activeBounds.left - routeBounds.left - 8, behavior: "smooth" });
+    else if (activeBounds.right > routeBounds.right - 8) route.scrollBy({ left: activeBounds.right - routeBounds.right + 8, behavior: "smooth" });
+  }, [activeIndex, questions.length]);
 
   // The controls and tutor share one ordered list, so option letters cannot drift.
   const answerOptions = useMemo(() => (question.options ?? []).map((text, index) => ({
@@ -1539,7 +1550,7 @@ function ChapterPractice({ chapterId, questionIds, variant, checkpointNumber = 1
 
   const practiceBody = <>
     <div className="practice-header"><div><p className="eyebrow">{variant === "checkpoint" ? `Check Your Understanding · ${String(checkpointNumber).padStart(2, "0")}` : "Cumulative Review"}</p><h2>{variant === "checkpoint" ? "Section Check" : "Chapter Review"}</h2>{variant === "review" && <p>Combine what you learned across the chapter. Every earlier section check also counts toward completion.</p>}</div><div className="practice-score"><b>{validPassed.length}/{questions.length}</b><small>passed</small></div></div>
-    {questions.length > 1 && <div className="question-route">{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{(item.productionStage ?? 0) >= 4 ? "Build" : item.level}</small></button>)}</div>}
+    {questions.length > 1 && <nav className="question-route" aria-label="Practice questions" ref={questionRouteRef}>{questions.map((item, index) => <button key={item.id} className={`${index === activeIndex ? "active" : ""} ${record.passed.includes(item.id) ? "passed" : ""}`} onClick={() => setActiveIndex(index)} aria-label={`Open question ${index + 1}`} aria-current={index === activeIndex ? "step" : undefined}><span>{record.passed.includes(item.id) ? <Check size={13} strokeWidth={3} /> : index + 1}</span><small>{(item.productionStage ?? 0) >= 4 ? "Build" : item.level}</small></button>)}</nav>}
     <div className="practice-workspace" key={question.id}><h3>{titleCase(question.title)}</h3><p>{question.prompt}</p>{question.code && <div className="practice-code-wrap"><CopyCodeButton code={question.code} /><pre className="practice-code"><JavaCode code={question.code} /></pre></div>}<label htmlFor={`practice-${question.id}`}>Your answer</label>{answerOptions.length ? <div className="practice-options" id={`practice-${question.id}`} role="radiogroup" aria-label="Answer choices">{answerOptions.map((option) => <button type="button" role="radio" aria-checked={option.selected} className={`${option.selected ? "selected" : ""} ${answerShown && question.validate(option.text) ? "revealed-answer" : ""}`} key={option.label} onClick={() => updateAnswer(option.text)}><span>{option.label}</span><b>{option.text}</b></button>)}</div> : <div className={`practice-answer-field ${question.multiline ? "multiline" : "single"} ${usesJavaEditor ? "code-editor-field" : "written-answer-field"}`}>{usesJavaEditor ? <JavaEditor id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={updateAnswer} placeholder={question.placeholder} multiline={Boolean(question.multiline)} starterCode={question.code ?? ""} onSubmit={() => { if (passed) goToNextQuestion(); else check(); }} /> : question.multiline ? <textarea id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} spellCheck autoCorrect="off" autoCapitalize="off" /> : <input id={`practice-${question.id}`} value={record.answers[question.id] ?? ""} onChange={(event) => updateAnswer(event.target.value)} placeholder={question.placeholder} onKeyDown={(event) => { if (event.key !== "Enter") return; if (passed) goToNextQuestion(); else check(); }} autoComplete="off" spellCheck autoCorrect="off" autoCapitalize="off" />}{answerShown && !passed && <div className="practice-answer-overlay" aria-live="polite" role="region" aria-label="Shown answer" tabIndex={question.multiline ? 0 : undefined}>{usesJavaEditor ? <JavaCode code={shownAnswer} /> : shownAnswer}</div>}</div>}
       {answerShown && passed && !answerOptions.length && <div className="practice-example-answer" aria-live="polite" role="region" aria-label="Example answer"><div><b>Example answer</b><small>Your accepted answer stays above so you can compare both approaches.</small></div><pre>{usesJavaEditor ? <JavaCode code={shownAnswer} /> : shownAnswer}</pre></div>}
       <div className={`practice-response-row ${passed ? "passed" : ""}`}>

@@ -43,6 +43,7 @@ function harness(initialRecord = { answers: {}, passed: [], attempts: {}, hints:
     questionUsesJavaEditor: (question) => question.multiline,
     titleCase: (value) => value,
     useMemo: (factory) => factory(),
+    useRef: (initial) => ({ current: initial }),
     useState: (initial) => {
       const index = stateIndex++;
       if (!(index in states)) states[index] = typeof initial === "function" ? initial() : initial;

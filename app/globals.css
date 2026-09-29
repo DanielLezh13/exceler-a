@@ -729,13 +729,13 @@ i.red { background: #a94f4f; } i.amber { background: #a67f47; } i.green { backgr
 .practice-score b, .practice-score small { display: block; text-align: center; }
 .practice-score b { color: var(--lime); font: 18px var(--font-geist-mono); }
 .practice-score small { margin-top: 3px; color: #75806f; font-size: 8px; }
-.question-route { display: flex; align-items: flex-start; justify-content: space-between; position: relative; margin: 30px 6px 22px; }
-.question-route::before { content: ""; position: absolute; left: 23px; right: 23px; top: 17px; height: 1px; background: #343b38; }
-.question-route button { z-index: 1; display: grid; justify-items: center; gap: 6px; border: 0; background: transparent; color: #66706b; padding: 0; }
+.question-route { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; position: relative; max-width: 100%; overflow-x: auto; overflow-y: hidden; margin: 30px 6px 22px; padding: 4px 6px 10px; scrollbar-width: thin; scrollbar-color: #49574d transparent; scroll-snap-type: x proximity; }
+.question-route::before { content: ""; position: absolute; left: 34px; right: 34px; top: 21px; height: 1px; background: #343b38; }
+.question-route button { z-index: 1; flex: 0 0 56px; display: grid; justify-items: center; gap: 6px; border: 0; background: transparent; color: #66706b; padding: 0; scroll-snap-align: center; }
 .question-route button > span { width: 35px; height: 35px; display: grid; place-items: center; border: 1px solid #3d4541; border-radius: 50%; background: #121615; font: 8px var(--font-geist-mono); }
 .question-route button.active > span { border-color: var(--lime); box-shadow: 0 0 0 4px rgba(199,243,107,.08); color: var(--lime); }
 .question-route button.passed > span { border-color: var(--lime); background: var(--lime); color: #13200d; }
-.question-route button small { font-size: 7px; }
+.question-route button small { font-size: 9px; }
 .practice-workspace { overflow: hidden; border: 1px solid #3a423e; border-radius: 18px; background: #111514; padding: 24px; animation: practice-question-in .2s ease-out; }
 .practice-workspace h3 { margin: 0 0 8px; font-size: 23px; letter-spacing: -.035em; }
 .practice-workspace > p { max-width: 650px; margin: 0 0 18px; color: #929b96; font-size: 12px; line-height: 1.65; }
