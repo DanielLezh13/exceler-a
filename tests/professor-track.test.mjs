@@ -9,7 +9,7 @@ const professorChapterIds = cisc1115ProfessorTrack.flatMap((group) => group.entr
 const addedChapterText = (id) => JSON.stringify(cisc1115ProfessorAddedChapters.find((chapter) => chapter.id === id));
 const addedChapterReviewText = (id) => JSON.stringify(cisc1115ProfessorAddedChapters.find((chapter) => chapter.id === id)?.reviewQuestions);
 
-test("the professor track reorders references without replacing canonical chapters", () => {
+test("the merged route reorders references without replacing canonical chapters", () => {
   assert.equal(canonicalChapterIds.length, 24);
   assert.deepEqual(courseContinuityModel.map((chapter) => chapter.chapterId), canonicalChapterIds);
   assert.equal(professorChapterIds.length, canonicalChapterIds.length);
@@ -24,29 +24,30 @@ test("the professor track reorders references without replacing canonical chapte
   ]);
 });
 
-test("the professor route is a normal unit and chapter hierarchy", () => {
+test("the merged route is a normal unit and chapter hierarchy", () => {
   assert.deepEqual(cisc1115ProfessorTrack.map((unit) => unit.label), [
-    "Unit I · Computer Foundations",
-    "Unit II · Variables, Types, Input & Output",
-    "Unit III · Selections",
-    "Unit IV · Math Functions",
-    "Unit V · Characters, Strings & File I/O",
-    "Unit VI · Loops",
-    "Unit VII · Methods",
-    "Unit VIII · Arrays, Strings & Algorithms",
-    "Unit IX · Program Development",
-    "Unit X · Computing Context",
+    "Foundations · Computers & Programs",
+    "Unit I · Java Fundamentals",
+    "Unit II · Decision Making",
+    "Math Functions",
+    "Characters, Strings & File I/O",
+    "Unit III · Repetition",
+    "Unit IV · Methods",
+    "Unit V · Arrays, Lists & Strings",
+    "Unit VI · Basic Algorithms",
+    "Unit VII · Program Development",
+    "Unit VIII · CS Foundations",
     "Final · Course Synthesis",
   ]);
   const routeIds = cisc1115ProfessorTrack.flatMap((unit) => unit.entries.map((entry) => entry.id));
-  assert.equal(routeIds.length, 27);
+  assert.equal(routeIds.length, 28);
   assert.equal(new Set(routeIds).size, routeIds.length);
-  assert.deepEqual(routeIds.map((id) => professorChapterNumberById.get(id)), Array.from({ length: 27 }, (_, index) => index + 1));
+  assert.deepEqual(routeIds.map((id) => professorChapterNumberById.get(id)), Array.from({ length: 28 }, (_, index) => index + 1));
 });
 
 test("added syllabus chapters use ordinary chapter language and unique identities", async () => {
   const addedIds = cisc1115ProfessorAddedChapters.map((chapter) => chapter.id);
-  assert.deepEqual(addedIds, ["mcneill-lecture-1", "mcneill-math-functions", "mcneill-text-files"]);
+  assert.deepEqual(addedIds, ["number-systems", "mcneill-lecture-1", "mcneill-math-functions", "mcneill-text-files"]);
   assert.equal(new Set(addedIds).size, addedIds.length);
   assert.ok(addedIds.every((id) => !canonicalChapterIds.includes(id)));
   assert.ok(cisc1115ProfessorAddedChapters.every((chapter) => chapter.sections.length > 0));
@@ -76,6 +77,7 @@ test("the timed chapters expose Math and text/file material at the syllabus poin
 
 test("every added syllabus chapter ends with a working cumulative review", async () => {
   const expectedCounts = new Map([
+    ["number-systems", 14],
     ["mcneill-lecture-1", 19],
     ["mcneill-math-functions", 7],
     ["mcneill-text-files", 11],
@@ -109,7 +111,7 @@ test("every added syllabus chapter ends with a working cumulative review", async
 
   const commandCenter = await readFile(new URL("../app/CommandCenter.tsx", import.meta.url), "utf8");
   assert.match(commandCenter, /ChapterPractice chapterId=\{selectedProfessorChapter\.id\}/, "added chapters must render their saved chapter review");
-  assert.match(commandCenter, /selectedProfessorChapter\.reviewQuestions\.map/, "the rendered review must use each added chapter's authored questions");
+  assert.match(commandCenter, /chapterPracticePlan\(selectedProfessorChapter\.id\)\.review/, "the rendered review must use each added chapter's authored questions");
 });
 
 test("mastery identities and persistence keys remain independent of display track", async () => {
@@ -122,6 +124,6 @@ test("mastery identities and persistence keys remain independent of display trac
   assert.match(commandCenter, /practice\[itemMasteryTest\.id\]/);
   assert.match(commandCenter, /track\?: CourseTrack/);
   assert.match(commandCenter, /professorItemId\?: string/);
-  assert.deepEqual(professorMasteryDisplayById.get("unit-1-mastery"), { unit: "Unit II · Variables, Types, Input & Output", title: "Unit II Mastery Test" });
-  assert.deepEqual(professorMasteryDisplayById.get("unit-2-mastery"), { unit: "Unit III · Selections", title: "Unit III Mastery Test" });
+  assert.deepEqual(professorMasteryDisplayById.get("unit-1-mastery"), { unit: "Unit I · Java Fundamentals", title: "Unit I Mastery Test" });
+  assert.deepEqual(professorMasteryDisplayById.get("unit-2-mastery"), { unit: "Unit II · Decision Making", title: "Unit II Mastery Test" });
 });

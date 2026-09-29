@@ -1,4 +1,5 @@
 import type { CoursePracticeQuestion, StructuredLessonSection } from "./cisc1115Course";
+import { numberSystemsQuestions, numberSystemsSectionQuestionIds, numberSystemsSections } from "./cisc1115NumberSystems.ts";
 
 const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
@@ -83,6 +84,7 @@ export type ProfessorTrackAddedChapter = {
   schedule: string;
   sections: StructuredLessonSection[];
   reviewQuestions: CoursePracticeQuestion[];
+  sectionQuestionIds?: Record<string, string[]>;
 };
 
 export type ProfessorTrackEntry =
@@ -96,6 +98,15 @@ export type ProfessorTrackUnit = {
 };
 
 export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
+  {
+    id: "number-systems",
+    title: "Number Systems",
+    description: "Practice the binary, decimal, and hexadecimal conversions and binary addition used on the CISC 1115 quizzes.",
+    schedule: "Quiz 2 · Number Systems",
+    sections: numberSystemsSections,
+    reviewQuestions: numberSystemsQuestions,
+    sectionQuestionIds: numberSystemsSectionQuestionIds,
+  },
   {
     id: "mcneill-lecture-1",
     title: "Computers & Programs",
@@ -429,16 +440,22 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
 ];
 
 export const cisc1115ProfessorTrack: ProfessorTrackUnit[] = [
-  { id: "computer-foundations", label: "Unit I · Computer Foundations", entries: [{ kind: "added-chapter", id: "mcneill-lecture-1" }] },
-  { id: "java-fundamentals", label: "Unit II · Variables, Types, Input & Output", entries: ["variables-data-types", "operators-expressions", "input-basic-programs"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "selections", label: "Unit III · Selections", entries: ["comparisons-booleans", "if-else", "decision-programs"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "math-functions", label: "Unit IV · Math Functions", entries: [{ kind: "added-chapter", id: "mcneill-math-functions" }] },
-  { id: "text-files", label: "Unit V · Characters, Strings & File I/O", entries: [{ kind: "added-chapter", id: "mcneill-text-files" }] },
-  { id: "loops", label: "Unit VI · Loops", entries: ["while-loops", "for-loops", "nested-loops"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "methods", label: "Unit VII · Methods", entries: ["methods", "returns-scope"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "arrays-algorithms", label: "Unit VIII · Arrays, Strings & Algorithms", entries: ["arrays", "arrays-loops", "strings", "arraylists", "searching", "sorting", "algorithmic-problem-solving"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "program-development", label: "Unit IX · Program Development", entries: ["input-output", "debugging-testing"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "computing-context", label: "Unit X · Computing Context", entries: ["computers-programs-algorithms", "cs-context-applications"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "computer-foundations", label: "Foundations · Computers & Programs", entries: [{ kind: "added-chapter", id: "mcneill-lecture-1" }] },
+  { id: "java-fundamentals", label: "Unit I · Java Fundamentals", entries: [
+    { kind: "existing-chapter", id: "variables-data-types" },
+    { kind: "existing-chapter", id: "operators-expressions" },
+    { kind: "added-chapter", id: "number-systems" },
+    { kind: "existing-chapter", id: "input-basic-programs" },
+  ] },
+  { id: "selections", label: "Unit II · Decision Making", entries: ["comparisons-booleans", "if-else", "decision-programs"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "math-functions", label: "Math Functions", entries: [{ kind: "added-chapter", id: "mcneill-math-functions" }] },
+  { id: "text-files", label: "Characters, Strings & File I/O", entries: [{ kind: "added-chapter", id: "mcneill-text-files" }] },
+  { id: "loops", label: "Unit III · Repetition", entries: ["while-loops", "for-loops", "nested-loops"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "methods", label: "Unit IV · Methods", entries: ["methods", "returns-scope"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "arrays-strings", label: "Unit V · Arrays, Lists & Strings", entries: ["arrays", "arrays-loops", "strings", "arraylists"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "algorithms", label: "Unit VI · Basic Algorithms", entries: ["searching", "sorting", "algorithmic-problem-solving"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "program-development", label: "Unit VII · Program Development", entries: ["input-output", "debugging-testing"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "computing-context", label: "Unit VIII · CS Foundations", entries: ["computers-programs-algorithms", "cs-context-applications"].map((id) => ({ kind: "existing-chapter" as const, id })) },
   { id: "course-synthesis", label: "Final · Course Synthesis", entries: ["cumulative-challenges", "final-assessment"].map((id) => ({ kind: "existing-chapter" as const, id })) },
 ];
 
@@ -447,12 +464,12 @@ export const professorAddedChapterById = new Map(cisc1115ProfessorAddedChapters.
 export const professorChapterNumberById = new Map(cisc1115ProfessorTrack.flatMap((unit) => unit.entries).map((entry, index) => [entry.id, index + 1]));
 
 export const professorMasteryDisplayById = new Map([
-  ["unit-1-mastery", { unit: "Unit II · Variables, Types, Input & Output", title: "Unit II Mastery Test" }],
-  ["unit-2-mastery", { unit: "Unit III · Selections", title: "Unit III Mastery Test" }],
-  ["unit-3-mastery", { unit: "Unit VI · Loops", title: "Unit VI Mastery Test" }],
-  ["unit-4-mastery", { unit: "Unit VII · Methods", title: "Unit VII Mastery Test" }],
-  ["unit-5-mastery", { unit: "Unit VIII · Arrays, Strings & Algorithms", title: "Arrays, Lists & Strings Mastery Test" }],
-  ["unit-6-mastery", { unit: "Unit VIII · Arrays, Strings & Algorithms", title: "Algorithms Mastery Test" }],
-  ["unit-7-mastery", { unit: "Unit IX · Program Development", title: "Unit IX Mastery Test" }],
-  ["unit-8-mastery", { unit: "Unit X · Computing Context", title: "Unit X Mastery Test" }],
+  ["unit-1-mastery", { unit: "Unit I · Java Fundamentals", title: "Unit I Mastery Test" }],
+  ["unit-2-mastery", { unit: "Unit II · Decision Making", title: "Unit II Mastery Test" }],
+  ["unit-3-mastery", { unit: "Unit III · Repetition", title: "Unit III Mastery Test" }],
+  ["unit-4-mastery", { unit: "Unit IV · Methods", title: "Unit IV Mastery Test" }],
+  ["unit-5-mastery", { unit: "Unit V · Arrays, Lists & Strings", title: "Arrays, Lists & Strings Mastery Test" }],
+  ["unit-6-mastery", { unit: "Unit VI · Basic Algorithms", title: "Algorithms Mastery Test" }],
+  ["unit-7-mastery", { unit: "Unit VII · Program Development", title: "Unit VII Mastery Test" }],
+  ["unit-8-mastery", { unit: "Unit VIII · CS Foundations", title: "Unit VIII Mastery Test" }],
 ]);

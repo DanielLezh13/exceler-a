@@ -54,7 +54,9 @@ import {
   unitMasteryTests,
 } from "./data/cisc1115Course";
 import { cisc1115ProfessorAddedChapters, cisc1115ProfessorTrack, professorAddedChapterById, professorChapterNumberById, professorMasteryDisplayById, type ProfessorTrackAddedChapter } from "./data/cisc1115ProfessorTrack";
-import { javaValidationCode, validateArcadePrizePurchase } from "./practiceValidation";
+import { classroomPracticeQuestions, classroomSectionQuestionIds } from "./data/cisc1115ClassroomPractice";
+import { validateArcadePrizePurchase } from "./practiceValidation";
+import { validateHelloWithSpace, validateInventoryDeclarations, validateInventoryLabel, validateTournamentCheckIn, validateVideoDuration } from "./introPracticeValidation";
 import { retrievalQuestionsFor, sectionRetrievalPractice } from "./data/sectionRetrievalPractice";
 import MathCourseView from "./math/MathCourseView";
 import { mathCourses, courseChapters } from "./math/courses";
@@ -357,7 +359,7 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
     multipleChoiceQuestion("variables-print-name", "Print a variable or literal", "Given int age = 25;, which statement prints the stored value 25 rather than the word age?", ["System.out.println(\"age\");", "System.out.println(age);", "System.out.println(25 age);", "System.out.println = age;"], "System.out.println(age);", "Quotation marks create literal text; a bare variable name retrieves its value.", "Correct. println(age) reads and prints the value stored under age."),
     { id: "variables-print-text", level: "Warm-up", kind: "Write one statement", title: "Print literal text", prompt: "Write one statement that prints exactly Hello.", placeholder: "Write one Java statement", hint: "Literal String text belongs in double quotes.", success: "Correct. The String literal is passed to println.", validate: (answer) => compactCode(answer) === 'System.out.println("Hello");' },
     { id: "variables-concat", level: "Apply", kind: "Exact output", title: "Trace concatenation", prompt: "What is printed? Match capitalization, spaces, and punctuation.", code: 'String name = "Daniel";\nint age = 25;\nSystem.out.println("Name: " + name + ", Age: " + age);', placeholder: "Type the exact output", hint: "Read the println from left to right and keep the spaces inside each String.", success: "Exactly. Java joined the text and both variable values into one line.", validate: (answer) => normalizeLines(answer) === "Name: Daniel, Age: 25" },
-    { id: "variables-concat-space", level: "Apply", kind: "Fix exact output", title: "Preserve the space", prompt: "Rewrite only the println statement so the output is exactly Hello Daniel.", code: 'String name = "Daniel";\nSystem.out.println("Hello" + name);', placeholder: "Write the corrected println statement", hint: "The space must live inside one of the String literals.", success: "Correct. The literal includes the space Java needs to print.", validate: (answer) => compactCode(answer) === 'System.out.println("Hello"+name);' && /"Hello\s"/.test(answer) },
+    { id: "variables-concat-space", level: "Apply", kind: "Fix exact output", title: "Preserve the space", prompt: "Rewrite only the println statement so the output is exactly Hello Daniel.", code: 'String name = "Daniel";\nSystem.out.println("Hello" + name);', placeholder: "Write the corrected println statement", hint: "The space must live inside one of the String literals.", answer: 'System.out.println("Hello " + name);', success: "Correct. The literal includes the space Java needs to print.", validate: validateHelloWithSpace },
     { id: "variables-quoted-number", level: "Apply", kind: "Concatenation contrast", title: "Join Quoted Digits as Text", prompt: "What is the exact output?", code: "String code = \"123\";\nSystem.out.println(code + 4);", placeholder: "Type the exact output", hint: "The String begins the output, so + joins 4 after the existing text.", answer: "1234", success: "Correct. Concatenation joins the characters instead of performing numeric addition.", validate: (answer) => normalizeLines(answer) === "1234" },
     { id: "variables-constraints", level: "Apply", kind: "Write code", title: "Build four variables", prompt: "Declare name as Daniel, age as 25, height as 6.2, and hungry as true. Then print each variable on its own line.", placeholder: "Write the declarations and print statements", hint: "You need String, int, double, and boolean—plus four println statements.", success: "All four values are declared with matching types and printed.", multiline: true, validate: (answer) => { const code = compactCode(answer); return /Stringname="Daniel";/.test(code) && /intage=25;/.test(code) && /doubleheight=6\.2;/.test(code) && /booleanhungry=true;/.test(code) && ["name", "age", "height", "hungry"].every((name) => code.includes(`System.out.println(${name});`)); } },
     { id: "variables-program-trace", level: "Challenge", kind: "Trace a complete state change", title: "Track Every Stored Value", prompt: "Write the exact output, one line at a time.", code: "String name = \"Daniel\";\nint level = 1;\nchar rank = 'C';\nboolean ready = false;\nlevel = 2;\nready = true;\nSystem.out.println(name);\nSystem.out.println(level);\nSystem.out.println(rank);\nSystem.out.println(ready);", placeholder: "Type the four output lines", hint: "Use the newest stored value for variables that were reassigned.", answer: "Daniel\n2\nC\ntrue", success: "Correct. You tracked four types and both reassignments through the final output.", multiline: true, validate: (answer) => normalizeLines(answer) === "Daniel\n2\nC\ntrue" },
@@ -406,6 +408,8 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
   ...Object.fromEntries(cisc1115ProfessorAddedChapters.map((chapter) => [chapter.id, chapter.reviewQuestions])),
 };
 
+Object.entries(classroomPracticeQuestions).forEach(([chapterId, questions]) => practiceQuestions[chapterId]?.push(...questions));
+
 practiceQuestions["variables-data-types"].push({
   id: "variables-independent-build",
   level: "Challenge",
@@ -419,14 +423,7 @@ practiceQuestions["variables-data-types"].push({
   multiline: true,
   productionStage: 4,
   auditRequirements: ["String declaration", "int declaration", "double declaration", "boolean declaration", "four labeled println statements"],
-  validate: (answer) => {
-    const code = compactCode(answer);
-    return /String[A-Za-z_$][\w$]*="[^"]*";/.test(code)
-      && /int[A-Za-z_$][\w$]*=-?\d+;/.test(code)
-      && /double[A-Za-z_$][\w$]*=-?\d+(?:\.\d+)?;/.test(code)
-      && /boolean[A-Za-z_$][\w$]*=(?:true|false);/.test(code)
-      && (code.match(/System\.out\.println\(/g)?.length ?? 0) >= 4;
-  },
+  validate: validateTournamentCheckIn,
 });
 
 practiceQuestions["operators-expressions"].push({
@@ -459,12 +456,7 @@ practiceQuestions["variables-data-types"].push(
     multiline: true,
     productionStage: 3,
     auditRequirements: ["String declaration", "int declaration", "double declaration"],
-    validate: (answer) => {
-      const code = javaValidationCode(answer);
-      return /String[A-Za-z_$][\w$]*="[^"]*";/.test(code)
-        && /int[A-Za-z_$][\w$]*=-?\d+;/.test(code)
-        && /double[A-Za-z_$][\w$]*=-?\d+(?:\.\d+)?;/.test(code);
-    },
+    validate: validateInventoryDeclarations,
   },
   {
     id: "variables-write-label",
@@ -479,7 +471,7 @@ practiceQuestions["variables-data-types"].push(
     multiline: true,
     productionStage: 3,
     auditRequirements: ["println", "String concatenation", "item", "quantity"],
-    validate: (answer) => /System\.out\.println\(item\+":"\+quantity\);/.test(compactCode(answer)),
+    validate: validateInventoryLabel,
   },
 );
 
@@ -497,12 +489,7 @@ practiceQuestions["operators-expressions"].push(
     multiline: true,
     productionStage: 3,
     auditRequirements: ["integer division by 60", "modulus by 60", "println"],
-    validate: (answer) => {
-      const code = javaValidationCode(answer);
-      return /int\w+=totalMinutes\/60;/.test(code)
-        && /int\w+=totalMinutes%60;/.test(code)
-        && /System\.out\.println\(/.test(code);
-    },
+    validate: validateVideoDuration,
   },
   {
     id: "operators-write-balance-updates",
@@ -663,7 +650,11 @@ const foundationalPracticePlans: Record<string, ChapterPracticePlan> = {
 
 function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
   const professorAddedChapter = professorAddedChapterById.get(chapterId);
-  if (professorAddedChapter) return { checkpoints: {}, review: professorAddedChapter.reviewQuestions.map((question) => question.id) };
+  if (professorAddedChapter) {
+    const checkpoints = professorAddedChapter.sectionQuestionIds ?? {};
+    const placed = new Set(Object.values(checkpoints).flat());
+    return { checkpoints, review: professorAddedChapter.reviewQuestions.filter((question) => !placed.has(question.id)).map((question) => question.id) };
+  }
 
   const explicit = foundationalPracticePlans[chapterId];
   if (explicit) {
@@ -679,6 +670,9 @@ function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
         checkpoints[sectionId] = [...new Set([...(checkpoints[sectionId] ?? []), ...ids])];
       }
     }
+    for (const [sectionId, ids] of Object.entries(classroomSectionQuestionIds[chapterId] ?? {})) {
+      checkpoints[sectionId] = [...new Set([...(checkpoints[sectionId] ?? []), ...ids])];
+    }
     return { checkpoints, review: explicit.review };
   }
 
@@ -687,7 +681,10 @@ function chapterPracticePlan(chapterId: string): ChapterPracticePlan {
 
   const chapter = learningChapters.find((item) => item.id === chapterId);
   const lessonSectionIds = (chapter?.sections ?? []).filter((section) => !section.id.endsWith("-practice")).map((section) => section.id);
-  const generatedCheckpoints = additionalSectionPracticeQuestionIds[chapterId] ?? {};
+  const generatedCheckpoints = Object.fromEntries(
+    [...new Set([...Object.keys(additionalSectionPracticeQuestionIds[chapterId] ?? {}), ...Object.keys(classroomSectionQuestionIds[chapterId] ?? {})])]
+      .map((sectionId) => [sectionId, [...new Set([...(additionalSectionPracticeQuestionIds[chapterId]?.[sectionId] ?? []), ...(classroomSectionQuestionIds[chapterId]?.[sectionId] ?? [])])]]),
+  );
   const reviewCount = questions.length >= 8 ? 2 : 1;
   const generatedIds = new Set(Object.values(generatedCheckpoints).flat());
   const authoredQuestions = questions.filter((question) => !generatedIds.has(question.id));
@@ -776,7 +773,7 @@ function Sidebar({ view, setView, completed, practice, tutorOpen, onToggleTutor,
       <button className={view === "degree" ? "active" : ""} onClick={() => setView("degree")}><GitBranch className="nav-mark" size={17} />Degree Map</button>
       <button className={view === "courses" ? "active" : ""} onClick={() => setView("courses")}><GraduationCap className="nav-mark" size={17} />Courses</button>
     </nav>
-    {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} chapters</span><span>{progress.percent}%</span></div></button></div>}
+    {view === "course" && <div className="sidebar-active-course"><p className="nav-section-label">Active Course</p><button className="sidebar-course active" onClick={() => setView("course")}><div className="sidebar-course-top"><span className="course-glyph">J</span><span><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b></span></div><ProgressBar value={progress.percent} /><div className="split-meta"><span>{progress.completedChapters} / {learningChapters.length} core chapters</span><span>{progress.percent}%</span></div></button></div>}
     <div className="sidebar-footer"><div className="sidebar-footer-actions"><button className="about-sidebar-button" onClick={onOpenInfo}><CircleHelp size={16} />About Exceler A</button></div>{student && !localWorkspace ? <div className="student-account"><UserRound size={15}/><span><b>{student.displayName}</b><small>Private student workspace</small></span><a href={signOutPath} target="_top">Sign out</a></div> : !localWorkspace ? <a className="student-sign-in" href={signInPath} target="_top"><UserRound size={15}/><span><b>Sign in with ChatGPT</b><small>Private sync, DegreeWorks, and tutor</small></span></a> : null}<div className={`sync-state ${student && !localWorkspace ? "cloud" : ""}`}><span />{syncLabel}</div>{localWorkspace || student ? <button className={`sidebar-tutor-button ${tutorOpen ? "open" : ""}`} onClick={onToggleTutor} aria-expanded={tutorOpen} aria-controls="exceler-tutor-drawer">{tutorOpen ? <X size={17} /> : <MessageCircle size={17} />}{tutorOpen ? "Close Tutor" : "Ask Exceler Tutor"}</button> : <a className="sidebar-tutor-button" href={signInPath} target="_top"><LockKeyhole size={16}/>Sign in for Tutor</a>}</div>
   </aside>;
 }
@@ -805,7 +802,7 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
         <button className="pinned-course-card" onClick={() => setView("course")}>
           <span className="pinned-course-glyph">J</span>
           <span className="pinned-course-copy"><small>Pinned Course · CISC 1115</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>Next: {titleCase(nextChapter.title)}</em></span>
-          <span className="pinned-course-progress"><strong>{progress.percent}%</strong><ProgressBar value={progress.percent} /><small>{progress.completedChapters} / {learningChapters.length} chapters cleared</small></span>
+          <span className="pinned-course-progress"><strong>{progress.percent}%</strong><ProgressBar value={progress.percent} /><small>{progress.completedChapters} / {learningChapters.length} core chapters cleared</small></span>
           <ArrowRight size={18} />
         </button>
       </div>
@@ -818,7 +815,7 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
         <div className="home-console" aria-label="Current learning status">
           <div className="console-bar"><span /><span /><span /><small>learning_state.java</small></div>
           <div className="console-body"><code><i>String</i> project = <b>&quot;Exceler A&quot;</b>;</code><code><i>String</i> path = <b>&quot;Brooklyn College CS&quot;</b>;</code><code><i>int</i> chaptersCleared = <strong>{progress.completedChapters}</strong>;</code><code><i>boolean</i> keepBuilding = <em>true</em>;</code></div>
-          <div className="console-progress"><span><small>CISC 1115</small><b>{progress.percent}%</b></span><ProgressBar value={progress.percent} /><p>{progress.completedChapters} of {learningChapters.length} chapters cleared</p></div>
+          <div className="console-progress"><span><small>CISC 1115</small><b>{progress.percent}%</b></span><ProgressBar value={progress.percent} /><p>{progress.completedChapters} of {learningChapters.length} core chapters cleared</p></div>
         </div>
       </div>
     </section>
@@ -828,16 +825,18 @@ function HomeView({ completed, practice, snapshot, setView, onOpenInfo }: { comp
 function Dashboard({ completed, practice, degreeRecords, setView }: { completed: string[]; practice: PracticeRecords; degreeRecords: DegreeRecords; setView: (view: View) => void }) {
   const progress = learningProgress(completed, practice);
   const nextChapter = authoredChapters.find((chapter) => chapterProgress(chapter.id, completed, practice).percent < 100) ?? authoredChapters[0];
-  const routePreview = learningChapters.slice(0, 6);
+  const routePreview = cisc1115ProfessorTrack.flatMap((group) => group.entries).slice(0, 6)
+    .map((entry) => learningChapters.find((chapter) => chapter.id === entry.id) ?? professorAddedChapterById.get(entry.id))
+    .filter((chapter): chapter is LearningChapter | ProfessorTrackAddedChapter => Boolean(chapter));
   const credits = verifiedDegreeCredits(degreeRecords);
   const knownStatuses = Object.values(degreeRecords).filter((status) => status !== "unknown").length;
   return <main className="page-content education-home">
     <section className="education-hero">
       <div className="hero-copy"><p className="eyebrow accent-text">Continue Learning</p><span className="section-chip">{nextChapter.unit}</span><h2>{titleCase(nextChapter.title)}</h2><p>{nextChapter.description}</p><div className="hero-actions"><button className="primary-button" onClick={() => setView("course")}><Play size={14} fill="currentColor" />Open chapter</button><button className="soft-button" onClick={() => setView("degree")}>View degree path <ArrowRight size={14} /></button></div></div>
-      <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Only passed practice creates progress. Apply and challenge questions carry more weight.</small></div></div>
+      <div className="hero-progress-card"><div className="progress-orbit" style={{ "--progress": `${progress.percent}%` } as React.CSSProperties}><div><b>{progress.percent}%</b><small>course</small></div></div><div><p className="eyebrow">CISC 1115</p><h3>Introduction to Programming Using Java</h3><span>{progress.completedChapters} of {learningChapters.length} core chapters demonstrated</span><ProgressBar value={progress.percent} /><small className="progress-explainer">Only passed practice creates progress. Apply and challenge questions carry more weight.</small></div></div>
     </section>
     <section className="education-dashboard-grid">
-      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">24 chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all 24 chapters <ArrowRight size={14} /></button></div>
+      <div className="campaign-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Course Route</p><h3>Chapter Progression</h3></div><span className="route-time">{professorChapterNumberById.size} chapters mapped</span></div><div className="mission-list">{routePreview.map((chapter) => { const state = chapterProgress(chapter.id, completed, practice); const done = state.percent === 100; const active = chapter.id === nextChapter.id; return <div key={chapter.id} className={`mission-row ${done ? "completed" : active ? "current" : ""}`}><StatusMark done={done} active={active} /><button onClick={() => setView("course")}><b>{titleCase(chapter.title)}</b><small>{done ? "Chapter cleared" : `${state.passed}/${state.questions} practice passed`}</small></button><span className="mission-percent">{state.percent}%</span>{done && <span className="cleared-pill"><Check size={11} /> Cleared</span>}</div>; })}</div><button className="panel-footer-button" onClick={() => setView("course")}>Open all {professorChapterNumberById.size} chapters <ArrowRight size={14} /></button></div>
       <div className="degree-brief-card rounded-panel"><div className="panel-heading"><div><p className="eyebrow">Actual degree</p><h3>Brooklyn College CS B.S.</h3></div><GraduationCap size={22} /></div><div className="audit-state"><span className={knownStatuses ? "known" : ""}>{knownStatuses ? <Check size={22} /> : <CircleHelp size={22} />}</span><div><b>{knownStatuses ? `${credits} credits verified` : "Completion unknown"}</b><p>{knownStatuses ? `${knownStatuses} course statuses recorded.` : "Upload DegreeWorks so Exceler A does not guess."}</p></div></div><div className="degree-rule-list"><div><span>67.5</span><p><b>Audit major credits</b><small>Current DegreeWorks maximum</small></p></div><div><span>3×</span><p><b>Upper-level electives</b><small>CISC 3000–4899</small></p></div><div><span>C</span><p><b>Required CS minimum</b><small>Prerequisite courses</small></p></div></div><button className="secondary-button wide" onClick={() => setView("degree")}>Open degree tree & upload audit <ArrowRight size={14} /></button></div>
     </section>
   </main>;
@@ -857,8 +856,8 @@ function CoursesView({ completed, practice, onOpenCourse, math, onOpenMath }: { 
     <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>Programming → Discrete Structures → Applications</h3></div><span>{1 + computing.length} courses</span></header><div className="course-library-list">
       <button className="course-library-card" onClick={onOpenCourse}>
         <span className="course-glyph large">J</span>
-        <span className="course-library-copy"><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>{learningChapters.length} chapters · Lessons and demonstrated practice</em></span>
-        <span className="course-library-progress"><strong>{progress.percent}%</strong><small>{progress.completedChapters} / {learningChapters.length} chapters cleared</small><ProgressBar value={progress.percent} /></span>
+        <span className="course-library-copy"><small>CISC 1115 · Self-Study</small><b>{titleCase("Introduction to Programming Using Java")}</b><em>{professorChapterNumberById.size} chapters · Lessons and demonstrated practice</em></span>
+        <span className="course-library-progress"><strong>{progress.percent}%</strong><small>{progress.completedChapters} / {learningChapters.length} core chapters cleared</small><ProgressBar value={progress.percent} /></span>
         <ArrowRight size={17} />
       </button>
       {computing.map(writtenCourseCard)}
@@ -875,10 +874,8 @@ function tutorLessonReference(chapterId: string, sectionId: string) {
 const SectionPracticeRendererContext = createContext<(sectionId: string) => React.ReactNode>(() => null);
 
 function CourseView({ completed, practice, position, setPosition, onPracticeChange, onTutorContextChange }: { completed: string[]; practice: PracticeRecords; position: CoursePosition; setPosition: Dispatch<SetStateAction<CoursePosition>>; onPracticeChange: (chapterId: string, record: PracticeRecord) => void; onTutorContextChange: (context: TutorCourseContext) => void }) {
-  const courseTrack = position.track ?? "exceler";
-  const professorItemId = position.professorItemId ?? "mcneill-lecture-1";
-  const onCourseTrackChange = (track: CourseTrack) => setPosition((current) => ({ ...current, track }));
-  const onProfessorItemChange = (id: string) => setPosition((current) => ({ ...current, professorItemId: id }));
+  const professorItemId = position.track === "professor" ? position.professorItemId : position.chapterId;
+  const onProfessorItemChange = (id: string) => setPosition((current) => ({ ...current, track: "professor", professorItemId: id }));
   const initialChapter = learningChapters.find((chapter) => chapter.id === position.chapterId) ?? learningChapters[0];
   const initialMasteryTest = unitMasteryTests.find((test) => test.afterChapterId === initialChapter.id);
   const initiallyViewingMastery = initialMasteryTest?.sectionId === position.sectionId;
@@ -891,7 +888,6 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const [mobileContentsOpen, setMobileContentsOpen] = useState(false);
   const [practiceTutorContext, setPracticeTutorContext] = useState<TutorPracticeContext | null>(null);
   const [masteryTutorContext, setMasteryTutorContext] = useState<TutorMasteryContext | null>(null);
-  const contentsRailRef = useRef<HTMLElement | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const scrollLockRef = useRef<string | null>(null);
   const scrollSaveTimerRef = useRef<number | null>(null);
@@ -899,12 +895,12 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const firstChapterLayoutRef = useRef(true);
   const selectedChapter = learningChapters.find((chapter) => chapter.id === selectedChapterId) ?? learningChapters[0];
   const selectedMasteryTest = unitMasteryTests.find((test) => test.id === selectedMasteryTestId);
-  const selectedProfessorChapter = courseTrack === "professor" ? professorAddedChapterById.get(professorItemId) : undefined;
+  const selectedProfessorChapter = professorAddedChapterById.get(professorItemId ?? "");
   const displayedMasteryTest = useMemo(() => {
-    if (!selectedMasteryTest || courseTrack !== "professor") return selectedMasteryTest;
+    if (!selectedMasteryTest) return selectedMasteryTest;
     const display = professorMasteryDisplayById.get(selectedMasteryTest.id);
     return display ? { ...selectedMasteryTest, ...display } : selectedMasteryTest;
-  }, [courseTrack, selectedMasteryTest]);
+  }, [selectedMasteryTest]);
   const visibleSections = useMemo(() => selectedProfessorChapter
     ? [...selectedProfessorChapter.sections.map(({ id, title }) => ({ id, title })), { id: `${selectedProfessorChapter.id}-practice`, title: "Chapter Review" }]
     : displayedMasteryTest
@@ -990,7 +986,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   }, [activeSectionId, chapter.passed, chapter.percent, chapter.questions, course.percent, displayedMasteryTest, masteryTutorContext, onTutorContextChange, practicePlan.checkpoints, practiceTutorContext, selectedChapter, selectedMasteryTest, selectedProfessorChapter, selectedProfessorState?.passed, selectedProfessorState?.percent, selectedProfessorState?.questions, visibleSections]);
 
   const selectChapter = (next: LearningChapter) => {
-    if (courseTrack === "professor") onProfessorItemChange(next.id);
+    onProfessorItemChange(next.id);
     setMasteryTutorContext(null);
     if (next.id === selectedChapterId) {
       if (selectedMasteryTestId) {
@@ -1013,7 +1009,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
     resetReaderPosition();
   };
   const selectMasteryTest = (test: (typeof unitMasteryTests)[number]) => {
-    if (courseTrack === "professor") onProfessorItemChange(test.id);
+    onProfessorItemChange(test.id);
     setMasteryTutorContext(null);
     const nextChapter = learningChapters.find((chapter) => chapter.id === test.afterChapterId) ?? selectedChapter;
     scrollLockRef.current = null;
@@ -1069,7 +1065,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   };
   const renderChapterRailItem = (item: LearningChapter, chapterNumber: number, unitLabel?: string) => {
     const state = chapterProgress(item.id, completed, practice);
-    const selected = !selectedProfessorChapter && item.id === selectedChapter.id && !selectedMasteryTest;
+    const selected = item.id === selectedChapter.id && !selectedMasteryTest && !selectedProfessorChapter;
     const open = item.id === expandedChapterId;
     const done = state.percent === 100;
     const itemPracticePlan = chapterPracticePlan(item.id);
@@ -1093,8 +1089,8 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
       {itemMasteryTest && (() => {
         const testPassed = practice[itemMasteryTest.id]?.passed?.filter((questionId) => itemMasteryTest.questions.some((question) => question.id === questionId)).length ?? 0;
         const testDone = testPassed === itemMasteryTest.questions.length;
-        const testSelected = !selectedProfessorChapter && selectedMasteryTest?.id === itemMasteryTest.id;
-        const displayTitle = courseTrack === "professor" ? professorMasteryDisplayById.get(itemMasteryTest.id)?.title ?? itemMasteryTest.title : itemMasteryTest.title;
+        const testSelected = selectedMasteryTest?.id === itemMasteryTest.id;
+        const displayTitle = professorMasteryDisplayById.get(itemMasteryTest.id)?.title ?? itemMasteryTest.title;
         return <div className={`contents-section unit-test-root ${testSelected ? "selected" : ""} ${testDone ? "completed" : ""}`}><button className="contents-section-button" onClick={() => selectMasteryTest(itemMasteryTest)}><span className="chapter-number"><GraduationCap size={16} /></span><span className="chapter-copy"><b>{titleCase(displayTitle)}</b><small>Unit-level assessment</small></span><span className="chapter-row-actions">{testDone ? <span className="chapter-done-badge" role="img" aria-label="Unit test complete"><Check size={12} strokeWidth={3.2} /></span> : <small>{testPassed}/{itemMasteryTest.questions.length}</small>}</span></button></div>;
       })()}
     </Fragment>;
@@ -1115,31 +1111,15 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
       </button>
       <div className={`chapter-subsections-shell ${selected ? "expanded" : ""}`} aria-hidden={!selected}><div><div className="part-list">{railSections.map((section, sectionIndex) => {
         const isReview = section.id === reviewSection.id;
-        const reviewPassed = isReview ? chapter.reviewQuestions.filter((question) => passedQuestionIds.has(question.id)).length : 0;
-        const sectionDone = isReview && reviewPassed === chapter.reviewQuestions.length;
-        return <button key={section.id} tabIndex={selected ? 0 : -1} className={`${selected && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => selected && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Review questions complete"><Check size={12} strokeWidth={3.2} /></span> : isReview ? <small>{reviewPassed}/{chapter.reviewQuestions.length}</small> : null}</button>;
+        const sectionQuestionIds = isReview ? chapterPracticePlan(chapter.id).review : chapter.sectionQuestionIds?.[section.id] ?? [];
+        const sectionPassed = sectionQuestionIds.filter((id) => passedQuestionIds.has(id)).length;
+        const sectionDone = sectionQuestionIds.length > 0 && sectionPassed === sectionQuestionIds.length;
+        return <button key={section.id} tabIndex={selected ? 0 : -1} className={`${selected && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => selected && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Section questions complete"><Check size={12} strokeWidth={3.2} /></span> : sectionQuestionIds.length ? <small>{sectionPassed}/{sectionQuestionIds.length}</small> : null}</button>;
       })}</div></div></div>
     </div>;
   };
-  const switchCourseTrack = (next: CourseTrack) => {
-    if (next === courseTrack) return;
-    onCourseTrackChange(next);
-    setMobileContentsOpen(false);
-    window.requestAnimationFrame(() => contentsRailRef.current?.scrollTo({ top: 0 }));
-    if (next === "professor") {
-      const firstChapter = professorAddedChapterById.get("mcneill-lecture-1");
-      if (firstChapter) selectProfessorChapter(firstChapter);
-      return;
-    }
-    setSelectedMasteryTestId(null);
-    setExpandedChapterId(selectedChapter.id);
-    setActiveSectionId(selectedChapter.sections[0]?.id ?? "");
-    resetReaderPosition();
-  };
   /* eslint-disable react-hooks/refs -- These helpers only capture ref-reading callbacks for later click events. */
-  const courseRailContents = courseTrack === "exceler"
-    ? learningChapters.map((item, index) => renderChapterRailItem(item, index + 1, index === 0 || learningChapters[index - 1].unit !== item.unit ? item.unit : undefined))
-    : cisc1115ProfessorTrack.map((group) => <Fragment key={group.id}>
+  const courseRailContents = cisc1115ProfessorTrack.map((group) => <Fragment key={group.id}>
       <p className="course-unit-label">{group.label}</p>
       {group.entries.map((entry) => entry.kind === "added-chapter"
         ? professorAddedChapterById.has(entry.id) && renderProfessorAddedChapterRailItem(professorAddedChapterById.get(entry.id)!)
@@ -1151,20 +1131,21 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
     <div className="continuous-layout">
       <div className="mobile-course-toolbar"><button aria-expanded={mobileContentsOpen} aria-controls="java-course-contents" onClick={() => setMobileContentsOpen((open) => !open)}><span><small>Course Contents</small><b>{activeSectionTitle}</b></span><ChevronDown size={18} /></button></div>
       <button className={`mobile-contents-backdrop ${mobileContentsOpen ? "visible" : ""}`} aria-label="Close course contents" onClick={() => setMobileContentsOpen(false)} />
-      <aside ref={contentsRailRef} className={`contents-rail ${mobileContentsOpen ? "mobile-open" : ""}`} id="java-course-contents" aria-label="Course contents">
+      <aside className={`contents-rail ${mobileContentsOpen ? "mobile-open" : ""}`} id="java-course-contents" aria-label="Course contents">
         <button className="mobile-contents-close" onClick={() => setMobileContentsOpen(false)}><span>Course Contents</span><X size={18} /></button>
-        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{courseTrack === "professor" ? `${professorChapterNumberById.size} chapters` : `${learningChapters.length} chapters`}</span></div>
-        <div className="course-track-switch" role="group" aria-label="CISC 1115 learning path">
-          <button type="button" className={courseTrack === "exceler" ? "selected" : ""} aria-pressed={courseTrack === "exceler"} onClick={() => switchCourseTrack("exceler")}><b>Exceler A</b><small>Mastery order</small></button>
-          <button type="button" className={courseTrack === "professor" ? "selected" : ""} aria-pressed={courseTrack === "professor"} onClick={() => switchCourseTrack("professor")}><b>Professor Track</b><small>Fall 2026 order</small></button>
-        </div>
+        <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{professorChapterNumberById.size} chapters</span></div>
         {courseRailContents}
-        <div className="section-progress-card"><div><span>{courseTrack === "professor" ? "Core Mastery Progress" : "Course Completion"}</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} {courseTrack === "professor" ? "mastery chapters" : "chapters"} cleared</small><p>{courseTrack === "professor" ? "Added syllabus chapters do not reset or dilute existing completion." : "Only passed practice creates course progress. A chapter clears when every exercise passes."}</p></div>
+        <div className="section-progress-card"><div><span>Core Mastery Progress</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} core chapters cleared</small><p>A chapter clears when every exercise passes. Existing completion stays intact as new class material is added.</p></div>
       </aside>
       <div className="chapter-reader" ref={readerRef}>{selectedProfessorChapter ? <article className="chapter-article chapter-swap" key={selectedProfessorChapter.id}>
         <header className="chapter-cover"><h1>{titleCase(selectedProfessorChapter.title)}</h1><p>{selectedProfessorChapter.description}</p></header>
-        <StructuredLesson sections={selectedProfessorChapter.sections} />
-        <ChapterPractice chapterId={selectedProfessorChapter.id} questionIds={selectedProfessorChapter.reviewQuestions.map((question) => question.id)} variant="review" practiceSectionId={`${selectedProfessorChapter.id}-practice`} savedQuestionId={position.questions[`${selectedProfessorChapter.id}-practice`]} onActiveQuestionChange={saveActiveQuestion} record={practice[selectedProfessorChapter.id]} onChange={(record) => onPracticeChange(selectedProfessorChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId.endsWith("-practice")} />
+        <StructuredLesson sections={selectedProfessorChapter.sections} renderAfterSection={(sectionId) => {
+          const questionIds = selectedProfessorChapter.sectionQuestionIds?.[sectionId] ?? [];
+          if (!questionIds.length) return null;
+          const practiceSectionId = `${sectionId}-check`;
+          return <ChapterPractice chapterId={selectedProfessorChapter.id} questionIds={questionIds} variant="checkpoint" practiceSectionId={practiceSectionId} savedQuestionId={position.questions[practiceSectionId]} onActiveQuestionChange={saveActiveQuestion} record={practice[selectedProfessorChapter.id]} onChange={(record) => onPracticeChange(selectedProfessorChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId === sectionId} />;
+        }} />
+        <ChapterPractice chapterId={selectedProfessorChapter.id} questionIds={chapterPracticePlan(selectedProfessorChapter.id).review} variant="review" practiceSectionId={`${selectedProfessorChapter.id}-practice`} savedQuestionId={position.questions[`${selectedProfessorChapter.id}-practice`]} onActiveQuestionChange={saveActiveQuestion} record={practice[selectedProfessorChapter.id]} onChange={(record) => onPracticeChange(selectedProfessorChapter.id, record)} onTutorPracticeContextChange={setPracticeTutorContext} tutorActive={activeSectionId.endsWith("-practice")} />
       </article> : displayedMasteryTest ? <article className="chapter-article chapter-swap unit-test-article" key={displayedMasteryTest.id}>
         <header className="chapter-cover unit-test-cover"><p className="eyebrow">{displayedMasteryTest.unit}</p><h1>{titleCase(displayedMasteryTest.title)}</h1><p>{displayedMasteryTest.description}</p></header>
         <UnitMasteryAssessment test={displayedMasteryTest} record={practice[selectedMasteryTest.id]} onChange={(record) => onPracticeChange(selectedMasteryTest.id, record)} onTutorContextChange={setMasteryTutorContext} />

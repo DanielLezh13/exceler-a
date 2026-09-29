@@ -289,7 +289,7 @@ test("course library places Discrete Structures with computing and reuses existi
   const body=command.slice(command.indexOf("function CoursesView("),command.indexOf("function tutorLessonReference("));
   const unit=ts.transpileModule(`export ${body}`,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   const mod={};
-  new Function("require","exports","learningProgress","mathCourses","mathCourseProgress","emptyMathProgress","courseChapters","ProgressBar","ArrowRight","learningChapters","titleCase",unit)(()=>jsxRuntime,mod,()=>({percent:0,completedChapters:0}),courses.mathCourses,progressTools.mathCourseProgress,progressTools.emptyMathProgress,courses.courseChapters,()=>null,icons.ArrowRight,Array(24).fill({}),x=>x);
+  new Function("require","exports","learningProgress","mathCourses","mathCourseProgress","emptyMathProgress","courseChapters","ProgressBar","ArrowRight","learningChapters","titleCase","professorChapterNumberById",unit)(()=>jsxRuntime,mod,()=>({percent:0,completedChapters:0}),courses.mathCourses,progressTools.mathCourseProgress,progressTools.emptyMathProgress,courses.courseChapters,()=>null,icons.ArrowRight,Array(24).fill({}),x=>x,new Map(Array.from({length:28},(_,index)=>[String(index),index+1])));
   let opened;
   const tree=mod.CoursesView({completed:[],practice:{},math:{},onOpenCourse(){},onOpenMath:id=>{opened=id;}});
   const groups=elements(tree).filter(n=>n.props.className==="course-library-group");

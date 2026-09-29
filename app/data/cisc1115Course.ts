@@ -2,7 +2,11 @@ import { javaValidationCode, validateMasteryAlternative } from "../practiceValid
 import { validateLaterMasteryAlternative } from "../laterMasteryValidation.ts";
 import { gradeBoothPurchase } from "../purchaseValidation.ts";
 import { comparisonWritingQuestions } from "./comparisonWritingPractice.ts";
+import { decisionRangeQuestionsFor } from "./decisionRangePractice.ts";
+import { javaDeepQuestionsFor } from "./javaDeepPractice.ts";
 import { retrievalQuestionsFor } from "./sectionRetrievalPractice.ts";
+import { validateDecisionProgram } from "../decisionPracticeValidation.ts";
+import { equivalentComparisonForms, hasJavaFragmentSyntax, withoutJavaComments } from "../javaSubmissionSyntax.ts";
 
 export type CourseLearningSection = {
   id: string;
@@ -634,7 +638,7 @@ while (input.hasNext()) {
     scores.add(input.nextInt());
 }
 if (scores.isEmpty()) {
-    System.out.printf("Passing: %.2f%%\n", 0.0);
+    System.out.printf("Passing: %.2f%%\\n", 0.0);
 } else {
     int passed = 0;
     for (int i = 0; i < scores.size(); i++) {
@@ -643,7 +647,7 @@ if (scores.isEmpty()) {
         if (score >= 70) passed++;
     }
     double percentage = 100.0 * passed / scores.size();
-    System.out.printf("Passing: %.2f%%\n", percentage);
+    System.out.printf("Passing: %.2f%%\\n", percentage);
 }`,
   "challenge-q10": `ArrayList<String> tasks = new ArrayList<>();
 int choice = input.nextInt();
@@ -734,8 +738,9 @@ if (scores.isEmpty()) {
 const containsCode = (id: string, level: CoursePracticeQuestion["level"], title: string, prompt: string, required: Array<string | RegExp>, hint: string, success: string): CoursePracticeQuestion => ({
   id, level, kind: "Editor challenge", title, prompt, placeholder: "Write Java code that satisfies every requirement", hint, answer: containsCodeSampleAnswers[id], success, auditRequirements: required.map((requirement) => typeof requirement === "string" ? requirement : requirement.source.replaceAll("\\", "")), multiline: true, productionStage: 3,
   validate: (answer) => validateWithOptionalTerminalNewline(answer, containsCodeSampleAnswers[id], (candidate) => {
-    const code = compactCode(candidate);
-    return required.every((requirement) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code));
+    if (!hasJavaFragmentSyntax(candidate)) return false;
+    const forms = equivalentComparisonForms(candidate).map(compactCode);
+    return required.every((requirement) => forms.some((code) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code)));
   }),
 });
 
@@ -882,11 +887,13 @@ const independentBuild = (id: string, title: string, prompt: string, answer: str
     multiline: true,
     productionStage,
     validate: (answerValue) => validateWithOptionalTerminalNewline(answerValue, answer, (candidate) => {
-      if (id === "unit1-build-purchase") return gradeBoothPurchase(candidate).correct;
-      const code = javaValidationCode(candidate);
-      return required.every((requirement) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code))
-        || validateMasteryAlternative(id, candidate)
-        || validateLaterMasteryAlternative(id, candidate);
+      if (!hasJavaFragmentSyntax(candidate)) return false;
+      const uncommented = withoutJavaComments(candidate);
+      if (id === "unit1-build-purchase") return gradeBoothPurchase(uncommented).correct;
+      const forms = equivalentComparisonForms(uncommented).map(javaValidationCode);
+      return required.every((requirement) => forms.some((code) => typeof requirement === "string" ? code.includes(compactCode(requirement)) : requirement.test(code)))
+        || validateMasteryAlternative(id, uncommented)
+        || validateLaterMasteryAlternative(id, uncommented);
     }),
   };
 };
@@ -1352,10 +1359,23 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     codeExact("bool-q2", "Warm-up", "Fill missing operator", "Compare for equality", "Replace the blank so the expression asks whether score equals 100.", "boolean perfect = score ___ 100;", "boolean perfect = score == 100;", "Assignment uses one equals sign; equality comparison uses two.", "Correct. == asks an equality question."),
     exact("bool-q3", "Apply", "Trace AND", "Require both conditions", "What is the exact output?", "int age = 20;\nboolean hasId = false;\nSystem.out.println(age >= 18 && hasId);", "false", "AND requires both sides to be true.", "Correct. The age condition is true, but hasId is false."),
     exact("bool-q4", "Apply", "Trace OR and NOT", "Combine alternatives", "What prints?", "boolean member = false;\nint age = 10;\nboolean free = member || age < 12;\nSystem.out.println(!free);", "false", "First determine free, then reverse it with !.", "Correct. free is true because age < 12, so !free is false."),
-    codeExact("bool-q5", "Apply", "Write a range", "Keep a score in range", "Write one boolean declaration named valid that is true when score is from 0 through 100 inclusive.", "int score = 72;", "boolean valid = score >= 0 && score <= 100;", "Both the lower and upper boundary must be satisfied.", "Correct. && combines the inclusive boundaries."),
+    {
+      ...codeExact("bool-q5", "Apply", "Write a range", "Keep a score in range", "Write one boolean declaration named valid that is true when score is from 0 through 100 inclusive.", "int score = 72;", "boolean valid = score >= 0 && score <= 100;", "Both the lower and upper boundary must be satisfied.", "Correct. && combines the inclusive boundaries."),
+      validate: (answer: string) => validateDecisionProgram(answer, { score: "int" }, [-1, 0, 1, 99, 100, 101].map((score) => ({ values: { score }, expected: score >= 0 && score <= 100 })), { requiredVariableTypes: { valid: "boolean" }, resultVariable: "valid" }),
+    },
     exact("bool-q6", "Apply", "Trace precedence", "Reduce a long condition", "What is the exact output?", "int score = 85;\nboolean result = score >= 70 && score < 90 || score == 100;\nSystem.out.println(result);", "true", "Resolve the comparisons, then &&, then ||.", "Correct. true && true becomes true, and true || false remains true."),
-    codeExact("bool-q7", "Challenge", "Repair logic", "Fix the impossible range", "Rewrite the declaration so inside is true for values from 10 through 20 inclusive.", "boolean inside = value >= 10 || value <= 20;", "boolean inside = value >= 10 && value <= 20;", "A single value must satisfy both boundaries.", "Correct. && expresses membership inside one range."),
-    containsCode("bool-q8", "Challenge", "Build an access expression", "Declare boolean allowed. It must be true when the user is an admin OR when the user is at least 18 AND hasId is true. Preserve that grouping with parentheses.", [/booleanallowed=admin\|\|\(age>=18&&hasId\);/], "Group the two ordinary-user requirements before combining them with admin.", "The expression clearly preserves the admin alternative and both ordinary requirements."),
+    {
+      ...codeExact("bool-q7", "Challenge", "Repair logic", "Fix the impossible range", "Rewrite the declaration so inside is true for values from 10 through 20 inclusive.", "boolean inside = value >= 10 || value <= 20;", "boolean inside = value >= 10 && value <= 20;", "A single value must satisfy both boundaries.", "Correct. && expresses membership inside one range."),
+      validate: (answer: string) => validateDecisionProgram(answer, { value: "int" }, [9, 10, 11, 19, 20, 21].map((value) => ({ values: { value }, expected: value >= 10 && value <= 20 })), { requiredVariableTypes: { inside: "boolean" }, resultVariable: "inside" }),
+    },
+    {
+      ...containsCode("bool-q8", "Challenge", "Build an access expression", "Declare boolean allowed. It must be true when the user is an admin OR when the user is at least 18 AND hasId is true. Preserve that grouping with parentheses.", [], "Group the two ordinary-user requirements before combining them with admin.", "The expression clearly preserves the admin alternative and both ordinary requirements."),
+      auditRequirements: ["boolean allowed", "admin exception", "adult with ID", "parentheses around combined ordinary-user requirements"],
+      validate: (answer: string) => validateDecisionProgram(answer, { admin: "boolean", age: "int", hasId: "boolean" },
+        [false, true].flatMap((admin) => [17, 18, 19].flatMap((age) => [false, true].map((hasId) => ({
+          values: { admin, age, hasId }, expected: admin || (age >= 18 && hasId),
+        })))), { requiredVariableTypes: { allowed: "boolean" }, resultVariable: "allowed", requireParenthesizedAnd: true }),
+    },
     exact("bool-q9-ternary", "Apply", "Trace a conditional expression", "Choose one String value", "What is the exact output?", "int score = 68;\nString result = score >= 70 ? \"Pass\" : \"Retry\";\nSystem.out.println(result);", "Retry", "Evaluate the condition first, then use exactly one of the two values.", "Correct. The false condition selects the value after the colon."),
     codeExact("bool-q10-ternary", "Apply", "Write a conditional expression", "Choose the larger value", "Write the complete declaration using the conditional operator so larger stores first when first > second, otherwise second.", "int first = 12;\nint second = 19;\n// write the declaration", "int larger = first > second ? first : second;", "Use condition ? valueWhenTrue : valueWhenFalse.", "Correct. The expression produces exactly one int value."),
   ],
@@ -1366,8 +1386,30 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     codeExact("if-q4", "Apply", "Fix equality", "Repair the choice check", "Rewrite the first line as a valid condition that checks choice equals 2.", "if (choice = 2) {", "if (choice == 2) {", "Use comparison, not assignment.", "Correct. == compares the stored choice with 2."),
     exact("if-q5", "Apply", "Trace nested conditions", "Follow the reached path", "What prints?", "int age = 20;\nboolean hasId = false;\nif (age >= 18) {\n    if (hasId) {\n        System.out.println(\"Allowed\");\n    } else {\n        System.out.println(\"ID required\");\n    }\n} else {\n    System.out.println(\"Too young\");\n}", "ID required", "The outer condition succeeds; trace only its nested decision.", "Correct. Adult age reaches the inner branch, where hasId is false."),
     codeExact("if-q6", "Apply", "Repair braces", "Keep both statements conditional", "Rewrite the code so both println statements run only when score is at least 70.", "if (score >= 70)\n    System.out.println(\"Pass\");\nSystem.out.println(\"Recorded\");", "if (score >= 70) {\nSystem.out.println(\"Pass\");\nSystem.out.println(\"Recorded\");\n}", "Braces must surround both controlled statements.", "Correct. Both statements now belong to the same branch.", true),
-    containsCode("if-q7", "Challenge", "Build a validated grade decision", "For int score, print Invalid when score is outside 0-100, A for 90+, B for 80+, C for 70+, and Below C otherwise. Use one ordered if/else-if/else chain.", [/if\((?:score<0\|\|score>100|score>100\|\|score<0)\)/, /elseif\(score>=90\)/, /elseif\(score>=80\)/, /elseif\(score>=70\)/, /else\{/], "Place invalid input first, then order valid thresholds from highest to lowest.", "The chain validates, classifies every valid score, and covers the remaining case."),
-    containsCode("if-q8", "Challenge", "Build a ticket decision", "Given int age and boolean member, store double price as 0.0 for age under 5, 8.0 for members or age 65+, and 12.0 otherwise. Then print Price: followed by price.", ["double price;", /if\(age<5\)/, "price=0.0;", /elseif\(member\|\|age>=65\)/, "price=8.0;", "price=12.0;", /System\.out\.println\("Price:"\+price\);/], "Declare price once, assign it in every branch, then print after the chain.", "The program selects one price from three mutually exclusive cases."),
+    {
+      ...containsCode("if-q7", "Challenge", "Build a validated grade decision", "For int score, print Invalid when score is outside 0-100, A for 90+, B for 80+, C for 70+, and Below C otherwise. Use one ordered if/else-if/else chain.", [], "Place invalid input first, then order valid thresholds from highest to lowest.", "The chain validates, classifies every valid score, and covers the remaining case."),
+      auditRequirements: ["one if/else-if/else chain", "Invalid outside 0-100", "A at 90-100", "B at 80-89", "C at 70-79", "Below C at 0-69"],
+      validate: (answer: string) => validateDecisionProgram(answer, { score: "int" }, [
+        { values: { score: -1 }, expected: "Invalid" },
+        { values: { score: 0 }, expected: "Below C" },
+        { values: { score: 69 }, expected: "Below C" },
+        { values: { score: 70 }, expected: "C" },
+        { values: { score: 79 }, expected: "C" },
+        { values: { score: 80 }, expected: "B" },
+        { values: { score: 89 }, expected: "B" },
+        { values: { score: 90 }, expected: "A" },
+        { values: { score: 100 }, expected: "A" },
+        { values: { score: 101 }, expected: "Invalid" },
+      ], { requireSingleIfElseChain: true }),
+    },
+    {
+      ...containsCode("if-q8", "Challenge", "Build a ticket decision", "Given int age and boolean member, store double price as 0.0 for age under 5, 8.0 for members or age 65+, and 12.0 otherwise. Then print Price: followed by price.", [], "Declare price once, assign it in every branch, then print after the chain.", "The program selects one price from three mutually exclusive cases."),
+      auditRequirements: ["double price", "0.0 for age under 5", "8.0 for member or age 65+", "12.0 otherwise", "print Price: followed by price"],
+      validate: (answer: string) => validateDecisionProgram(answer, { age: "int", member: "boolean" },
+        [0, 4, 5, 64, 65, 90].flatMap((age) => [false, true].map((member) => ({
+          values: { age, member }, expected: `Price: ${age < 5 ? "0.0" : member || age >= 65 ? "8.0" : "12.0"}`,
+        }))), { requiredVariableTypes: { price: "double" } }),
+    },
   ],
   "decision-programs": [
     exact("decision-q1", "Warm-up", "Trace validation", "Reject impossible input", "What prints?", "int score = 105;\nif (score < 0 || score > 100) {\n    System.out.println(\"Invalid\");\n} else if (score >= 70) {\n    System.out.println(\"Pass\");\n} else {\n    System.out.println(\"Retry\");\n}", "Invalid", "Validation runs before classification.", "Correct. 105 is outside the allowed range."),
@@ -1376,7 +1418,18 @@ const authoredPracticeQuestions: Record<string, CoursePracticeQuestion[]> = {
     codeExact("decision-q4", "Apply", "Fix a range chain", "Remove the gap", "Rewrite only the second condition so every valid value above 5 and through 20 is Medium.", "if (weight <= 5) {\n    System.out.println(\"Small\");\n} else if (weight > 6 && weight <= 20) {\n    System.out.println(\"Medium\");\n}", "else if (weight <= 20) {", "The failed first branch already tells Java weight is greater than 5.", "Correct. The simplified condition covers 6 through 20 with no gap."),
     exact("decision-q5", "Apply", "Trace a menu", "Choose the operation", "What prints when choice is 2?", "int a = 4;\nint b = 3;\nint choice = 2;\nif (choice == 1) {\n    System.out.println(a + b);\n} else if (choice == 2) {\n    System.out.println(a * b);\n} else {\n    System.out.println(\"Invalid\");\n}", "12", "Choice 2 selects multiplication.", "Correct. The second branch prints 4 × 3."),
     codeExact("decision-q6", "Apply", "Repair branch order", "Make A reachable", "Rewrite the chain headers in the correct order so scores 90+ receive A and scores 70-89 receive Pass.", "if (score >= 70) {\n    System.out.println(\"Pass\");\n} else if (score >= 90) {\n    System.out.println(\"A\");\n}", "if (score >= 90) {\nSystem.out.println(\"A\");\n} else if (score >= 70) {\nSystem.out.println(\"Pass\");\n}", "Test the most restrictive overlapping threshold first.", "Correct. Scores 90+ no longer get captured by the broader 70+ branch.", true),
-    containsCode("decision-q7", "Challenge", "Build a three-value maximum", "Given int a, b, and c, calculate int max without using Math.max. Initialize one candidate, compare the other two, and print Max: followed by max.", ["int max=a;", /if\(b>max\)/, "max=b;", /if\(c>max\)/, "max=c;", /System\.out\.println\("Max:"\+max\);/], "Keep one best-so-far variable and update it independently for b and c.", "The program correctly keeps the largest of all three values."),
+    {
+      ...containsCode("decision-q7", "Challenge", "Build a three-value maximum", "Given int a, b, and c, calculate int max without using Math.max. Initialize one candidate, compare the other two, and print Max: followed by max.", [], "Keep one best-so-far variable and update it independently for b and c.", "The program correctly keeps the largest of all three values."),
+      auditRequirements: ["int max", "compare all three values", "print Max: followed by max"],
+      validate: (answer: string) => validateDecisionProgram(answer, { a: "int", b: "int", c: "int" }, [
+        { values: { a: 3, b: 2, c: 1 }, expected: "Max: 3" },
+        { values: { a: 1, b: 3, c: 2 }, expected: "Max: 3" },
+        { values: { a: 1, b: 2, c: 3 }, expected: "Max: 3" },
+        { values: { a: -5, b: -2, c: -7 }, expected: "Max: -2" },
+        { values: { a: 4, b: 4, c: 4 }, expected: "Max: 4" },
+        { values: { a: 9, b: -9, c: 9 }, expected: "Max: 9" },
+      ], { requiredVariableTypes: { max: "int" } }),
+    },
     containsCode("decision-q8", "Challenge", "Build an eligibility program", "Read int age and boolean hasId. Print Invalid age for age below 0, Entry approved for age 18+ with ID, ID required for age 18+ without ID, and Entry denied otherwise.", ["int age=input.nextInt();", "boolean hasId=input.nextBoolean();", /if\(age<0\)/, /elseif\(age>=18&&hasId\)/, /elseif\(age>=18\)/, /else\{/], "Order the cases so invalid input is rejected before valid eligibility decisions.", "The program distinguishes all four required outcomes."),
   ],
   "while-loops": [
@@ -2080,6 +2133,14 @@ const authoredSectionPracticeQuestionIds: Record<string, Record<string, string[]
   "comparisons-booleans": {
     "booleans-conditional": ["bool-q9-ternary", "bool-q10-ternary"],
   },
+  "if-else": {
+    "if-branch": ["if-q2"],
+    "if-else-pair": ["if-q1"],
+    "if-else-if": ["if-q3"],
+    "if-nested": ["if-q5"],
+    "if-braces": ["if-q6"],
+    "if-common-mistakes": ["if-q4"],
+  },
   "while-loops": {
     "while-do-while": ["while-q9-do", "while-q10-do"],
   },
@@ -2185,6 +2246,8 @@ const generatedSectionPractice = Object.fromEntries(chapterSpecs.map((chapter) =
     }
 
     sectionQuestions.push(...retrievalQuestionsFor(chapter.id, section.id));
+    sectionQuestions.push(...decisionRangeQuestionsFor(chapter.id, section.id));
+    sectionQuestions.push(...javaDeepQuestionsFor(chapter.id, section.id));
     questions.push(...sectionQuestions);
     sectionIds[section.id] = sectionQuestions.map((question) => question.id);
   });
@@ -2199,12 +2262,17 @@ export const additionalSectionPracticeQuestionIds: Record<string, Record<string,
     const production = independentProductionSectionIds[chapterId] ?? {};
     const distributedProduction = distributedProductionSectionIds[chapterId] ?? {};
     const sectionIds = Object.fromEntries(
-      Object.entries(practice.sectionIds).map(([sectionId, ids]) => [
-        sectionId,
-        chapterId === "input-basic-programs"
-          ? [...(authored[sectionId] ?? ids), ...(distributedProduction[sectionId] ?? []), ...(production[sectionId] ?? [])]
-          : [...ids, ...(authored[sectionId] ?? []), ...(mastery[sectionId] ?? []), ...(distributedProduction[sectionId] ?? []), ...(production[sectionId] ?? [])],
-      ]),
+      Object.entries(practice.sectionIds).map(([sectionId, ids]) => {
+        const decisionIds = new Set(decisionRangeQuestionsFor(chapterId, sectionId).map((question) => question.id));
+        return [
+          sectionId,
+          chapterId === "input-basic-programs"
+            ? [...(authored[sectionId] ?? ids), ...(distributedProduction[sectionId] ?? []), ...(production[sectionId] ?? [])]
+            : chapterId === "if-else"
+              ? [...ids.filter((id) => !decisionIds.has(id)), ...(authored[sectionId] ?? []), ...(mastery[sectionId] ?? []), ...(distributedProduction[sectionId] ?? []), ...ids.filter((id) => decisionIds.has(id)), ...(production[sectionId] ?? [])]
+              : [...ids, ...(authored[sectionId] ?? []), ...(mastery[sectionId] ?? []), ...(distributedProduction[sectionId] ?? []), ...(production[sectionId] ?? [])],
+        ];
+      }),
     );
     return [chapterId, sectionIds];
   }),

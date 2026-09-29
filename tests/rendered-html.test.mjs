@@ -316,6 +316,40 @@ test("validated grade accepts either order of the invalid-range check", () => {
   assert.equal(question.validate(question.answer.replace("score < 0 || score > 100", "score < 0 && score > 100")), false);
 });
 
+test("Java production graders reject syntax errors and answers hidden in comments", () => {
+  const questions = [
+    ...Object.values(additionalPracticeQuestions).flat(),
+    ...unitMasteryTests.flatMap((masteryTest) => masteryTest.questions),
+  ].filter((question) => question.answer && ["Editor challenge", "Write from requirements", "Independent build", "Blank-editor mastery"].includes(question.kind));
+
+  assert.ok(questions.length >= 170, "the production-question audit should cover the full Java course");
+  for (const question of questions) {
+    assert.equal(question.validate(question.answer), true, `${question.id} rejects its shown answer`);
+    assert.equal(question.validate(`${question.answer}\nTHIS IS NOT JAVA;`), false, `${question.id} accepts malformed Java`);
+    assert.equal(question.validate(`/* ${question.answer} */`), false, `${question.id} accepts code only in a comment`);
+  }
+});
+
+test("Java production graders accept reversed equivalent comparisons", () => {
+  const questions = [
+    ...Object.values(additionalPracticeQuestions).flat(),
+    ...unitMasteryTests.flatMap((masteryTest) => masteryTest.questions),
+  ].filter((question) => question.answer && ["Editor challenge", "Write from requirements", "Independent build", "Blank-editor mastery"].includes(question.kind));
+  const flipped = { ">=": "<=", "<=": ">=", ">": "<", "<": ">" };
+  let checked = 0;
+  for (const question of questions) {
+    const match = [...question.answer.matchAll(/\b([A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?)\s*(>=|<=|>|<)\s*([A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?)/g)]
+      .find((candidate) => !/(?:[.(>]|\[)/.test(question.answer[candidate.index + candidate[0].length] ?? "") && !/[.\w$]/.test(question.answer[candidate.index - 1] ?? ""));
+    if (!match) continue;
+    const alternate = question.answer.slice(0, match.index)
+      + `${match[3]} ${flipped[match[2]]} ${match[1]}`
+      + question.answer.slice(match.index + match[0].length);
+    assert.equal(question.validate(alternate), true, `${question.id} rejects a reversed equivalent comparison`);
+    checked += 1;
+  }
+  assert.ok(checked >= 70, "the equivalence audit should cover many code questions");
+});
+
 test("the rectangle build accepts print and println", () => {
   const question = additionalPracticeQuestions["input-basic-programs"].find(({ id }) => id === "input-complete-q1");
   assert.ok(question);
