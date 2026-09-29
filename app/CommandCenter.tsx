@@ -884,6 +884,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const [selectedChapterId, setSelectedChapterId] = useState(initialChapter.id);
   const [selectedMasteryTestId, setSelectedMasteryTestId] = useState<string | null>(initiallyViewingMastery ? initialMasteryTest?.id ?? null : null);
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(initialChapter.id);
+  const [collapsedAddedChapterId, setCollapsedAddedChapterId] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState(initialSectionId);
   const [mobileContentsOpen, setMobileContentsOpen] = useState(false);
   const [practiceTutorContext, setPracticeTutorContext] = useState<TutorPracticeContext | null>(null);
@@ -1021,6 +1022,11 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
     resetReaderPosition();
   };
   const selectProfessorChapter = (chapter: ProfessorTrackAddedChapter) => {
+    if (selectedProfessorChapter?.id === chapter.id) {
+      setCollapsedAddedChapterId((current) => current === chapter.id ? null : chapter.id);
+      return;
+    }
+    setCollapsedAddedChapterId(null);
     setPracticeTutorContext(null);
     setMasteryTutorContext(null);
     setSelectedMasteryTestId(null);
@@ -1097,24 +1103,25 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   };
   const renderProfessorAddedChapterRailItem = (chapter: ProfessorTrackAddedChapter) => {
     const selected = selectedProfessorChapter?.id === chapter.id;
+    const open = selected && collapsedAddedChapterId !== chapter.id;
     const chapterNumber = professorChapterNumberById.get(chapter.id) ?? 0;
     const state = chapterProgress(chapter.id, completed, practice);
     const passedQuestionIds = new Set(practice[chapter.id]?.passed ?? []);
     const reviewSection = { id: `${chapter.id}-practice`, title: "Chapter Review" };
     const railSections = [...chapter.sections, reviewSection];
     const done = state.percent === 100;
-    return <div key={chapter.id} className={`contents-section ${selected ? "selected open" : ""} ${done ? "completed" : ""}`}>
-      <button className="contents-section-button" aria-expanded={selected} onClick={() => selectProfessorChapter(chapter)}>
+    return <div key={chapter.id} className={`contents-section ${selected ? "selected" : ""} ${open ? "open" : ""} ${done ? "completed" : ""}`}>
+      <button className="contents-section-button" aria-expanded={open} onClick={() => selectProfessorChapter(chapter)}>
         <span className="chapter-number">{String(chapterNumber).padStart(2, "0")}</span>
         <span className="chapter-copy"><b>{titleCase(chapter.title)}</b></span>
         <span className="chapter-row-actions">{done && <span className="chapter-done-badge" role="img" aria-label="Chapter review complete"><Check size={12} strokeWidth={3.2} /></span>}<ChevronDown size={15} /></span>
       </button>
-      <div className={`chapter-subsections-shell ${selected ? "expanded" : ""}`} aria-hidden={!selected}><div><div className="part-list">{railSections.map((section, sectionIndex) => {
+      <div className={`chapter-subsections-shell ${open ? "expanded" : ""}`} aria-hidden={!open}><div><div className="part-list">{railSections.map((section, sectionIndex) => {
         const isReview = section.id === reviewSection.id;
         const sectionQuestionIds = isReview ? chapterPracticePlan(chapter.id).review : chapter.sectionQuestionIds?.[section.id] ?? [];
         const sectionPassed = sectionQuestionIds.filter((id) => passedQuestionIds.has(id)).length;
         const sectionDone = sectionQuestionIds.length > 0 && sectionPassed === sectionQuestionIds.length;
-        return <button key={section.id} tabIndex={selected ? 0 : -1} className={`${selected && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => selected && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Section questions complete"><Check size={12} strokeWidth={3.2} /></span> : sectionQuestionIds.length ? <small>{sectionPassed}/{sectionQuestionIds.length}</small> : null}</button>;
+        return <button key={section.id} tabIndex={open ? 0 : -1} className={`${open && activeSectionId === section.id ? "active" : ""} ${sectionDone ? "completed" : ""}`} onClick={() => open && scrollToSection(section.id)}><span className="part-index">{String(sectionIndex + 1).padStart(2, "0")}</span><b>{titleCase(section.title)}</b>{sectionDone ? <span className="part-done" role="img" aria-label="Section questions complete"><Check size={12} strokeWidth={3.2} /></span> : sectionQuestionIds.length ? <small>{sectionPassed}/{sectionQuestionIds.length}</small> : null}</button>;
       })}</div></div></div>
     </div>;
   };

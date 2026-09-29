@@ -14,6 +14,10 @@ Reviewed `Quiz 1 Study Guide.pdf`, `Quiz 2 Study Guide.pdf`, `HW1.pdf`, `HW3.pdf
 
 The Number Systems chapter ends with a mixed conversion challenge. The existing Unit I Mastery Test questions and saved assessment IDs remain unchanged: inserting a new required question into a previously completed test would retroactively mark that test incomplete. This is a deliberate preservation choice; the new chapter is required in the merged route and keeps its own saved question IDs. Existing 24 core chapter progress is displayed separately from the four added syllabus chapters.
 
+## Computers & Programs section checks
+
+The first foundations chapter had 19 useful questions, but all appeared in the final review. Each of its nine parts now places one to three of those existing questions immediately after the matching lesson, with three mixed questions left for the chapter review. This lets a learner complete Part 1 where it is taught and see each part turn green. No new question IDs or requirements were added, so previously passed answers still count. More Java writing was deliberately not added to this conceptual chapter: its role is to establish the computer and program model before Java syntax begins.
+
 ## Validator boundaries
 
 Conversion answers accept case and harmless base prefixes/leading zeros while checking numeric value. The complete-program checker parses a single Java class, main method, Scanner reads, and the taught loop-free statement subset, then checks several input cases. It accepts different local names, casts, separate declarations, `print` or `println` where output is equivalent, and alternative branch structures supported by the taught subset. It rejects hard-coded sample output and wrong boundaries. This bounded checker does not claim to compile arbitrary Java or support untaught helper methods.

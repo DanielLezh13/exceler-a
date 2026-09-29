@@ -68,6 +68,19 @@ test("Lecture 1 chapter covers the professor's foundations without requiring arr
   assert.match(content, /does not require array syntax or sorting code/i);
 });
 
+test("each Computers & Programs part has practice and keeps existing question identities", () => {
+  const chapter = cisc1115ProfessorAddedChapters.find((item) => item.id === "mcneill-lecture-1");
+  const allIds = new Set(chapter.reviewQuestions.map((question) => question.id));
+  const sectionIds = chapter.sections.map((section) => section.id);
+  const placedIds = sectionIds.flatMap((id) => chapter.sectionQuestionIds?.[id] ?? []);
+  assert.deepEqual(Object.keys(chapter.sectionQuestionIds), sectionIds);
+  assert.ok(sectionIds.every((id) => chapter.sectionQuestionIds[id].length > 0), "every part needs an answerable section check");
+  assert.equal(new Set(placedIds).size, placedIds.length, "a question belongs to only one section check");
+  assert.ok(placedIds.every((id) => allIds.has(id)), "existing saved question IDs must be used");
+  assert.deepEqual(chapter.sectionQuestionIds["mcneill-programming"], ["mcneill-foundations-program"]);
+  assert.equal(chapter.reviewQuestions.filter((question) => !placedIds.includes(question.id)).length, 3, "a short cumulative review remains");
+});
+
 test("the timed chapters expose Math and text/file material at the syllabus points", () => {
   const math = addedChapterText("mcneill-math-functions");
   for (const pattern of [/Math\.sqrt/, /Math\.pow/, /Math\.abs/, /Math\.min/, /Math\.max/, /Math\.floor/, /Math\.ceil/, /Math\.round/, /Math\.random/, /Math\.PI/]) assert.match(math, pattern);
