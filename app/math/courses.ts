@@ -8,10 +8,11 @@ import { cisc3130 } from "../data/cisc3130.ts";
 import { cisc3140 } from "../data/cisc3140.ts";
 import { cisc3310 } from "../data/cisc3310.ts";
 import { cisc3305 } from "../data/cisc3305.ts";
+import { anth1200 } from "../data/anth1200.ts";
 import type { MathCourse, MathQuestion } from "./types.ts";
 
 // Shared written-answer engine: subject placement is determined by course.code.
-export const mathCourses: MathCourse[] = [math1006, math1011, math1201, math1206, cisc2210, cisc3115, cisc3130, cisc3140, cisc3310, cisc3305];
+export const mathCourses: MathCourse[] = [math1006, math1011, math1201, math1206, cisc2210, cisc3115, cisc3130, cisc3140, cisc3310, cisc3305, anth1200];
 export const courseChapters = (course: MathCourse) => course.units.flatMap(unit => unit.chapters);
 export const chapterQuestions = (chapter: ReturnType<typeof courseChapters>[number]) => [...chapter.sections.flatMap(section => section.questions), ...chapter.review];
 export const courseQuestions = (course: MathCourse): MathQuestion[] => course.units.flatMap(unit => [...unit.chapters.flatMap(chapterQuestions), ...unit.assessment.questions]);

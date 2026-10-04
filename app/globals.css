@@ -41,6 +41,8 @@
 .math-practice-solution .math-solution { padding:0; margin:0; background:transparent; border:0; }
 .math-practice-solution .math-solution li { font-size:13px; }
 .math-working-snapshot summary { font-size:11px; color:#929b96; cursor:pointer; }
+.math-working-snapshot label { display:block; margin-top:12px; color:#aab7ad; font-size:12px; line-height:1.6; }
+.math-working-snapshot textarea { display:block; width:100%; margin-top:8px; min-height:100px; resize:vertical; border:1px solid #3d4541; border-radius:12px; background:#090c0c; color:#f0f3f1; padding:12px; font:13px/1.6 var(--font-geist-sans); }
 .math-practice .question-route { gap:8px; overflow-x:auto; padding:4px; }
 .math-practice .question-route::before { top:21px; }
 .math-feedback { margin:8px 0 0; font-size:13px; line-height:1.6; }

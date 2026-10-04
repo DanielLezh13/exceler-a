@@ -160,11 +160,20 @@ function intervals(s: string): Interval[] {
 export function gradeField(field: MathField, answer: string): { passed: boolean; feedback: string } {
   if (!answer.trim()) return { passed: false, feedback: "No answer submitted for this part." };
   try {
+    if (field.kind === "text") {
+      // Short, bounded recall answers: explicit synonyms, never substring or fuzzy matching.
+      const normalize = (value: string) => {
+        const cleaned = value.normalize("NFKC").trim().replace(/\s+/g, " ").replace(/[.!?]+\s*$/, "").trim();
+        return field.caseSensitive ? cleaned : cleaned.toLocaleLowerCase("en-US");
+      };
+      const passed = [field.answer, ...(field.acceptedAnswers ?? [])].some(value => normalize(value) === normalize(answer));
+      return { passed, feedback: passed ? "Accepted: this matches the required term or fact." : "Not yet. Check the requested term or fact. A short answer is enough; use the hint or compare with the example answer." };
+    }
     if (field.kind === "code" && field.machine) return gradeMachine(answer, field.machine);
     if (["logic", "pairs", "sequence", "bits"].includes(field.kind)) return gradeDiscreteField(field, answer, evaluateMath);
     let passed = false;
     if (field.kind === "code") passed = compactCode(answer) === compactCode(field.answer);
-    else if (field.kind === "choice") passed = normalizeMath(answer) === normalizeMath(field.answer);
+    else if (field.kind === "choice") return { passed: normalizeMath(answer) === normalizeMath(field.answer), feedback: normalizeMath(answer) === normalizeMath(field.answer) ? "Accepted: this choice matches the question." : "Not yet. Compare the distinctions in the question and try again." };
     else if (field.kind === "function") {
       const strip=(s:string)=>s.replace(/^\s*(?:y'?|[fg]'?\s*\(\s*x\s*\))\s*=\s*/i, "");
       const verdict=equivalentFunctions(parse(strip(answer)),parse(strip(field.answer)),valueOf);

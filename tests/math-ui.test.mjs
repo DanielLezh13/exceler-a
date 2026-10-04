@@ -306,7 +306,7 @@ test("all written-course entry routes publish metadata while the authenticated w
     assert.equal(response.status,200,course.code);
     const html=await response.text();
     assert.ok(html.includes(course.code));
-    const title={math1006:"College Algebra",math1011:"Precalculus",math1201:"Calculus I",math1206:"Calculus II",cisc2210:"Discrete Structures",cisc3115:"Modern Programming Techniques",cisc3130:"Data Structures",cisc3140:"Large-Scale Applications",cisc3310:"Principles of Computer Architecture",cisc3305:"Computer Organization"}[course.id];
+    const title={math1006:"College Algebra",math1011:"Precalculus",math1201:"Calculus I",math1206:"Calculus II",cisc2210:"Discrete Structures",cisc3115:"Modern Programming Techniques",cisc3130:"Data Structures",cisc3140:"Large-Scale Applications",cisc3310:"Principles of Computer Architecture",cisc3305:"Computer Organization",anth1200:"Human Origins"}[course.id];
     assert.ok(html.includes(`<title>${title} · ${course.code}`),course.code);
     assert.ok(html.includes("Loading your workspace"),course.code);
     assert.doesNotMatch(html,/sk-proj-|OPENAI_API_KEY/);

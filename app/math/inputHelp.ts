@@ -3,6 +3,7 @@ import type { MathField, MathQuestion } from "./types.ts";
 // Input notation only: never derive a hint from the reference answer.
 export function mathInputHelp(question: MathQuestion, field: MathField): string | undefined {
   if (field.kind === "choice") return;
+  if (field.kind === "text") return field.caseSensitive ? "Type the requested short answer. Letter case matters here (for example, A and a are different alleles)." : "Type the requested term or short phrase. Capitalization, extra spaces, and final punctuation do not matter. Common equivalent terms are accepted.";
   if (field.machine) return `Teaching assembly: one instruction per line, optional commas, labels ending in :, and ; comments. Registers R0–R7 hold signed 32-bit integers and start at zero except specified inputs. Memory has 256 word-indexed cells. Available instructions: ${field.machine.allowed.join(", ")}. Equivalent programs are checked by execution across multiple inputs.`;
   if (field.kind === "code") return field.language === "java" ? "Write the requested Java fragment or program. Spacing and indentation may vary; names, syntax, and behavior must match the prompt." : "Write the requested code exactly enough to preserve its names, syntax, and behavior. Spacing and indentation may vary.";
   if (field.kind === "logic") return `Type letters with not, and, or, xor${question.requires.includes("implication") ? ", -> (implies), or <-> (if and only if)" : ""}. Example: p and (not q). Parentheses make grouping explicit; equivalent formulas are accepted.`;

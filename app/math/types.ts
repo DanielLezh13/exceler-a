@@ -1,9 +1,11 @@
-export type MathAnswerKind = "number" | "expression" | "function" | "set" | "interval" | "choice" | "logic" | "pairs" | "sequence" | "bits" | "code";
+export type MathAnswerKind = "number" | "expression" | "function" | "set" | "interval" | "choice" | "logic" | "pairs" | "sequence" | "bits" | "code" | "text";
 export type MathField = {
   label: string;
   answer: string;
   kind: MathAnswerKind;
   options?: string[];
+  acceptedAnswers?: string[];
+  caseSensitive?: boolean;
   tolerance?: number;
   form?: "factored" | "expanded";
   language?: "java" | "javascript" | "html" | "css" | "sql" | "text";
@@ -55,7 +57,7 @@ export type MathCourse = {
   title: string;
   description: string;
   prerequisites: string[];
-  sources: { title: string; url: string }[];
+  sources: { title: string; url?: string }[];
   units: MathUnit[];
 };
 export type MathResponse = { values: string[]; working: string };

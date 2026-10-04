@@ -11,10 +11,10 @@ const canonical=q=>({values:q.fields.map(f=>f.answer),working:"My exact working\
 
 test("all math courses have a complete, reachable, forward-only sequence",()=>{
   assert.deepEqual(auditMathCourses(),[]);
-  assert.deepEqual(mathCourses.map(c=>[c.code,courseChapters(c).length,courseQuestions(c).length]),[["MATH 1006",12,210],["MATH 1011",16,260],["MATH 1201",12,270],["MATH 1206",8,140],["CISC 2210",12,254],["CISC 3115",14,142],["CISC 3130",13,134],["CISC 3140",13,134],["CISC 3310",12,207],["CISC 3305",12,203]]);
+  assert.deepEqual(mathCourses.filter(c=>!c.code.startsWith("ANTH")).map(c=>[c.code,courseChapters(c).length,courseQuestions(c).length]),[["MATH 1006",12,210],["MATH 1011",16,260],["MATH 1201",12,270],["MATH 1206",8,140],["CISC 2210",12,254],["CISC 3115",14,142],["CISC 3130",13,134],["CISC 3140",13,134],["CISC 3310",12,207],["CISC 3305",12,203]]);
   const sectionIds=new Set();
   for(const course of mathCourses) {
-    assert.equal(course.units.length,6);
+    assert.equal(course.units.length,course.code.startsWith("ANTH")?3:6);
     assert.ok(courseQuestions(course).some(q=>q.fields.some(f=>f.kind!=="choice")),`${course.id} needs constructed-response practice`);
     if(["cisc3115","cisc3130","cisc3140"].includes(course.id)) assert.ok(courseQuestions(course).filter(q=>q.fields.some(f=>f.kind==="code")).length>=10,`${course.id} needs repeated code production`);
     for(const unit of course.units) {

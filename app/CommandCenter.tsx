@@ -846,12 +846,13 @@ function CoursesView({ completed, practice, onOpenCourse, math, onOpenMath }: { 
   const progress = learningProgress(completed, practice);
   const mathematics = mathCourses.filter(course => course.code.startsWith("MATH"));
   const computing = mathCourses.filter(course => course.code.startsWith("CISC"));
+  const anthropology = mathCourses.filter(course => course.code.startsWith("ANTH"));
   const writtenCourseCard = (course: (typeof mathCourses)[number]) => {
     const state = mathCourseProgress(course, math[course.id] ?? emptyMathProgress());
-    return <button className="course-library-card" key={course.id} onClick={() => onOpenMath(course.id)}><span className="course-glyph large">{course.code.startsWith("CISC") ? "∀" : course.id === "math1006" ? "x" : course.id === "math1011" ? "π" : "∫"}</span><span className="course-library-copy"><small>{course.code} · Self-Study</small><b>{course.title}</b><em>{courseChapters(course).length} chapters · {course.units.length} unit tests · {state.total} problems</em></span><span className="course-library-progress"><strong>{state.percent}%</strong><small>{state.chaptersCleared}/{state.chapterCount} chapters cleared</small><ProgressBar value={state.percent}/></span><ArrowRight size={17}/></button>;
+    return <button className="course-library-card" key={course.id} onClick={() => onOpenMath(course.id)}><span className="course-glyph large">{course.code.startsWith("ANTH") ? "A" : course.code.startsWith("CISC") ? "∀" : course.id === "math1006" ? "x" : course.id === "math1011" ? "π" : "∫"}</span><span className="course-library-copy"><small>{course.code} · Self-Study</small><b>{course.title}</b><em>{courseChapters(course).length} chapters · {course.units.length} {course.code.startsWith("ANTH") ? "practice tests" : "unit tests"} · {state.total} problems</em></span><span className="course-library-progress"><strong>{state.percent}%</strong><small>{state.chaptersCleared}/{state.chapterCount} chapters cleared</small><ProgressBar value={state.percent}/></span><ArrowRight size={17}/></button>;
   };
   return <main className="page-content courses-page">
-    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Full lessons, written and code practice, chapter reviews, and unit mastery tests across the connected degree path.</p></div><div className="course-count"><b>{1 + mathCourses.length}</b><small>Courses Available</small></div></header>
+    <header className="courses-heading"><div><p className="eyebrow accent-text">Course Library</p><h2>Courses</h2><p>Connected lessons, practice, and reviews for computing, mathematics, and your current classes.</p></div><div className="course-count"><b>{1 + mathCourses.length}</b><small>Courses Available</small></div></header>
     <section className="course-library-group"><header><div><p className="eyebrow">Mathematics</p><h3>Algebra → Precalculus → Calculus I → Calculus II</h3></div><span>{mathematics.length} courses</span></header><div className="course-library-list">{mathematics.map(writtenCourseCard)}</div></section>
     <section className="course-library-group"><header><div><p className="eyebrow">Computer &amp; Information Science</p><h3>Programming → Discrete Structures → Applications</h3></div><span>{1 + computing.length} courses</span></header><div className="course-library-list">
       <button className="course-library-card" onClick={onOpenCourse}>
@@ -862,6 +863,7 @@ function CoursesView({ completed, practice, onOpenCourse, math, onOpenMath }: { 
       </button>
       {computing.map(writtenCourseCard)}
     </div></section>
+    {anthropology.length > 0 && <section className="course-library-group"><header><div><p className="eyebrow">Anthropology</p><h3>Human Origins · Exam Preparation</h3></div><span>{anthropology.length} course</span></header><div className="course-library-list">{anthropology.map(writtenCourseCard)}</div></section>}
   </main>;
 }
 
