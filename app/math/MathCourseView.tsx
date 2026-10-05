@@ -61,6 +61,8 @@ export default function MathCourseView({course,progress,setProgress,onTutorConte
   const location=progress.position&&locations.includes(progress.position)?progress.position:locations[0];
   const chapter=chapters.find(c=>c.id===location||c.sections.some(s=>s.id===location)||`${c.id}-review`===location);
   const section=chapter?.sections.find(s=>s.id===location);
+  const [collapsedChapterId,setCollapsedChapterId]=useState<string|null>(null);
+  const expandedChapterId=chapter?.id===collapsedChapterId?null:chapter?.id;
   const test=course.units.map(u=>u.assessment).find(t=>t.id===location);
   const questions=section?.questions??chapter?.review??[];
   const [shown,setShown]=useState<Record<string,boolean>>({});
@@ -95,7 +97,8 @@ export default function MathCourseView({course,progress,setProgress,onTutorConte
   useEffect(()=>onTutorContextChange(mathTutorContext(course,progress,location,activeQuestionId,reviewed,solutionShown)),[course,progress,location,activeQuestionId,reviewed,solutionShown,onTutorContextChange]);
   const activeLocationTitle=section?.title??test?.title??chapter?.title??course.title;
   const scrollCourseTop=()=>{setMobileContentsOpen(false);if(typeof window==="undefined"){reader.current?.scrollTo({top:0});return;}window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>{if(window.matchMedia("(max-width: 700px)").matches)reader.current?.scrollIntoView({behavior:"smooth",block:"start"});else reader.current?.scrollTo({top:0});}));};
-  const navigate=(id:string)=>{setProgress(p=>({...p,position:id}));setReviewed(undefined);scrollCourseTop();};
+  const navigate=(id:string)=>{setCollapsedChapterId(null);setProgress(p=>({...p,position:id}));setReviewed(undefined);scrollCourseTop();};
+  const toggleChapter=(id:string)=>{if(chapter?.id===id)setCollapsedChapterId(current=>current===id?null:id);else navigate(chapters.find(c=>c.id===id)!.sections[0].id);};
   const selectQuestion=(index:number)=>{if(questions[index])setProgress(p=>({...p,questions:{...p.questions,[location]:questions[index].id}}));};
   const check=()=>{if(!canCheck)return;setProgress(p=>checkMathQuestion(p,question));setShown(p=>({...p,[question.id]:true}));};
   const updateAnswer=(response:MathResponse)=>{setProgress(p=>updateMathResponse(p,question.id,response));setShown(p=>({...p,[question.id]:false}));};
@@ -104,7 +107,25 @@ export default function MathCourseView({course,progress,setProgress,onTutorConte
     <div className="mobile-course-toolbar"><button aria-expanded={mobileContentsOpen} aria-controls={`${course.id}-course-contents`} onClick={()=>setMobileContentsOpen(open=>!open)}><span><small>{course.code} Contents</small><b>{activeLocationTitle}</b></span><ChevronDown size={18}/></button></div>
     <button className={`mobile-contents-backdrop ${mobileContentsOpen?"visible":""}`} aria-label="Close course contents" onClick={()=>setMobileContentsOpen(false)}/>
     <aside className={`contents-rail ${mobileContentsOpen?"mobile-open":""}`} id={`${course.id}-course-contents`} aria-label="Course contents"><button className="mobile-contents-close" onClick={()=>setMobileContentsOpen(false)}><span>{course.code} Contents</span><X size={18}/></button><button className="math-back" onClick={onBack}><ArrowLeft size={15}/>Courses</button><div className="contents-heading"><p className="eyebrow">{course.code}</p><span>{chapters.length} chapters</span></div>
-      {course.units.map(u=><Fragment key={u.id}><p className="course-unit-label">{u.title}</p>{u.chapters.map(c=>{const done=chapterQuestions(c).every(q=>progress.passed.includes(q.id));return <div key={c.id} className={`contents-section ${chapter?.id===c.id?"selected open":""} ${done?"completed":""}`}><button className="contents-section-button" aria-expanded={chapter?.id===c.id} onClick={()=>navigate(c.sections[0].id)}><span className="chapter-number">{String(chapters.indexOf(c)+1).padStart(2,"0")}</span><span className="chapter-copy"><b>{c.title}</b></span>{done?<Check size={16}/>:<ChevronDown size={15}/>}</button>{chapter?.id===c.id&&<div className="part-list">{[...c.sections.map(s=>({id:s.id,title:s.title,questions:s.questions})),{id:`${c.id}-review`,title:"Chapter Review",questions:c.review}].map((s,i)=><button key={s.id} className={`${location===s.id?"active":""} ${s.questions.every(q=>progress.passed.includes(q.id))?"completed":""}`} onClick={()=>navigate(s.id)}><span className="part-index">{i+1}</span><b>{s.title}</b><small>{s.questions.filter(q=>progress.passed.includes(q.id)).length}/{s.questions.length}</small></button>)}</div>}</div>;})}<div className={`contents-section unit-test-root ${test?.id===u.assessment.id?"selected":""} ${progress.history[u.assessment.id]?.at(-1)?.score===u.assessment.questions.length?"completed":""}`}><button className="contents-section-button" onClick={()=>navigate(u.assessment.id)}><span className="chapter-number"><GraduationCap size={16}/></span><span className="chapter-copy"><b>{course.code.startsWith("ANTH")?(u.assessment.id==="anth-unit-3-mastery"?"Exam 1 Mixed Test":"Unit Practice Test"):"Unit Mastery Test"}</b><small>{progress.history[u.assessment.id]?.at(-1)?.score??0}/{u.assessment.questions.length} passed</small></span></button></div></Fragment>)}
+      {course.units.map(u=>{
+        const testDone=progress.history[u.assessment.id]?.at(-1)?.score===u.assessment.questions.length;
+        return <Fragment key={u.id}><p className="course-unit-label">{u.title}</p>{u.chapters.map(c=>{
+          const done=chapterQuestions(c).every(q=>progress.passed.includes(q.id));
+          const open=expandedChapterId===c.id;
+          const parts=[...c.sections.map(s=>({id:s.id,title:s.title,questions:s.questions})),{id:`${c.id}-review`,title:"Chapter Review",questions:c.review}];
+          return <div key={c.id} className={`contents-section ${chapter?.id===c.id?"selected":""} ${open?"open":""} ${done?"completed":""}`}>
+            <button className="contents-section-button" aria-expanded={open} aria-controls={`${c.id}-subsections`} onClick={()=>toggleChapter(c.id)}>
+              <span className="chapter-number">{String(chapters.indexOf(c)+1).padStart(2,"0")}</span><span className="chapter-copy"><b>{c.title}</b></span>
+              <span className="chapter-row-actions">{done&&<span className="chapter-done-badge" role="img" aria-label="Chapter complete"><Check size={12} strokeWidth={3.2}/></span>}<ChevronDown size={15}/></span>
+            </button>
+            <div className={`chapter-subsections-shell ${open?"expanded":""}`} id={`${c.id}-subsections`} aria-hidden={!open}><div><div className="part-list">{parts.map((s,i)=>{
+              const sectionPassed=s.questions.filter(q=>progress.passed.includes(q.id)).length;
+              const sectionDone=s.questions.length>0&&sectionPassed===s.questions.length;
+              return <button key={s.id} tabIndex={open?0:-1} className={`${location===s.id?"active":""} ${sectionDone?"completed":""}`} onClick={()=>open&&navigate(s.id)}><span className="part-index">{i+1}</span><b>{s.title}</b>{sectionDone?<span className="part-done" role="img" aria-label={s.id===`${c.id}-review`?"Chapter review complete":"Section questions complete"}><Check size={12} strokeWidth={3.2}/></span>:<small>{sectionPassed}/{s.questions.length}</small>}</button>;
+            })}</div></div></div>
+          </div>;
+        })}<div className={`contents-section unit-test-root ${test?.id===u.assessment.id?"selected":""} ${testDone?"completed":""}`}><button className="contents-section-button" onClick={()=>navigate(u.assessment.id)}><span className="chapter-number"><GraduationCap size={16}/></span><span className="chapter-copy"><b>{course.code.startsWith("ANTH")?(u.assessment.id==="anth-unit-3-mastery"?"Exam 1 Mixed Test":"Unit Practice Test"):"Unit Mastery Test"}</b><small>{progress.history[u.assessment.id]?.at(-1)?.score??0}/{u.assessment.questions.length} passed</small></span>{testDone&&<span className="chapter-done-badge" role="img" aria-label="Unit test complete"><Check size={12} strokeWidth={3.2}/></span>}</button></div></Fragment>;
+      })}
       <div className="section-progress-card"><div><span>Course Completion</span><b>{totals.percent}%</b></div><progress max={100} value={totals.percent}/><small>{totals.chaptersCleared}/{totals.chapterCount} chapters cleared</small><p>Chapter practice and reviews clear chapters. Mastery tests belong to their units, not the last chapter.</p></div>
     </aside>
     <div className="chapter-reader" ref={reader}><article className="chapter-article math-article"><header className="chapter-cover"><p className="eyebrow">{course.code} · {course.title}</p><h1>{test?.title??chapter?.title}</h1>{chapter&&<p>{chapter.description}</p>}</header>

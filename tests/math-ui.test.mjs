@@ -31,6 +31,57 @@ function elements(node) {
 function text(node){if(Array.isArray(node))return node.map(text).join("");if(typeof node==="string"||typeof node==="number")return String(node);return node?.props?text(node.props.children):"";}
 function button(tree,label){const node=elements(tree).find(n=>n.type==="button"&&(text(n).trim()===label||n.props["aria-label"]===label));assert.ok(node,`Missing ${label}`);return node;}
 function input(tree,id){const node=elements(tree).find(n=>n.type==="input"&&n.props.id===id);assert.ok(node,`Missing input ${id}`);return node;}
+function railButton(tree,title,section=false){const node=elements(tree).find(n=>n.type==="button"&&(section?elements(n).some(child=>child.props.className==="part-index"):n.props.className==="contents-section-button")&&elements(n).some(child=>child.type==="b"&&text(child)===title));assert.ok(node,`Missing rail item ${title}`);return node;}
+
+test("shared course chapters collapse and reopen without changing the lesson or saved work",()=>{
+  for(const course of courses.mathCourses) {
+    const [first,second]=courses.courseChapters(course),section=first.sections[1]??first.sections[0];
+    const p=progressTools.emptyMathProgress();p.position=section.id;p.questions={[section.id]:section.questions.at(-1).id};
+    p.responses[section.questions.at(-1).id]={values:["Saved answer"],working:"Saved explanation"};
+    const h=harness(course,p);let tree=h.render();const before=structuredClone(h.progress);
+    assert.equal(railButton(tree,first.title).props["aria-expanded"],true,course.id);
+    railButton(tree,first.title).props.onClick();tree=h.render();
+    assert.equal(railButton(tree,first.title).props["aria-expanded"],false,course.id);
+    assert.equal(railButton(tree,section.title,true).props.tabIndex,-1);
+    assert.equal(h.context.activePractice.questionId,section.questions.at(-1).id);
+    assert.deepEqual(h.progress,before);
+    railButton(tree,first.title).props.onClick();tree=h.render();
+    assert.equal(railButton(tree,first.title).props["aria-expanded"],true);
+    assert.equal(railButton(tree,section.title,true).props.tabIndex,0);
+    assert.deepEqual(h.progress,before);
+    railButton(tree,second.title).props.onClick();tree=h.render();
+    assert.equal(railButton(tree,first.title).props["aria-expanded"],false);
+    assert.equal(railButton(tree,second.title).props["aria-expanded"],true);
+    assert.equal(h.progress.position,second.sections[0].id);
+    railButton(tree,course.code.startsWith("ANTH")?"Unit Practice Test":"Unit Mastery Test").props.onClick();tree=h.render();
+    assert.ok(elements(tree).filter(n=>n.props.className==="contents-section-button"&&n.props["aria-expanded"]!==undefined).every(n=>n.props["aria-expanded"]===false));
+  }
+});
+
+test("completed Anthropology sections get a green badge immediately and after reload",()=>{
+  const course=courses.mathCourses.find(c=>c.id==="anth1200"),chapter=course.units[0].chapters[0],section=chapter.sections[0],q=section.questions.at(-1);
+  let p=progressTools.emptyMathProgress();p.position=section.id;p.questions={[section.id]:q.id};
+  for(const item of section.questions.slice(0,-1)) {
+    p=progressTools.updateMathResponse(p,item.id,{values:item.fields.map(f=>f.answer),working:""});
+    p=progressTools.checkMathQuestion(p,item);
+  }
+  const h=harness(course,p);let tree=h.render();
+  assert.equal(text(railButton(tree,section.title,true)),`1${section.title}${section.questions.length-1}/${section.questions.length}`);
+  for(const [i,f] of q.fields.entries()) {
+    if(f.options)elements(tree).find(n=>n.props.role==="radio"&&text(n).slice(1)===f.answer).props.onClick();
+    else input(tree,`${q.id}-part-${i}`).props.onChange({target:{value:f.answer}});
+    tree=h.render();
+  }
+  button(tree,"Check Answer").props.onClick();tree=h.render();
+  const badge=()=>elements(railButton(tree,section.title,true)).find(n=>n.props["aria-label"]==="Section questions complete");
+  assert.equal(badge().props.className,"part-done");
+  const restored=progressTools.readMathRecords(JSON.parse(JSON.stringify({anth1200:h.progress}))).anth1200;
+  const reloaded=harness(course,restored);tree=reloaded.render();assert.ok(badge());
+  for(const item of courses.chapterQuestions(chapter))restored.passed.push(item.id);
+  tree=harness(course,restored).render();
+  assert.ok(elements(railButton(tree,chapter.title)).some(n=>n.props["aria-label"]==="Chapter complete"));
+  assert.ok(elements(tree).some(n=>n.props["aria-label"]==="Chapter review complete"));
+});
 
 test("math practice: type, check, edit, switch question, and restore without stale tutor answers",()=>{
   const course=courses.mathCourses[0],h=harness(course);
