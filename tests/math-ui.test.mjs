@@ -25,13 +25,39 @@ function harness(course,initial=progressTools.emptyMathProgress()) {
 function elements(node) {
   if(Array.isArray(node))return node.flatMap(elements);
   if(!node||typeof node!=="object"||!node.props)return [];
-  if(typeof node.type==="function"&&["AnswerInputs","WorkedSolution","InputGuide","MathGraph","JavaEditor"].includes(node.type.name))return [node,...elements(node.type(node.props))];
+  if(typeof node.type==="function"&&["AnswerInputs","WorkedSolution","InputGuide","MathGraph","JavaEditor","ProgressBar"].includes(node.type.name))return [node,...elements(node.type(node.props))];
   return [node,...elements(node.props.children)];
 }
 function text(node){if(Array.isArray(node))return node.map(text).join("");if(typeof node==="string"||typeof node==="number")return String(node);return node?.props?text(node.props.children):"";}
 function button(tree,label){const node=elements(tree).find(n=>n.type==="button"&&(text(n).trim()===label||n.props["aria-label"]===label));assert.ok(node,`Missing ${label}`);return node;}
 function input(tree,id){const node=elements(tree).find(n=>n.type==="input"&&n.props.id===id);assert.ok(node,`Missing input ${id}`);return node;}
 function railButton(tree,title,section=false){const node=elements(tree).find(n=>n.type==="button"&&(section?elements(n).some(child=>child.props.className==="part-index"):n.props.className==="contents-section-button")&&elements(n).some(child=>child.type==="b"&&text(child)===title));assert.ok(node,`Missing rail item ${title}`);return node;}
+
+test("active-course sidebar uses the selected course and its saved progress",async()=>{
+  const command=await readFile(new URL("../app/CommandCenter.tsx",import.meta.url),"utf8");
+  const body=command.slice(command.indexOf("function ProgressBar("),command.indexOf("function MobileNav("));
+  const compiled=ts.transpileModule(`${body}\nexport { Sidebar };`,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  const deps={learningProgress:()=>({percent:41,completedChapters:5}),learningChapters:Array(24).fill({}),titleCase:x=>x,mathCourseProgress:progressTools.mathCourseProgress,...Object.fromEntries(["House","BookOpen","GitBranch","GraduationCap","CircleHelp","UserRound","X","MessageCircle","LockKeyhole","Check","Play"].map(name=>[name,icons[name]]))};
+  const mod={};new Function("require","exports",...Object.keys(deps),compiled)(()=>jsxRuntime,mod,...Object.values(deps));
+  let selected;
+  const props={completed:[],practice:{},setView:view=>{selected=view;},tutorOpen:false,onToggleTutor(){},onOpenInfo(){},student:null,localWorkspace:true,signInPath:"/signin",signOutPath:"/signout",syncLabel:"Saved locally"};
+  for(const course of courses.mathCourses){
+    const p=progressTools.emptyMathProgress();p.passed=courses.chapterQuestions(courses.courseChapters(course)[0]).map(q=>q.id);
+    const before=JSON.stringify(p),totals=progressTools.mathCourseProgress(course,p);
+    const tree=mod.Sidebar({...props,view:"math",activeWrittenCourse:{course,progress:p}});
+    const card=elements(tree).find(n=>n.type==="button"&&n.props.className==="sidebar-course active");
+    assert.ok(card,course.id);assert.ok(text(card).includes(course.code));assert.ok(text(card).includes(course.title));
+    assert.ok(text(card).includes(`1 / ${totals.chapterCount} chapters`));assert.ok(text(card).includes(`${totals.percent}%`));
+    assert.equal(elements(card).find(n=>n.props.className==="progress-fill").props.style.width,`${totals.percent}%`);
+    card.props.onClick();assert.equal(selected,"math");assert.equal(JSON.stringify(p),before);
+    const rail=elements(harness(course,p).render()).find(n=>n.props.className==="section-progress-card");
+    const bar=elements(rail).find(n=>n.props.role==="progressbar");
+    assert.equal(bar.props.className,"progress-track");assert.equal(bar.props["aria-valuenow"],totals.percent);
+    assert.equal(elements(bar).find(n=>n.props.className==="progress-fill").props.style.width,`${totals.percent}%`);
+  }
+  const java=mod.Sidebar({...props,view:"course"});assert.match(text(java),/CISC 1115.*5 \/ 24 core chapters41%/);
+  assert.ok(!elements(mod.Sidebar({...props,view:"courses"})).some(n=>n.props.className==="sidebar-active-course"));
+});
 
 test("shared course chapters collapse and reopen without changing the lesson or saved work",()=>{
   for(const course of courses.mathCourses) {
