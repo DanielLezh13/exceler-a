@@ -173,7 +173,10 @@ export function gradeField(field: MathField, answer: string): { passed: boolean;
     if (["logic", "pairs", "sequence", "bits"].includes(field.kind)) return gradeDiscreteField(field, answer, evaluateMath);
     let passed = false;
     if (field.kind === "code") passed = compactCode(answer) === compactCode(field.answer);
-    else if (field.kind === "choice") return { passed: normalizeMath(answer) === normalizeMath(field.answer), feedback: normalizeMath(answer) === normalizeMath(field.answer) ? "Accepted: this choice matches the question." : "Not yet. Compare the distinctions in the question and try again." };
+    else if (field.kind === "choice") {
+      const matches = field.caseSensitive ? answer.trim() === field.answer.trim() : normalizeMath(answer) === normalizeMath(field.answer);
+      return { passed: matches, feedback: matches ? "Accepted: this choice matches the question." : "Not yet. Compare the distinctions in the question and try again." };
+    }
     else if (field.kind === "function") {
       const strip=(s:string)=>s.replace(/^\s*(?:y'?|[fg]'?\s*\(\s*x\s*\))\s*=\s*/i, "");
       const verdict=equivalentFunctions(parse(strip(answer)),parse(strip(field.answer)),valueOf);

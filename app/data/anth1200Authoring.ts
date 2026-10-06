@@ -1,7 +1,9 @@
-import { chapter, q, section, unit } from "../math/authoring.ts";
+import { chapter as authoredChapter, q, section, unit } from "../math/authoring.ts";
+import { multipleChoiceReview } from "./anth1200ReviewChoices.ts";
 import type { MathField, MathQuestion } from "../math/types.ts";
 
-export { chapter, section, unit };
+export { section, unit };
+export const chapter = (...[id, title, description, sections, review]: Parameters<typeof authoredChapter>) => authoredChapter(id, title, description, sections, multipleChoiceReview(review));
 export const term = (label: string, answer: string, acceptedAnswers: string[] = [], caseSensitive = false): MathField => ({ label, answer, kind: "text", acceptedAnswers, caseSensitive });
 export const count = (label: string, answer: number): MathField => ({ label, answer: String(answer), kind: "number" });
 export function pick(label: string, answer: string, distractors: string[]): MathField {

@@ -1,5 +1,5 @@
 import { chapterQuestions, courseChapters, courseQuestions, mathCourses } from "./courses.ts";
-import { gradeMath, mathGradeStatus } from "./grading.ts";
+import { gradeField, gradeMath, mathGradeStatus } from "./grading.ts";
 import { readMachineSpec } from "./teachingMachine.ts";
 import type { MathAttempt, MathCourse, MathGrade, MathProgress, MathQuestion, MathRecords, MathResponse, MathTutorContext, MathUnit } from "./types.ts";
 
@@ -70,8 +70,18 @@ export function readMathRecords(value: unknown): MathRecords {
     const all = courseQuestions(course);
     const rawResponses = object(raw.responses), rawChecked = object(raw.checked);
     for (const question of all) {
-      if (rawResponses?.[question.id]) state.responses[question.id] = readResponse(rawResponses[question.id]);
-      if (rawChecked?.[question.id]) state.checked[question.id] = gradeMath(question, state.responses[question.id] ?? emptyResponse());
+      const legacy = question.legacyReviewField;
+      const own = rawResponses?.[question.id];
+      const sourceId = own ? question.id : legacy?.questionId ?? question.id;
+      const source = rawResponses?.[sourceId];
+      if (source) {
+        const response = readResponse(source);
+        if (legacy) {
+          const value = response.values[sourceId === question.id ? 0 : legacy.index];
+          if (value !== undefined) state.responses[question.id] = { ...response, values: [gradeField(legacy.field, value).passed ? question.fields[0].answer : value] };
+        } else state.responses[question.id] = response;
+      }
+      if (rawChecked?.[sourceId] && (!legacy || state.responses[question.id])) state.checked[question.id] = gradeMath(question, state.responses[question.id] ?? emptyResponse());
     }
     const practiceIds = new Set(courseChapters(course).flatMap(chapterQuestions).map(q => q.id));
     state.passed = Object.entries(state.checked).filter(([id,g]) => practiceIds.has(id) && g.passed).map(([id]) => id);

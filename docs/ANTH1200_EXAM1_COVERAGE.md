@@ -35,11 +35,19 @@ Speciation, sympatric, and allopatric are explicitly in the guide but not explai
 
 ## Practice design
 
-Six chapters, 17 sections, 289 questions: 163 section questions, 48 chapter-review questions, and 78 test questions (12 evolutionary-thought questions, 20 genetics questions, and a 46-question cumulative Exam 1 mixed test). Questions can have multiple answer parts. Of the questions, 153 include typed factual recall, 114 include multiple-choice responses, and 23 are purely numerical probabilities/counts. One question combines typed and multiple-choice parts, so those mode counts overlap.
+Six chapters, 17 sections, 322 questions: 163 section questions, 81 chapter-review questions, and 78 test questions (12 evolutionary-thought questions, 20 genetics questions, and a 46-question cumulative Exam 1 mixed test). Section checks and tests can have multiple answer parts. Of the questions, 125 include typed factual recall, 178 include multiple-choice responses, and 20 are purely numerical probabilities/counts. One question combines typed and multiple-choice parts, so those mode counts overlap.
 
 Each section includes original explanation, two concrete worked examples, a misconception contrast, and 8–12 questions. Both recognition and typed recall occur near introduction. Chapter reviews reduce topic cues. Later applications return to earlier fitness, inheritance, and variation. Crosses and evolutionary scenarios vary the causal structure, not just nouns. Final practice mixes all six guide groups. It is not a copy of an actual exam and does not claim a predicted grade.
 
 The optional explanation box invites a definition, example, and comparison in the student's own words; it saves notes for contextual tutoring. These notes are not automatically graded. Editing notes alone preserves a previously passed factual answer. Automated free-form essay grading is deliberately not introduced.
+
+### Chapter-review format update (October 6, 2026)
+
+At the student's explicit request, only Human Origins chapter reviews use individual multiple-choice questions. Each existing typed or numerical answer is represented by a single choice question with the same correct answer and required fact. Multi-part questions split into consecutive items; the screenshot's homologous-chromosomes/sister-chromatids pair is now two self-contained prompts. The original 17 single-choice review questions remain unchanged. Review counts are 10, 19, 15, 14, 11, and 12. Lesson content, section checks, unit tests, and other courses are unchanged.
+
+Choices contrast previously taught structures, processes, terms, and probabilities. Binary contrasts remain two-choice questions when extra alternatives would introduce untaught or nonsensical categories. Names are contrasted only against the three thinkers already taught. Correct option positions vary deterministically. Numerical answers retain their original decimal values; wording requests decimal probabilities. Genotype choices explicitly retain allele case, so AA and Aa do not match aa.
+
+Each split question retains the original parent ID for its first part and adds stable part IDs thereafter. Trusted authoring metadata identifies the original field for saved-answer restoration. Old checked correct aliases and equivalent numerical inputs are normalized to the matching option; checked partially correct fields carry over individually. Unchecked answers stay unchecked. Explanation notes, active review/question position, other-course records, and stored unit-test attempts are preserved. Migration is idempotent. The history snapshot importer does not accept migration metadata from imported backup questions.
 
 ## Validator and continuity verification
 

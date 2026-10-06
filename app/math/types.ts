@@ -18,6 +18,7 @@ export type MathQuestion = {
   hint: string;
   solution: string[];
   requires: string[];
+  legacyReviewField?: { questionId: string; index: number; field: MathField };
 };
 export type MathPlot = {
   label: string;
