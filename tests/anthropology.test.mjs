@@ -3,10 +3,43 @@ import test from "node:test";
 import { anth1200, anth1200GuideCoverage } from "../app/data/anth1200.ts";
 import { auditMathCourses, courseChapters, courseQuestions, mathCourses } from "../app/math/courses.ts";
 import { gradeField, gradeMath } from "../app/math/grading.ts";
-import { beginMathAttempt, checkMathQuestion, emptyMathProgress, mathCourseProgress, mathTutorContext, readMathRecords, submitMathAttempt, updateMathResponse } from "../app/math/progress.ts";
+import { beginMathAttempt, checkMathQuestion, emptyMathProgress, mathCourseProgress, mathTutorContext, readMathRecords, resetAnthropologyReviews, submitMathAttempt, updateMathResponse } from "../app/math/progress.ts";
 
 const questions = courseQuestions(anth1200), byId = Object.fromEntries(questions.map(q=>[q.id,q]));
 const canonical = q => ({values:q.fields.map(f=>f.answer),working:"My definition and example."});
+
+test("chapter-review reset clears the whole selected review and survives reload without touching lessons or tests",()=>{
+  const chapters=courseChapters(anth1200);let state=emptyMathProgress();
+  for(const q of chapters.flatMap(c=>[...c.review,...c.sections[0].questions])){
+    state=updateMathResponse(state,q.id,canonical(q));state=checkMathQuestion(state,q);
+  }
+  const test=anth1200.units[0].assessment;
+  for(const q of test.questions)state=updateMathResponse(state,q.id,canonical(q));
+  state=submitMathAttempt(state,test,"saved-attempt","2026-10-06T18:00:00Z");
+  state=beginMathAttempt(state,anth1200.units[1].assessment);
+  state.position="anth-division-review";state.questions={[state.position]:chapters[2].review.at(-1).id};
+  const before=structuredClone(state),reset=resetAnthropologyReviews(state,anth1200,chapters[2].id);
+  assert.deepEqual(state,before,"reset must not mutate the original record");
+  assert.equal(reset.position,state.position);assert.equal(reset.questions[state.position],chapters[2].review[0].id);
+  assert.deepEqual(reset.history,state.history);assert.deepEqual(reset.drafts,state.drafts);
+  const reviewIds=new Set(chapters[2].review.map(q=>q.id));
+  assert.deepEqual(reset.passed,state.passed.filter(id=>!reviewIds.has(id)));
+  for(const q of chapters[2].review){
+    assert.deepEqual(reset.responses[q.id],{values:[""],working:state.responses[q.id].working});assert.equal(reset.checked[q.id],undefined);
+  }
+  for(const [id,response] of Object.entries(state.responses))if(!reviewIds.has(id))assert.deepEqual(reset.responses[id],response,id);
+  const restored=readMathRecords(JSON.parse(JSON.stringify({anth1200:reset}))).anth1200;
+  assert.ok(chapters[2].review.every(q=>!restored.passed.includes(q.id)&&!restored.checked[q.id]&&restored.responses[q.id].values[0]===""));
+  assert.ok(chapters[0].review.every(q=>restored.passed.includes(q.id)));
+  const all=resetAnthropologyReviews(restored,anth1200);
+  const allReviewIds=new Set(chapters.flatMap(c=>c.review.map(q=>q.id)));
+  assert.ok(all.passed.every(id=>!allReviewIds.has(id)));
+  assert.deepEqual(all.history,restored.history);assert.deepEqual(all.drafts,restored.drafts);
+  assert.ok(chapters.flatMap(c=>c.sections[0].questions).every(q=>all.passed.includes(q.id)));
+  assert.ok(readMathRecords({anth1200:all}).anth1200.passed.every(id=>!allReviewIds.has(id)),"old split-question migration must not refill reset answers");
+  assert.equal(resetAnthropologyReviews(state,mathCourses[0]),state);
+  assert.equal(resetAnthropologyReviews(state,anth1200,"unknown-chapter"),state);
+});
 
 test("old completed chapter reviews carry all individual answers, aliases and notes into the split choices",()=>{
   const reviews=courseChapters(anth1200).flatMap(c=>c.review),groups=new Map();

@@ -26,6 +26,22 @@ export function checkMathQuestion(progress: MathProgress, question: MathQuestion
   const grade = gradeMath(question, progress.responses[question.id] ?? emptyResponse());
   return { ...progress, checked: { ...progress.checked, [question.id]: grade }, passed: [...progress.passed.filter(id => id !== question.id), ...(grade.passed ? [question.id] : [])] };
 }
+export function resetAnthropologyReviews(progress: MathProgress, course: MathCourse, chapterId?: string): MathProgress {
+  if (course.id !== "anth1200") return progress;
+  const chapters = courseChapters(course).filter(chapter => !chapterId || chapter.id === chapterId);
+  if (!chapters.length) return progress;
+  const ids = new Set(chapters.flatMap(chapter => chapter.review.map(question => question.id)));
+  const responses = { ...progress.responses }, checked = { ...progress.checked }, questions = { ...progress.questions };
+  for (const chapter of chapters) {
+    for (const question of chapter.review) {
+      // Explicit blank values prevent old split-review answers from reappearing on reload.
+      responses[question.id] = { values: question.fields.map(() => ""), working: progress.responses[question.id]?.working ?? "" };
+      delete checked[question.id];
+    }
+    if (chapter.review[0]) questions[`${chapter.id}-review`] = chapter.review[0].id;
+  }
+  return { ...progress, responses, checked, questions, passed: progress.passed.filter(id => !ids.has(id)) };
+}
 export function beginMathAttempt(progress: MathProgress, test: MathUnit["assessment"], source?: MathAttempt, retryIds?: string[]): MathProgress {
   const questionIds = retryIds ?? test.questions.map(q => q.id);
   const responses = { ...progress.responses };

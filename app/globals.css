@@ -34,6 +34,12 @@
 .math-entry-help { margin:7px 0 0; color:#929b96; font-size:11px; line-height:1.6; }
 .math-practice-workspace > h3 { margin-bottom:24px; overflow-wrap:anywhere; }
 .math-practice-support { display:flex; gap:14px; margin-top:12px; }
+.anth-review-reset { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 20px; }
+.anth-review-reset button { max-width:100%; min-width:0; white-space:normal; }
+.anth-review-reset-confirm { width:100%; padding:16px; border:1px solid var(--line); border-radius:12px; background:#141817; }
+.anth-review-reset-confirm > b { color:#e0e8df; font-size:14px; }
+.anth-review-reset-confirm > p { margin:8px 0 14px; color:#a1aca5; font-size:13px; line-height:1.6; }
+.anth-review-reset-confirm > div { display:flex; flex-wrap:wrap; gap:10px; }
 .math-text-button { padding:0; border:0; background:transparent; color:#9ca5a0; font-size:10px; text-decoration:underline; text-underline-offset:3px; }
 .math-text-button:hover { color:var(--lime); }
 .math-practice-solution { margin-top:18px; padding-top:18px; border-top:1px solid var(--line); }

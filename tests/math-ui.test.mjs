@@ -33,6 +33,34 @@ function button(tree,label){const node=elements(tree).find(n=>n.type==="button"&
 function input(tree,id){const node=elements(tree).find(n=>n.type==="input"&&n.props.id===id);assert.ok(node,`Missing input ${id}`);return node;}
 function railButton(tree,title,section=false){const node=elements(tree).find(n=>n.type==="button"&&(section?elements(n).some(child=>child.props.className==="part-index"):n.props.className==="contents-section-button")&&elements(n).some(child=>child.type==="b"&&text(child)===title));assert.ok(node,`Missing rail item ${title}`);return node;}
 
+test("Anthropology reset controls act on whole chapter reviews, cancel safely and hide revealed solutions",()=>{
+  const course=courses.mathCourses.find(c=>c.id==="anth1200"),chapters=courses.courseChapters(course),chapter=chapters[2];let p=progressTools.emptyMathProgress();
+  for(const q of [...chapter.review,...chapters[0].review,chapter.sections[0].questions[0]]){
+    p=progressTools.updateMathResponse(p,q.id,{values:q.fields.map(f=>f.answer),working:"Saved note"});p=progressTools.checkMathQuestion(p,q);
+  }
+  p.position=`${chapter.id}-review`;p.questions={[p.position]:chapter.review.at(-1).id};
+  const h=harness(course,p);let tree=h.render();const original=structuredClone(h.progress);
+  button(tree,"Reset this chapter review").props.onClick();tree=h.render();
+  assert.ok(text(tree).includes(`Reset the entire ${chapter.title} chapter review?`));
+  button(tree,"Cancel").props.onClick();tree=h.render();assert.deepEqual(h.progress,original);
+  button(tree,"Reset this chapter review").props.onClick();tree=h.render();button(tree,"Confirm reset this chapter review").props.onClick();tree=h.render();
+  assert.ok(chapter.review.every(q=>!h.progress.passed.includes(q.id)));assert.ok(chapters[0].review.every(q=>h.progress.passed.includes(q.id)));
+  assert.equal(h.context.activePractice.questionId,chapter.review[0].id);assert.equal(h.context.activePractice.shownAnswer,null);
+  assert.ok(button(tree,"Reset this chapter review").props.disabled);
+  assert.ok(!elements(tree).some(n=>n.props["aria-label"]==="Worked solution"));
+  button(tree,"Reset all Anthropology chapter reviews").props.onClick();tree=h.render();button(tree,"Confirm reset all chapter reviews").props.onClick();tree=h.render();
+  assert.ok(chapters.flatMap(c=>c.review).every(q=>!h.progress.passed.includes(q.id)));
+  assert.ok(h.progress.passed.includes(chapter.sections[0].questions[0].id));
+  for(const other of courses.mathCourses){
+    const state=progressTools.emptyMathProgress();state.position=`${courses.courseChapters(other)[0].id}-review`;
+    assert.equal(elements(harness(other,state).render()).some(n=>n.props.className==="anth-review-reset"),other.id==="anth1200");
+  }
+  const sectionState=progressTools.emptyMathProgress();sectionState.position=chapter.sections[0].id;
+  assert.ok(!elements(harness(course,sectionState).render()).some(n=>n.props.className==="anth-review-reset"));
+  const testState=progressTools.emptyMathProgress();testState.position=course.units[0].assessment.id;
+  assert.ok(!elements(harness(course,testState).render()).some(n=>n.props.className==="anth-review-reset"));
+});
+
 test("active-course sidebar uses the selected course and its saved progress",async()=>{
   const command=await readFile(new URL("../app/CommandCenter.tsx",import.meta.url),"utf8");
   const body=command.slice(command.indexOf("function ProgressBar("),command.indexOf("function MobileNav("));

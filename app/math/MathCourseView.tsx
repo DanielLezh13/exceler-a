@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, E
 import { chapterQuestions, courseChapters } from "./courses";
 import { evaluateMath, mathGradeStatus } from "./grading";
 import { mathInputHelp } from "./inputHelp";
-import { beginMathAttempt, checkMathQuestion, emptyResponse, mathCourseProgress, mathTutorContext, submitMathAttempt, updateMathResponse } from "./progress";
+import { beginMathAttempt, checkMathQuestion, emptyResponse, mathCourseProgress, mathTutorContext, resetAnthropologyReviews, submitMathAttempt, updateMathResponse } from "./progress";
 import type { MathCourse, MathGrade, MathPlot, MathProgress, MathQuestion, MathResponse, MathTutorContext } from "./types";
 import JavaEditor from "../JavaEditor";
 
@@ -68,6 +68,7 @@ export default function MathCourseView({course,progress,setProgress,onTutorConte
   const [shown,setShown]=useState<Record<string,boolean>>({});
   const [hints,setHints]=useState<Record<string,boolean>>({});
   const [reviewed,setReviewed]=useState<string>();
+  const [resetScope,setResetScope]=useState<"chapter"|"all">();
   const [mobileContentsOpen,setMobileContentsOpen]=useState(false);
   const reader=useRef<HTMLDivElement>(null);
   const activeBubble=useRef<HTMLButtonElement>(null);
@@ -97,12 +98,22 @@ export default function MathCourseView({course,progress,setProgress,onTutorConte
   useEffect(()=>onTutorContextChange(mathTutorContext(course,progress,location,activeQuestionId,reviewed,solutionShown)),[course,progress,location,activeQuestionId,reviewed,solutionShown,onTutorContextChange]);
   const activeLocationTitle=section?.title??test?.title??chapter?.title??course.title;
   const scrollCourseTop=()=>{setMobileContentsOpen(false);if(typeof window==="undefined"){reader.current?.scrollTo({top:0});return;}window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>{if(window.matchMedia("(max-width: 700px)").matches)reader.current?.scrollIntoView({behavior:"smooth",block:"start"});else reader.current?.scrollTo({top:0});}));};
-  const navigate=(id:string)=>{setCollapsedChapterId(null);setProgress(p=>({...p,position:id}));setReviewed(undefined);scrollCourseTop();};
+  const navigate=(id:string)=>{setCollapsedChapterId(null);setProgress(p=>({...p,position:id}));setReviewed(undefined);setResetScope(undefined);scrollCourseTop();};
   const toggleChapter=(id:string)=>{if(chapter?.id===id)setCollapsedChapterId(current=>current===id?null:id);else navigate(chapters.find(c=>c.id===id)!.sections[0].id);};
   const selectQuestion=(index:number)=>{if(questions[index])setProgress(p=>({...p,questions:{...p.questions,[location]:questions[index].id}}));};
   const check=()=>{if(!canCheck)return;setProgress(p=>checkMathQuestion(p,question));setShown(p=>({...p,[question.id]:true}));};
   const updateAnswer=(response:MathResponse)=>{setProgress(p=>updateMathResponse(p,question.id,response));setShown(p=>({...p,[question.id]:false}));};
   const begin=(retryIds?:string[])=>{if(!test)return;setProgress(p=>beginMathAttempt(p,test,retryIds?attempt:undefined,retryIds));setReviewed(undefined);scrollCourseTop();};
+  const canResetReview=course.id==="anth1200"&&Boolean(chapter)&&!section&&!test;
+  const hasReviewWork=(items:MathQuestion[])=>items.some(q=>progress.passed.includes(q.id)||Boolean(progress.checked[q.id])||progress.responses[q.id]?.values.some(value=>Boolean(value.trim())));
+  const resetReview=()=>{
+    if(!canResetReview||!resetScope)return;
+    const ids=new Set((resetScope==="all"?chapters.flatMap(c=>c.review):chapter!.review).map(q=>q.id));
+    setProgress(p=>resetAnthropologyReviews(p,course,resetScope==="all"?undefined:chapter!.id));
+    setShown(p=>Object.fromEntries(Object.entries(p).filter(([id])=>!ids.has(id))));
+    setHints(p=>Object.fromEntries(Object.entries(p).filter(([id])=>!ids.has(id))));
+    setResetScope(undefined);scrollCourseTop();
+  };
   return <main className="course-page continuous-course math-course"><div className="continuous-layout">
     <div className="mobile-course-toolbar"><button aria-expanded={mobileContentsOpen} aria-controls={`${course.id}-course-contents`} onClick={()=>setMobileContentsOpen(open=>!open)}><span><small>{course.code} Contents</small><b>{activeLocationTitle}</b></span><ChevronDown size={18}/></button></div>
     <button className={`mobile-contents-backdrop ${mobileContentsOpen?"visible":""}`} aria-label="Close course contents" onClick={()=>setMobileContentsOpen(false)}/>
@@ -132,6 +143,7 @@ export default function MathCourseView({course,progress,setProgress,onTutorConte
       {section&&<section className="lesson-section math-lesson"><div className="lesson-section-heading"><p className="eyebrow">{course.units.find(u=>u.chapters.includes(chapter!))?.title} · {chapters.indexOf(chapter!)+1}.{chapter!.sections.indexOf(section)+1}</p><h2>{section.title}</h2></div>{section.paragraphs.map((paragraph,i)=><p key={i}>{paragraph}</p>)}<div className="math-rules"><h3>Rules to use</h3><ul>{section.rules.map(rule=><li key={rule}>{rule}</li>)}</ul></div>{section.plot&&<MathGraph plot={section.plot}/>}<div className="math-examples">{section.examples.map((example,i)=><section key={i}><p className="eyebrow">Worked Example {i+1}</p><h3>{example.problem}</h3><ol>{example.steps.map((step,j)=><li key={j}>{step}</li>)}</ol></section>)}</div><aside className="math-misconception"><b>Watch the distinction</b><p>{section.misconception}</p></aside></section>}
       {!test&&question&&<section className={`practice-session math-practice ${section?"section-practice":""}`} aria-label={section?"Section Check":"Chapter Review"}>
         <div className="practice-header"><div><p className="eyebrow">{section?`Check Your Understanding · ${String(chapter!.sections.indexOf(section)+1).padStart(2,"0")}`:"Cumulative Review"}</p><h2>{section?"Section Check":"Chapter Review"}</h2></div><div className="practice-score"><b>{passedCount}/{questions.length}</b><small>passed</small></div></div>
+        {canResetReview&&<div className="anth-review-reset">{resetScope?<div className="anth-review-reset-confirm" role="group" aria-label="Confirm chapter review reset"><b>{resetScope==="all"?"Reset all Anthropology chapter reviews?":`Reset the entire ${chapter!.title} chapter review?`}</b><p>Answers and checkmarks in {resetScope==="all"?"all six chapter reviews":"this chapter review"} will clear. Lesson checks, unit tests, and explanation notes stay saved.</p><div><button className="soft-button" onClick={()=>setResetScope(undefined)}>Cancel</button><button className="soft-button" onClick={resetReview}><RotateCcw size={14}/>{resetScope==="all"?"Confirm reset all chapter reviews":"Confirm reset this chapter review"}</button></div></div>:<><button className="soft-button" disabled={!hasReviewWork(questions)} onClick={()=>setResetScope("chapter")}><RotateCcw size={14}/>Reset this chapter review</button><button className="soft-button" disabled={!hasReviewWork(chapters.flatMap(c=>c.review))} onClick={()=>setResetScope("all")}>Reset all Anthropology chapter reviews</button></>}</div>}
         {questions.length>1&&<nav className="question-route" aria-label="Practice questions">{questions.map((q,i)=><button key={q.id} ref={q.id===question.id?activeBubble:undefined} className={`${q.id===question.id?"active":""} ${progress.passed.includes(q.id)?"passed":""}`} aria-label={`Open question ${i+1}${progress.passed.includes(q.id)?", passed":""}`} aria-current={q.id===question.id?"step":undefined} onClick={()=>selectQuestion(i)}><span>{progress.passed.includes(q.id)?<Check size={13} strokeWidth={3}/>:i+1}</span></button>)}</nav>}
         <div className="practice-workspace math-practice-workspace" key={question.id}>
           <h3>{question.prompt}</h3>
