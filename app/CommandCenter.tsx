@@ -53,6 +53,7 @@ import {
   structuredLessonContent,
   unitMasteryTests,
 } from "./data/cisc1115Course";
+import { midtermChapterIds } from "./data/cisc1115MidtermMaterial";
 import { cisc1115ProfessorAddedChapters, cisc1115ProfessorTrack, professorAddedChapterById, professorChapterNumberById, professorMasteryDisplayById, type ProfessorTrackAddedChapter } from "./data/cisc1115ProfessorTrack";
 import { classroomPracticeQuestions, classroomSectionQuestionIds } from "./data/cisc1115ClassroomPractice";
 import { validateArcadePrizePurchase } from "./practiceValidation";
@@ -920,6 +921,10 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
   const course = learningProgress(completed, practice);
   const chapter = chapterProgress(selectedChapter.id, completed, practice);
   const selectedProfessorState = selectedProfessorChapter ? chapterProgress(selectedProfessorChapter.id, completed, practice) : null;
+  const midtermStates = midtermChapterIds.map((id) => chapterProgress(id, completed, practice));
+  const midtermQuestionCount = midtermStates.reduce((sum, state) => sum + state.questions, 0);
+  const midtermPassed = midtermStates.reduce((sum, state) => sum + state.passed, 0);
+  const midtermPercent = midtermQuestionCount ? Math.round(midtermPassed / midtermQuestionCount * 100) : 0;
   const practicePlan = useMemo(() => chapterPracticePlan(selectedChapter.id), [selectedChapter.id]);
   const activeSectionTitle = titleCase(visibleSections.find((section) => section.id === activeSectionId)?.title ?? selectedProfessorChapter?.title ?? displayedMasteryTest?.title ?? selectedChapter.title);
   const resetReaderPosition = () => {
@@ -1150,6 +1155,7 @@ function CourseView({ completed, practice, position, setPosition, onPracticeChan
       <aside className={`contents-rail ${mobileContentsOpen ? "mobile-open" : ""}`} id="java-course-contents" aria-label="Course contents">
         <button className="mobile-contents-close" onClick={() => setMobileContentsOpen(false)}><span>Course Contents</span><X size={18} /></button>
         <div className="contents-heading"><p className="eyebrow">Course Contents</p><span>{professorChapterNumberById.size} chapters</span></div>
+        <div className="section-progress-card midterm-preparation-card"><div><span>Midterm Preparation</span><b>{midtermPercent}%</b></div><ProgressBar value={midtermPercent} /><small>{midtermPassed} / {midtermQuestionCount} practice questions passed</small><p>Follow the route through Math, text, files, and mixed practice. Loops and writing custom methods come next.</p><button className="panel-footer-button" onClick={() => onProfessorItemChange("midterm-practice")}>Open Midterm Practice <ArrowRight size={14} /></button></div>
         {courseRailContents}
         <div className="section-progress-card"><div><span>Core Mastery Progress</span><b>{course.percent}%</b></div><ProgressBar value={course.percent} /><small>{course.completedChapters} / {learningChapters.length} core chapters cleared</small><p>A chapter clears when every exercise passes. Existing completion stays intact as new class material is added.</p></div>
       </aside>

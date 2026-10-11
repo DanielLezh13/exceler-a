@@ -1,5 +1,6 @@
 import type { CoursePracticeQuestion, StructuredLessonSection } from "./cisc1115Course";
 import { numberSystemsQuestions, numberSystemsSectionQuestionIds, numberSystemsSections } from "./cisc1115NumberSystems.ts";
+import { methodArgumentsSection, randomIntegersSection, geometrySection, characterCodesSection, referenceSection, scannerTextSection, textDecisionSection, mathPracticeAdditions, mathReviewAdditions, textPracticeAdditions, textReviewAdditions, mathCheckpoints, textCheckpoints, triangleQuestion, conversionQuestion, bookQuestion, shippingQuestion, madLibsQuestion, rpsQuestion, midtermMixedQuestions, midtermPracticeSections, midtermPracticeCheckpoints } from "./cisc1115MidtermMaterial.ts";
 
 const normalizeLines = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 const compactCode = (value: string) => value.replace(/\s+/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
@@ -307,10 +308,11 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
   },
   {
     id: "mcneill-math-functions",
-    title: "Math Functions",
-    description: "Java's built-in Math tools at the point they appear in Prof. McNeill's schedule. Defining custom methods still comes later.",
+    title: "Math Methods & Arguments",
+    description: "Call library methods with arguments, use returned values, translate formulas, and generate random integer ranges. Practice grows into complete programs before defining custom methods later.",
     schedule: "Oct. 1 · Math Functions",
     sections: [
+      methodArgumentsSection,
       {
         id: "mcneill-math-calls",
         eyebrow: "Use library tools",
@@ -343,6 +345,8 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
           note: "Multiplication changes the range, the cast removes the decimal part, and + 1 shifts the first result from 0 to 1.",
         }],
       },
+      randomIntegersSection,
+      geometrySection,
     ],
     reviewQuestions: [
       exactOutput("mcneill-math-output", "Warm-up", "Use Square Root and Absolute Value", "What is the exact output?", "System.out.println(Math.sqrt(81));\nSystem.out.println(Math.abs(-7));", "9.0\n7", "sqrt returns a decimal result; abs reports the distance from zero.", "Correct. The square root is 9.0 and the absolute value is 7."),
@@ -352,7 +356,11 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
       choice("mcneill-math-random", "Apply", "Track Math.random's Range", "Which value could Math.random() produce directly?", ["0.42", "-0.25", "1.0", "6.0"], "0.42", "The lower bound is included and the upper bound is excluded.", "Correct. Math.random returns a double from 0.0 up to but not including 1.0."),
       writeExact("mcneill-math-pi", "Apply", "Calculate a Circumference", "Given double radius, write one statement that stores 2 × π × radius in double circumference using Java's Math constant.", "double radius = 3.0;", "double circumference = 2 * Math.PI * radius;", "Use Math.PI between the two multiplications.", "Correct. The statement uses Java's π constant in the circumference formula."),
       choice("mcneill-math-call", "Apply", "Call Instead of Define", "What does Math.max(first, second) do in this chapter?", ["Calls a method Java already provides", "Defines a new method named max", "Creates a new CPU instruction", "Changes both arguments to the same value"], "Calls a method Java already provides", "The Math class supplies the method before your program uses it.", "Correct. This chapter calls ready-made library methods; defining custom methods comes later."),
+      ...mathPracticeAdditions,
+      ...mathReviewAdditions,
+      triangleQuestion,
     ],
+    sectionQuestionIds: mathCheckpoints,
   },
   {
     id: "mcneill-text-files",
@@ -374,6 +382,7 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
         ],
         callout: { title: "Quotes carry meaning", body: "'A' is a char. \"A\" is a String. A char holds one character; a String can hold any length of text." },
       },
+      characterCodesSection,
       {
         id: "mcneill-string-basics",
         eyebrow: "Work with text",
@@ -385,9 +394,15 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
           { label: "substring(start, end)", detail: "Text from start through end - 1.", code: "String part = name.substring(0, 3);" },
           { label: "equals(other)", detail: "Whether two Strings contain the same text.", code: "boolean same = name.equals(other);" },
           { label: "compareTo(other)", detail: "Whether text comes before, matches, or comes after other text in lexicographic order." },
+          { label: "concat(other)", detail: "Returns joined text; it does not change the original String." },
+          { label: "trim()", detail: "Returns text with surrounding ordinary spaces removed." },
+          { label: "toUpperCase() / toLowerCase()", detail: "Return text with changed capitalization; store the return value to keep it." },
+          { label: "equalsIgnoreCase(other)", detail: "Compares text while ignoring capitalization." },
         ],
         callout: { title: "Positions start at zero", body: "The first character is at index 0. The last valid index is length() - 1." },
       },
+      referenceSection,
+      scannerTextSection,
       {
         id: "mcneill-formatted-output",
         eyebrow: "Control displayed text",
@@ -414,8 +429,9 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
         examples: [{
           label: "Read one value from a file",
           code: "import java.io.File;\nimport java.io.FileNotFoundException;\nimport java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) throws FileNotFoundException {\n        Scanner fileInput = new Scanner(new File(\"data.txt\"));\n        int value = fileInput.nextInt();\n        System.out.println(value);\n        fileInput.close();\n    }\n}",
-          note: "The exception phrase is setup boilerplate at this point. The important connection is that Scanner reads typed data from a File rather than System.in.",
+          note: "The exception phrase is setup boilerplate at this point. The important connection is that Scanner reads typed data from a File rather than System.in. A relative filename such as data.txt is looked up in the program's working directory. An absolute path starts at the filesystem root.",
         }],
+        rules: ["For a fixed three-value file, read three times; no loop is needed.", "The Scanner methods keep their token and line behavior when the source is a file.", "A record may combine a whole-line name with numeric tokens on the following line."],
       },
       {
         id: "mcneill-file-output",
@@ -431,8 +447,10 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
           "Use Scanner with System.in for keyboard input and Scanner with a File for file input.",
           "Use System.out for console output and PrintWriter for file output.",
           "Close file resources after the program finishes using them.",
+          "Opening PrintWriter for an existing filename replaces its previous contents.",
         ],
       },
+      textDecisionSection,
     ],
     reviewQuestions: [
       writeExact("mcneill-text-char-string", "Warm-up", "Use the Correct Quotes", "Declare char grade with A and String label with A.", undefined, "char grade = 'A';\nString label = \"A\";", "A char uses single quotes; a String uses double quotes.", "Correct. The quotation marks distinguish one character from String text."),
@@ -446,7 +464,20 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
       choice("mcneill-text-file-input", "Apply", "Choose a Scanner Source", "Which setup reads typed values from data.txt rather than from the keyboard?", ["Scanner fileInput = new Scanner(new File(\"data.txt\"));", "Scanner input = new Scanner(System.in);", "PrintWriter output = new PrintWriter(\"data.txt\");", "System.out.println(\"data.txt\");"], "Scanner fileInput = new Scanner(new File(\"data.txt\"));", "Scanner can read from different sources; this question asks for a File source.", "Correct. The Scanner is connected to a File instead of System.in."),
       writeExact("mcneill-text-file-output", "Apply", "Write and Close a Text File", "Inside a main method that already declares throws FileNotFoundException, create a PrintWriter for result.txt, write Saved result on one line, and close the writer.", undefined, "PrintWriter output = new PrintWriter(\"result.txt\");\noutput.println(\"Saved result\");\noutput.close();", "Create the writer, use its println method, and close the same variable.", "Correct. The program writes the line and closes the file resource."),
       choice("mcneill-text-close-resource", "Apply", "Explain Why Files Are Closed", "Why should the program close a PrintWriter after its final output?", ["To finish buffered output and release the file resource", "To convert the file into keyboard input", "To change every String into a char", "To make array indexes begin at one"], "To finish buffered output and release the file resource", "Closing completes the writer's work and releases what the program opened.", "Correct. Closing helps ensure the output is finished and the file resource is released."),
+      ...textPracticeAdditions,
+      ...textReviewAdditions,
+      conversionQuestion, bookQuestion, shippingQuestion, madLibsQuestion, rpsQuestion,
     ],
+    sectionQuestionIds: textCheckpoints,
+  },
+  {
+    id: "midterm-practice",
+    title: "Midterm Practice",
+    description: "Retrieve the quiz tools, trace interacting decisions, and construct complete programs using Math, text, and file input/output. Based on the supplied class materials, with varied cases and boundaries.",
+    schedule: "Midterm · October 20",
+    sections: midtermPracticeSections,
+    reviewQuestions: midtermMixedQuestions,
+    sectionQuestionIds: midtermPracticeCheckpoints,
   },
 ];
 
@@ -459,8 +490,9 @@ export const cisc1115ProfessorTrack: ProfessorTrackUnit[] = [
     { kind: "existing-chapter", id: "input-basic-programs" },
   ] },
   { id: "selections", label: "Unit II · Decision Making", entries: ["comparisons-booleans", "if-else", "decision-programs"].map((id) => ({ kind: "existing-chapter" as const, id })) },
-  { id: "math-functions", label: "Math Functions", entries: [{ kind: "added-chapter", id: "mcneill-math-functions" }] },
+  { id: "math-functions", label: "Math Methods & Arguments", entries: [{ kind: "added-chapter", id: "mcneill-math-functions" }] },
   { id: "text-files", label: "Characters, Strings & File I/O", entries: [{ kind: "added-chapter", id: "mcneill-text-files" }] },
+  { id: "midterm-preparation", label: "Midterm · Mixed Practice", entries: [{ kind: "added-chapter", id: "midterm-practice" }] },
   { id: "loops", label: "Unit III · Repetition", entries: ["while-loops", "for-loops", "nested-loops"].map((id) => ({ kind: "existing-chapter" as const, id })) },
   { id: "methods", label: "Unit IV · Methods", entries: ["methods", "returns-scope"].map((id) => ({ kind: "existing-chapter" as const, id })) },
   { id: "arrays-strings", label: "Unit V · Arrays, Lists & Strings", entries: ["arrays", "arrays-loops", "strings", "arraylists"].map((id) => ({ kind: "existing-chapter" as const, id })) },

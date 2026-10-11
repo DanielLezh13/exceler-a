@@ -29,8 +29,9 @@ test("the merged route is a normal unit and chapter hierarchy", () => {
     "Foundations · Computers & Programs",
     "Unit I · Java Fundamentals",
     "Unit II · Decision Making",
-    "Math Functions",
+    "Math Methods & Arguments",
     "Characters, Strings & File I/O",
+    "Midterm · Mixed Practice",
     "Unit III · Repetition",
     "Unit IV · Methods",
     "Unit V · Arrays, Lists & Strings",
@@ -40,14 +41,14 @@ test("the merged route is a normal unit and chapter hierarchy", () => {
     "Final · Course Synthesis",
   ]);
   const routeIds = cisc1115ProfessorTrack.flatMap((unit) => unit.entries.map((entry) => entry.id));
-  assert.equal(routeIds.length, 28);
+  assert.equal(routeIds.length, 29);
   assert.equal(new Set(routeIds).size, routeIds.length);
-  assert.deepEqual(routeIds.map((id) => professorChapterNumberById.get(id)), Array.from({ length: 28 }, (_, index) => index + 1));
+  assert.deepEqual(routeIds.map((id) => professorChapterNumberById.get(id)), Array.from({ length: 29 }, (_, index) => index + 1));
 });
 
 test("added syllabus chapters use ordinary chapter language and unique identities", async () => {
   const addedIds = cisc1115ProfessorAddedChapters.map((chapter) => chapter.id);
-  assert.deepEqual(addedIds, ["number-systems", "mcneill-lecture-1", "mcneill-math-functions", "mcneill-text-files"]);
+  assert.deepEqual(addedIds, ["number-systems", "mcneill-lecture-1", "mcneill-math-functions", "mcneill-text-files", "midterm-practice"]);
   assert.equal(new Set(addedIds).size, addedIds.length);
   assert.ok(addedIds.every((id) => !canonicalChapterIds.includes(id)));
   assert.ok(cisc1115ProfessorAddedChapters.every((chapter) => chapter.sections.length > 0));
@@ -92,8 +93,9 @@ test("every added syllabus chapter ends with a working cumulative review", async
   const expectedCounts = new Map([
     ["number-systems", 14],
     ["mcneill-lecture-1", 19],
-    ["mcneill-math-functions", 7],
-    ["mcneill-text-files", 11],
+    ["mcneill-math-functions", 35],
+    ["mcneill-text-files", 50],
+    ["midterm-practice", 21],
   ]);
   const allQuestionIds = [];
   for (const chapter of cisc1115ProfessorAddedChapters) {

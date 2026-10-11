@@ -1,6 +1,7 @@
 import type { CoursePracticeQuestion } from "./cisc1115Course";
 import { validateDecisionProgram } from "../decisionPracticeValidation.ts";
 import { validateFullInputProgram } from "../fullProgramValidation.ts";
+import { xorPracticeQuestions } from "./cisc1115MidtermMaterial.ts";
 
 const normalize = (value: string) => value.trim().replace(/\r/g, "").split("\n").map((line) => line.trimEnd()).join("\n");
 
@@ -50,6 +51,7 @@ export const classroomPracticeQuestions: Record<string, CoursePracticeQuestion[]
     ),
   ],
   "comparisons-booleans": [
+    ...xorPracticeQuestions,
     {
       id: "classroom-bool-trace-a", level: "Apply", kind: "Predict exact output", title: "Combine Arithmetic and Conditions",
       prompt: "What three lines print?", code: "int a = 38;\nint b = 12;\nint c = 37;\nSystem.out.println(a < c);\nSystem.out.println(a < c || b < c);\nSystem.out.println(b * 3 == a - 2);",
@@ -142,6 +144,6 @@ export const classroomPracticeQuestions: Record<string, CoursePracticeQuestion[]
 export const classroomSectionQuestionIds: Record<string, Record<string, string[]>> = {
   "operators-expressions": { "operators-evaluation": ["classroom-operators-trace", "classroom-operators-cast-error"] },
   "input-basic-programs": { "input-complete-program": ["classroom-input-average"] },
-  "comparisons-booleans": { "booleans-truth": ["classroom-bool-trace-a", "classroom-bool-trace-b"] },
+  "comparisons-booleans": { "booleans-xor": xorPracticeQuestions.map(q=>q.id), "booleans-truth": ["classroom-bool-trace-a", "classroom-bool-trace-b"] },
   "decision-programs": { "decision-min-max": ["classroom-decision-pair"], "decision-ranges": ["classroom-decision-fine"], "decision-combined": ["classroom-decision-event"] },
 };
