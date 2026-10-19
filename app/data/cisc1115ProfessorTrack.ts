@@ -1,3 +1,4 @@
+import { midtermStudyGuideChapter } from "./cisc1115MidtermStudyGuide.ts";
 import type { CoursePracticeQuestion, StructuredLessonSection } from "./cisc1115Course";
 import { numberSystemsQuestions, numberSystemsSectionQuestionIds, numberSystemsSections } from "./cisc1115NumberSystems.ts";
 import { methodArgumentsSection, randomIntegersSection, geometrySection, characterCodesSection, referenceSection, scannerTextSection, textDecisionSection, mathPracticeAdditions, mathReviewAdditions, textPracticeAdditions, textReviewAdditions, mathCheckpoints, textCheckpoints, triangleQuestion, conversionQuestion, bookQuestion, shippingQuestion, madLibsQuestion, rpsQuestion, midtermMixedQuestions, midtermPracticeSections, midtermPracticeCheckpoints } from "./cisc1115MidtermMaterial.ts";
@@ -479,6 +480,7 @@ export const cisc1115ProfessorAddedChapters: ProfessorTrackAddedChapter[] = [
     reviewQuestions: midtermMixedQuestions,
     sectionQuestionIds: midtermPracticeCheckpoints,
   },
+  midtermStudyGuideChapter,
 ];
 
 export const cisc1115ProfessorTrack: ProfessorTrackUnit[] = [
@@ -500,6 +502,7 @@ export const cisc1115ProfessorTrack: ProfessorTrackUnit[] = [
   { id: "program-development", label: "Unit VII · Program Development", entries: ["input-output", "debugging-testing"].map((id) => ({ kind: "existing-chapter" as const, id })) },
   { id: "computing-context", label: "Unit VIII · CS Foundations", entries: ["computers-programs-algorithms", "cs-context-applications"].map((id) => ({ kind: "existing-chapter" as const, id })) },
   { id: "course-synthesis", label: "Final · Course Synthesis", entries: ["cumulative-challenges", "final-assessment"].map((id) => ({ kind: "existing-chapter" as const, id })) },
+  { id: "midterm-study-guide", label: "Midterm · Study Guide", entries: [{ kind: "added-chapter", id: "midterm-study-guide" }] },
 ];
 
 export const professorAddedChapterById = new Map(cisc1115ProfessorAddedChapters.map((chapter) => [chapter.id, chapter]));

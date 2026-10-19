@@ -28,7 +28,7 @@ Deliberate non-additions: do not rebuild the already substantial operators/decis
 ## Corrected source errors
 
 - Incrementer adds 1 to **all three** inputs: `3 10 3` produces `4`, `11`, `4`. The study guide's last `3` is a typo.
-- The displayed mathematical formula has `-e` **outside** the square root; the answer key incorrectly moves it inside.
+- Correction on October 19: enlarging the actual PDF diagram confirms that its radical bar includes `-e`. The prior October 11 integration misread the bar; the lesson, reference, fixtures and regression test now correctly put the subtraction **inside** the root.
 - Class reference code is compilable: corrected parentheses, the stray `|`, and `input.close():`.
 - HW4's game has three computer choices, **0, 1, 2**, with 3 excluded. Avoid copying its ambiguous “0–3” phrase.
 - ASCII covers 0–127; Java char stores a UTF-16 code unit. `\u0030`/48 is `'0'`, not `'a'`.

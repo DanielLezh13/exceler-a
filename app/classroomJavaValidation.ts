@@ -14,6 +14,7 @@ export type ClassroomSample = {
 export type ClassroomSpec = {
   className?: string; types?: Record<string, Primitive>; resultVariable?: string;
   numericOutput?: boolean; numericTolerance?: number; requireClose?: boolean; requiredCalls?: string[];
+  resultType?: Primitive;
 };
 function fail(): never { throw Error("Outside the supported classroom Java subset"); }
 const children = (node: Node): Node[] => {
@@ -185,7 +186,7 @@ export function validateClassroomJava(answer: string, spec: ClassroomSpec, sampl
             if(method==="random"&&args.length===0){const value=sample.random?.[randomIndex++]??0.37;if(value<0||value>=1)fail();return {type:"double",value};}
             if(["min","max","pow"].includes(method)&&args.length===2){const x=num(args[0]),y=num(args[1]);return {type:method==="pow"?"double":numericType(args[0],args[1]),value:method==="pow"?Math.pow(x,y):method==="min"?Math.min(x,y):Math.max(x,y)};}
             if(args.length!==1)fail();const x=num(args[0]);
-            const methods:Record<string,(x:number)=>number>={sqrt:Math.sqrt,abs:Math.abs,floor:Math.floor,ceil:Math.ceil,round:x=>Math.floor(x+0.5),sin:Math.sin,cos:Math.cos,tan:Math.tan,acos:Math.acos,asin:Math.asin,atan:Math.atan,toDegrees:x=>x*180/Math.PI,toRadians:x=>x*Math.PI/180};
+            const methods:Record<string,(x:number)=>number>={sqrt:Math.sqrt,abs:Math.abs,exp:Math.exp,log:Math.log,log10:Math.log10,rint:x=>{const floor=Math.floor(x),fraction=x-floor;return fraction===.5?floor%2===0?floor:floor+1:Math.round(x);},floor:Math.floor,ceil:Math.ceil,round:x=>Math.floor(x+0.5),sin:Math.sin,cos:Math.cos,tan:Math.tan,acos:Math.acos,asin:Math.asin,atan:Math.atan,toDegrees:x=>x*180/Math.PI,toRadians:x=>x*Math.PI/180};
             if(!methods[method])fail();return {type:method==="abs"?args[0].type==="char"?"int":args[0].type:method==="round"?"long":"double",value:methods[method](x)};
           }
           if(text(receiver)==="Character"&&args.length===1){const c=String.fromCharCode(num(args[0]));if(method==="toUpperCase"||method==="toLowerCase")return {type:"char",value:(method==="toUpperCase"?c.toUpperCase():c.toLowerCase()).charCodeAt(0)};const checks:Record<string,boolean>={isDigit:/^[0-9]$/.test(c),isLetter:/^\p{L}$/u.test(c),isLetterOrDigit:/^[\p{L}\p{N}]$/u.test(c),isUpperCase:c.toUpperCase()===c&&c.toLowerCase()!==c,isLowerCase:c.toLowerCase()===c&&c.toUpperCase()!==c};if(!Object.hasOwn(checks,method))fail();return {type:"boolean",value:checks[method]};}
@@ -241,11 +242,11 @@ export function validateClassroomJava(answer: string, spec: ClassroomSpec, sampl
       const actual=normalize(writes.filter(w=>!lastKeyboardRead||w.at>lastKeyboardRead).map(w=>w.text).join(""));
       if(sample.output!==undefined){
         const expected=normalize(sample.output);
-        if(spec.numericOutput){const a=actual.split("\n"),b=expected.split("\n");if(a.length!==b.length||a.some((s,i)=>!s.trim()||!(near(Number(s),Number(b[i]))||(spec.numericTolerance!==undefined&&Number.isFinite(Number(s))&&Math.abs(Number(s)-Number(b[i]))<=spec.numericTolerance))))return false;}
+        if(spec.numericOutput&&expected.split("\n").every(s=>s.trim()&&Number.isFinite(Number(s)))){const a=actual.split("\n"),b=expected.split("\n");if(a.length!==b.length||a.some((s,i)=>!s.trim()||!(near(Number(s),Number(b[i]))||(spec.numericTolerance!==undefined&&Number.isFinite(Number(s))&&Math.abs(Number(s)-Number(b[i]))<=spec.numericTolerance))))return false;}
         else if(actual!==expected)return false;
       }
       for(const [path,expected] of Object.entries(sample.outputFiles??{}))if(files[path]===undefined||normalize(files[path])!==normalize(expected))return false;
-      if(spec.resultVariable){const value=vars.get(spec.resultVariable)?.value;if(!value)return false;if(typeof sample.result==="number"?!near(num(value),sample.result):value.value!==sample.result)return false;}
+      if(spec.resultVariable){const variable=vars.get(spec.resultVariable),value=variable?.value;if(!value||spec.resultType&&variable?.type!==spec.resultType)return false;if(typeof sample.result==="number"?!near(num(value),sample.result):value.value!==sample.result)return false;}
     }
     return true;
   }catch{return false;}

@@ -39,16 +39,17 @@ test("the merged route is a normal unit and chapter hierarchy", () => {
     "Unit VII · Program Development",
     "Unit VIII · CS Foundations",
     "Final · Course Synthesis",
+    "Midterm · Study Guide",
   ]);
   const routeIds = cisc1115ProfessorTrack.flatMap((unit) => unit.entries.map((entry) => entry.id));
-  assert.equal(routeIds.length, 29);
+  assert.equal(routeIds.length, 30);
   assert.equal(new Set(routeIds).size, routeIds.length);
-  assert.deepEqual(routeIds.map((id) => professorChapterNumberById.get(id)), Array.from({ length: 29 }, (_, index) => index + 1));
+  assert.deepEqual(routeIds.map((id) => professorChapterNumberById.get(id)), Array.from({ length: 30 }, (_, index) => index + 1));
 });
 
 test("added syllabus chapters use ordinary chapter language and unique identities", async () => {
   const addedIds = cisc1115ProfessorAddedChapters.map((chapter) => chapter.id);
-  assert.deepEqual(addedIds, ["number-systems", "mcneill-lecture-1", "mcneill-math-functions", "mcneill-text-files", "midterm-practice"]);
+  assert.deepEqual(addedIds, ["number-systems", "mcneill-lecture-1", "mcneill-math-functions", "mcneill-text-files", "midterm-practice", "midterm-study-guide"]);
   assert.equal(new Set(addedIds).size, addedIds.length);
   assert.ok(addedIds.every((id) => !canonicalChapterIds.includes(id)));
   assert.ok(cisc1115ProfessorAddedChapters.every((chapter) => chapter.sections.length > 0));
@@ -96,6 +97,7 @@ test("every added syllabus chapter ends with a working cumulative review", async
     ["mcneill-math-functions", 35],
     ["mcneill-text-files", 50],
     ["midterm-practice", 21],
+    ["midterm-study-guide", 106],
   ]);
   const allQuestionIds = [];
   for (const chapter of cisc1115ProfessorAddedChapters) {

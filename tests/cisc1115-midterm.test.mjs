@@ -92,8 +92,8 @@ test("Java arithmetic precedence, evaluation order, references, truncation and s
 
 test("Math grouping, angle units, character casts and String return values fail on the targeted misconceptions",()=>{
   const formula=question("mid-math-formula");
-  assert.ok(formula.validate("double a = Math.sqrt((3+c)/(d+2)) + b - e;"));
-  assert.ok(!formula.validate(formula.answer.replace("Math.sqrt((c + 3) / (2 + d)) - e","Math.sqrt((c + 3) / (2 + d) - e)")));
+  assert.ok(formula.validate("double a = b + Math.sqrt((3+c)/(d+2)-e);"));
+  assert.ok(!formula.validate(formula.answer.replace("Math.sqrt((c + 3) / (2 + d) - e)","Math.sqrt((c + 3) / (2 + d)) - e")));
   const triangle=question("mid-triangle-program");
   assert.ok(!triangle.validate(triangle.answer.replaceAll("Math.toDegrees(angleA)","angleA")));
   const hex=question("mid-text-review-hex-program");
