@@ -6,6 +6,9 @@ import { divisionChapter } from "./anth1200Division.ts";
 import { inheritanceChapter } from "./anth1200Inheritance.ts";
 import { forcesChapter } from "./anth1200Forces.ts";
 import { speciationChapter } from "./anth1200Speciation.ts";
+import { primatologyUnit } from "./anth1200Primatology.ts";
+import { behaviorUnit } from "./anth1200PrimateBehavior.ts";
+export { anth1200MidtermCoverage } from "./anth1200Primatology.ts";
 
 const geneticsTest = [
   ask("gen-test-1", "Recall the structural differences of DNA and RNA.", [term("DNA sugar", "deoxyribose"), term("RNA sugar", "ribose"), term("DNA-specific base instead of U", "thymine", ["T"]), term("RNA-specific base instead of T", "uracil", ["U"])], "Use both paired differences.", "DNA: deoxyribose/T; RNA: ribose/U."),
@@ -82,9 +85,14 @@ const examTest = [
 const populationUnit = unit("anth-unit-3", "III · Population Evolution", [forcesChapter, speciationChapter], examTest);
 
 export const anth1200: MathCourse = {
-  id: "anth1200", code: "ANTH 1200", title: "Human Origins · Exam 1", prerequisites: [],
-  description: "Focused on your Exam 1 study guide: evolutionary thought, DNA → protein, cell division, Mendelian inheritance, genetic variation, evolutionary forces, and the three speciation terms. Start with short connected lessons, then recall facts, compare explanations, and apply them. The syllabus describes mainly multiple-choice and fill-in-the-blank exams. Later primate and fossil-human units are outside this course for now.",
+  id: "anth1200", code: "ANTH 1200", title: "Human Origins · Exam Preparation", prerequisites: [],
+  description: "Your Exam 1 material remains in Units I–III. For the new midterm, start at Unit IV · Primatology Midterm: retrieve evolutionary forces, then study species, mammals, primate adaptations, and classification. Unit V adds the supplied Primate Behavior lecture as extra practice; it is not explicitly listed in the new guide. Short lessons lead into comparisons, evidence-based identification, multiple-choice chapter reviews, and mixed tests. The guides define preparation scope, not guaranteed exam questions.",
   sources: [
+    { title: "Primatology midterm scope: Midterm-Study Guide primatology.docx. Every definition, blank, comparison-table entry, and essay topic is mapped to Unit IV practice. The guide repeats forces/speciation but does not explicitly repeat the full Exam 1 genetics sequence." },
+    { title: "Midterm class sources: Ch - Tagged.pdf (5 Processes of Macroevolution); Ch - Tagged (1).pdf (Ch. 6 Primates: Overview); class 7 intro to Streps_FINAL; Class 8 haplorrhines - platyrrhines; Class 9 haplorrhines - catarrhines. Generalizations are qualified for taught exceptions." },
+    { title: "Extra supplied lecture: class 10 - Primate Behavior.pdf. Unit V is separate because behavior is not explicitly named in the primatology midterm guide; instructor confirmation may expand the tested scope." },
+    { title: "Mammal trait fact check: OpenStax Biology, Mammals", url: "https://openstax.org/books/biology/pages/29-6-mammals" },
+    { title: "Natural primate hybrid example: Fogel and colleagues, Genetic ancestry predicts male–female affiliation in a natural baboon hybrid zone", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8635413/" },
     { title: "Primary scope: full_study_guide_exam1.docx — every listed prompt is mapped to lessons and practice; duplicated numbering is treated as separate prompts." },
     { title: "Class lectures: History of evolutionary thought; DNA and chromosomes; Chromosomes and Cell Division; Mendelian Genetics and Inheritance; Forces of Evolution. Original practice adapts their concepts and class activities." },
     { title: "Context and exam format: Lecture 0-Introduction and Syllabus Anth.docx, Fall 2026. These materials set context; syllabus logistics and later units are not memorization questions." },
@@ -94,7 +102,9 @@ export const anth1200: MathCourse = {
   units: [
     unit("anth-unit-1", "I · Evolutionary Thought", [evolutionaryThought], thoughtTest),
     unit("anth-unit-2", "II · Inheritance and Genetic Variation", [dnaChapter, divisionChapter, inheritanceChapter], geneticsTest),
-    { ...populationUnit, assessment: { ...populationUnit.assessment, title: "Exam 1 · Mixed Practice Test" } }
+    { ...populationUnit, assessment: { ...populationUnit.assessment, title: "Exam 1 · Mixed Practice Test" } },
+    primatologyUnit,
+    behaviorUnit
   ]
 };
 

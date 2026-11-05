@@ -42,14 +42,14 @@ test("chapter-review reset clears the whole selected review and survives reload 
 });
 
 test("old completed chapter reviews carry all individual answers, aliases and notes into the split choices",()=>{
-  const reviews=courseChapters(anth1200).flatMap(c=>c.review),groups=new Map();
+  const reviews=courseChapters(anth1200).slice(0,6).flatMap(c=>c.review),groups=new Map();
   for(const q of reviews)if(q.legacyReviewField){
     const old=q.legacyReviewField;
     if(!groups.has(old.questionId))groups.set(old.questionId,{...q,id:old.questionId,fields:[]});
     groups.get(old.questionId).fields[old.index]=old.field;
   }
   let state=emptyMathProgress();
-  for(const q of courseChapters(anth1200).flatMap(c=>c.sections.flatMap(s=>s.questions))) {
+  for(const q of courseChapters(anth1200).slice(0,6).flatMap(c=>c.sections.flatMap(s=>s.questions))) {
     state=updateMathResponse(state,q.id,canonical(q));state=checkMathQuestion(state,q);
   }
   for(const q of [...groups.values(),...reviews.filter(q=>!q.legacyReviewField)]){
@@ -98,15 +98,15 @@ test("Anthropology maps every guide prompt to reachable, taught practice",()=>{
   assert.equal(anth1200GuideCoverage.length,65);
   assert.equal(new Set(anth1200GuideCoverage.map(item=>item.guidePrompt)).size,65);
   for(const item of anth1200GuideCoverage) assert.ok(byId[item.questionId],item.guidePrompt);
-  assert.equal(courseChapters(anth1200).length,6);
-  assert.equal(courseChapters(anth1200).flatMap(c=>c.sections).length,17);
-  assert.equal(questions.length,322);
-  for(const chapter of courseChapters(anth1200)) for(const section of chapter.sections) {
+  assert.equal(courseChapters(anth1200).length,11);
+  assert.equal(courseChapters(anth1200).flatMap(c=>c.sections).length,31);
+  assert.equal(questions.length,522);
+  for(const chapter of courseChapters(anth1200).slice(0,6)) for(const section of chapter.sections) {
     assert.ok(section.questions.some(q=>q.fields.some(f=>f.kind==="text")),section.id);
     assert.ok(section.questions.some(q=>q.fields.some(f=>f.kind==="choice")),section.id);
   }
-  assert.deepEqual(anth1200.units.map(u=>u.assessment.questions.length),[12,20,46]);
-  assert.deepEqual(courseChapters(anth1200).map(c=>c.review.length),[10,19,15,14,11,12]);
+  assert.deepEqual(anth1200.units.map(u=>u.assessment.questions.length),[12,20,46,32,10]);
+  assert.deepEqual(courseChapters(anth1200).map(c=>c.review.length),[10,19,15,14,11,12,10,8,10,10,8]);
   for(const chapter of courseChapters(anth1200)) for(const q of chapter.review) {
     assert.equal(q.fields.length,1,q.id);assert.equal(q.fields[0].kind,"choice",q.id);
     for(const option of q.fields[0].options) assert.equal(gradeField(q.fields[0],option).passed,option===q.fields[0].answer,`${q.id}: ${option}`);
